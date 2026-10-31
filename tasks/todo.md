@@ -1,126 +1,98 @@
-# Tasks: `foundation`
+# Tasks: `broker`
 
-> Plan: [plan.md](plan.md) · Spec: [SPEC-foundation.md](../SPEC-foundation.md)
-> Verification shorthand: **gate** = `npm run typecheck && npm test` from the repo root.
+> Plan: [plan.md](plan.md) · Spec: [SPEC-broker.md](../SPEC-broker.md)
+> **gate** = `npm run typecheck && npm test` from the repo root. Work happens on `broker/*` branches, so every push deploys **staging** only.
 
-## Phase 1: Repo and decisions
+## Phase 1: Core
 
-### T1: Repo skeleton
-Create the npm-workspaces monorepo that mirrors Corpus, and push it to a new **private** `whitebirchio/trader`.
+### B1: Config vars + port and domain types
 - **Acceptance:**
-  - [x] Root `package.json` (workspaces `packages/*`, `apps/*`; scripts `typecheck`, `test`, `dev`, `deploy:staging`, `deploy:production`, `db:generate`), `tsconfig.base.json` (Corpus copy), `.gitignore` (Corpus copy), `.nvmrc` (22)
-  - [x] `packages/core` (`@trader/core`) and `apps/engine` (`trader-engine`) each typecheck; core runs one placeholder vitest test
-  - [x] `git init`, first commit on `main`, `gh repo create whitebirchio/trader --private --source . --push`
-- **Verify:** gate passes on a fresh `npm ci`; `gh repo view whitebirchio/trader --json visibility` → `PRIVATE`
-- **Depends on:** none
-- **Files:** `package.json`, `tsconfig.base.json`, `.gitignore`, `.nvmrc`, `packages/core/{package.json,tsconfig.json,vitest.config.ts,src/index.ts}`, `apps/engine/{package.json,tsconfig.json,src/index.ts}`
-- **Scope:** M (many files, all boilerplate)
+  - [ ] `parseConfig` requires `ALPACA_KEY_ID` and `ALPACA_SECRET_KEY` and still reports names only. The tests are updated.
+  - [ ] `broker/port.ts`: the `BrokerAdapter` interface and types (`Account`, `AccountConfig`, `Position`, `BrokerOrder`, `Activity`, `Bar`, `Clock`, `CalendarDay`, `Asset`, `OrderRequest`). Money is a decimal string everywhere.
+  - [ ] `alpacaHosts(env)`: staging → paper host, production → live host. No override.
+- **Verify:** `npx vitest run config broker/hosts`; gate
+- **Depends on:** — · **Files:** `src/config.ts`, `src/broker/port.ts`, `src/broker/hosts.ts`, tests · **Scope:** S
 
-### T2: ADRs, CLAUDE.md, README
-Record the decisions already made so no future session re-derives them.
+### B2: `AlpacaBroker` read methods
 - **Acceptance:**
-  - [x] `docs/decisions/README.md` index + ADRs: 001 Workers + Neon hosting · 002 hexagonal core · 003 Claude owns strategy, code owns risk · 004 Claude via scheduled MCP routine, no server-side LLM · 005 paper = staging, one account per env · 006 branch-based deploys · 007 idempotent job runs · 008 append-only audit log · 009 money as `numeric` + `Big` · 010 wash sales are a cost, not a rule · 011 no broker order tools for Claude
-  - [x] `CLAUDE.md`: commands, architecture, invariants, workflow (`/spec` → `/plan` → `/build`, `SPEC-<module>.md`, `tasks/`), boundaries from the spec
-  - [x] `README.md`: what it is, the module map link, quickstart
-- **Verify:** every ADR has Status/Date/Context/Decision/Alternatives/Consequences; the ADR list matches spec success criterion 7
-- **Depends on:** T1
-- **Files:** `docs/decisions/*.md`, `CLAUDE.md`, `README.md`
-- **Scope:** M (docs only)
+  - [ ] `getAccount`, `getAccountConfig`, `getClock`, `getCalendar`, `getPositions`, `getOrders(after)`, `getOrderByClientId`, `getActivities(after)` (follows `page_token`), `getAsset`, `getDailyBars(symbols, start, end)` (`feed=sip`, `adjustment=all`, end clamped to ≥15 min ago, paginated)
+  - [ ] Every response is Zod-parsed. A 4xx/5xx becomes a typed `BrokerHttpError` (status, Alpaca code) with no secrets in the message.
+  - [ ] Tests assert host-per-env, auth headers, query params, pagination and parsing against fixtures.
+- **Verify:** `npx vitest run broker/alpaca`; gate
+- **Depends on:** B1 · **Files:** `src/broker/alpaca.ts`, `test/broker/alpaca.test.ts`, `test/broker/fixtures/*` · **Scope:** M
+
+### B3: `buildLots`
+- **Acceptance:**
+  - [ ] Pure FIFO: open lots per symbol (`qty`, `costBasis`, `openedAt`) and realized closures (`qty`, `proceeds`, `costBasis`, `gain`, `openedAt`, `closedAt`) from FILL + SPLIT activities
+  - [ ] Tests: partial fills; several buys and a partial sell; a full close; a loss followed by a rebuy within 30 days (both closure and new lot present with dates); a 2:1 split
+- **Verify:** `npx vitest run broker/lots`; gate
+- **Depends on:** B1 · **Files:** `src/broker/lots.ts`, `test/broker/lots.test.ts` · **Scope:** S
+
+### B4: Migration 0002
+- **Acceptance:**
+  - [ ] Schema: `broker_account`, `broker_activities`, `orders`, `positions`, `equity_snapshots` per the spec, with `trading_allowed` + `blocked_reasons` on `broker_account`
+  - [ ] A custom migration generalizes the append-only trigger (`reject_mutation()`) and applies it to `broker_activities`. A guarded `REVOKE UPDATE, DELETE, TRUNCATE … FROM trader_app` runs when the role exists.
+  - [ ] Tests: a numeric round trip on a new column; UPDATE/DELETE on `broker_activities` raise; the `audit_events` trigger still raises
+- **Verify:** `npx vitest run db audit`; `db:generate` clean; gate
+- **Depends on:** B1 · **Files:** `src/db/schema.ts`, `drizzle/0002_*`, `drizzle/0003_*`, tests · **Scope:** M
 
 ### Checkpoint A
-- [x] Gate green · repo pushed (private) · Scott skims the ADR index
+- [ ] Gate green · `db:generate` clean · commit + push (staging deploy is still fine: B1's config requires the staging secrets, so **set them before this push**, which is the first step of B8)
 
-## Phase 2: Core
-
-### T3: `parseConfig`
+### B5: `syncBroker` + `sync-broker` job
 - **Acceptance:**
-  - [x] Zod schema: `TRADING_ENV` ∈ {`staging`,`production`}, `DATABASE_URL` is a `postgres(ql)://` URL
-  - [x] Returns `{ ok: true, config }` or `{ ok: false, missing, invalid }` with **names only**
-  - [x] Test: no secret value appears in `JSON.stringify` of a failure result
-- **Verify:** `npx vitest run config` (in `packages/core`); gate
-- **Depends on:** T1 · **Files:** `src/config.ts`, `test/config.test.ts`, `src/index.ts` · **Scope:** S
+  - [ ] Clock and calendar gate: run while open or within 30 min after the close, otherwise `skipped: market closed`
+  - [ ] Pins the account number; checks status, blocks, `max_margin_multiplier = "1"`, `no_shorting`, `fractional_trading`; upserts the account state
+  - [ ] Activities insert-or-ignore from `max(at) − 3d` (full backfill on first run); orders upserted by `client_order_id` and audited on status transitions; positions replaced; one `equity_snapshots` row per trading date after the close
+  - [ ] Reconciliation: open-lot qty per symbol = position qty (exact `Big` compare)
+  - [ ] `trading_allowed` + `blocked_reasons` persisted; `broker.*` audit events on transitions only
+  - [ ] `test/broker/fake-broker.ts` (scriptable in-memory adapter); `sync-broker` added to `JOBS` and to the engine's `*/15` schedule
+- **Verify:** `npx vitest run broker/sync`; gate
+- **Depends on:** B2, B3, B4 · **Files:** `src/broker/sync.ts`, `src/jobs.ts`, `test/broker/{sync.test,fake-broker}.ts`, `apps/engine/src/index.ts` · **Scope:** M
 
-### T4: `money` helpers
+### B6: `submitOrder`
 - **Acceptance:**
-  - [x] Add `big.js` and `@types/big.js`; `src/money.ts` exports parse/format helpers plus arithmetic over decimal strings, with explicit rounding modes
-  - [x] Tests: `0.1 + 0.2 === "0.3"`; fractional-share quantity math (9 dp) exact; rejects `NaN`/`Infinity`/non-numeric strings
-- **Verify:** `npx vitest run money`; gate
-- **Depends on:** T1 · **Files:** `src/money.ts`, `test/money.test.ts`, `package.json` · **Scope:** S
+  - [ ] `clientOrderId(env, intentKey)`: deterministic, ≤48 chars, env-prefixed
+  - [ ] Records the intent row + `order.intent` audit **before** the broker call. A known client id → `already_submitted` with no call. A rejection → `rejected` + audit. A timeout or network error → `unknown`, which `syncBroker` resolves via `getOrderByClientId`.
+  - [ ] Validates notional (2 dp, ≥ $1) or qty (9 dp, > 0), not both
+- **Verify:** `npx vitest run broker/orders`; gate
+- **Depends on:** B4, B5 (fake broker) · **Files:** `src/broker/orders.ts`, `test/broker/orders.test.ts` · **Scope:** S
 
-### T5: Schema, migrations, PGlite harness
+### B7: Scripts
 - **Acceptance:**
-  - [x] `src/db/schema.ts` defines `job_runs` (unique `(job, scheduled_for)`) and `audit_events` as in the spec; `src/db/client.ts` `Db` type; `drizzle.config.ts` with `casing: "snake_case"`
-  - [x] Generated migration committed under `drizzle/`; `scripts/migrate.ts` applies migrations using `DATABASE_URL`
-  - [x] `test/helpers.ts` `createTestDb()` applies all migrations to a fresh PGlite
-  - [x] Test: a `numeric` value round-trips through PGlite as an exact string
-- **Verify:** `npx vitest run db`; `npm run db:generate -w @trader/core` produces no diff; gate
-- **Depends on:** T1, T4 · **Files:** `src/db/{schema,client}.ts`, `drizzle.config.ts`, `drizzle/*`, `scripts/migrate.ts`, `test/helpers.ts`, `test/db.test.ts` · **Scope:** M
-
-### T6: Audit log (append-only)
-- **Acceptance:**
-  - [x] Custom migration adds a `BEFORE UPDATE OR DELETE` trigger on `audit_events` that raises
-  - [x] `recordEvent(db, { actor, kind, subject?, payload, jobRunId? })` with a typed `AuditKind` union (`job.failed`, `system.config_invalid`, …)
-  - [x] Tests: insert works; `UPDATE` raises; `DELETE` raises
-- **Verify:** `npx vitest run audit`; gate
-- **Depends on:** T5 · **Files:** `drizzle/<n>_audit_append_only.sql` (+ journal), `src/audit.ts`, `test/audit.test.ts` · **Scope:** S
-
-### T7: Job runner + heartbeat
-- **Acceptance:**
-  - [x] `runJob(db, job, scheduledFor, fn)` claims the slot through `ON CONFLICT DO NOTHING` and records `succeeded`/`skipped`/`failed` with `finished_at`; on failure, also writes a `job.failed` audit event and never rethrows
-  - [x] `heartbeat` job implementation (records `succeeded` with `{ env }` detail)
-  - [x] Tests: success path; thrown error → `failed` row + audit event; same `(job, scheduledFor)` twice → `duplicate`, exactly one row
-- **Verify:** `npx vitest run jobs`; gate
-- **Depends on:** T5, T6 · **Files:** `src/jobs.ts`, `test/jobs.test.ts`, `src/index.ts` · **Scope:** S
-
-### T8: `getHealth`
-- **Acceptance:**
-  - [x] `getHealth(db, env, now)` → `{ env, status: "healthy" | "unhealthy", lastHeartbeatAt, reason? }`, healthy only if the last `succeeded` heartbeat is ≤ 30 min old
-  - [x] Tests: fresh, stale and never cases
-- **Verify:** `npx vitest run health`; gate
-- **Depends on:** T7 · **Files:** `src/health.ts`, `test/health.test.ts` · **Scope:** XS
+  - [ ] `broker:configure -- --env <env> [--margin N]`: prints the current config and applies the safe one (or N for the SC-5 test, **staging only**)
+  - [ ] `broker:capture -- --env staging`: records scrubbed fixtures
+  - [ ] `broker:smoke`: refuses unless `--env staging` and the market is open; submits a $5 VTI buy through `submitOrder`, syncs until filled (≤2 min), asserts the lot = position and the audit trail, then re-submits the same intent and asserts `already_submitted`
+- **Verify:** dry runs against paper (weekend: configure + capture; smoke refuses with "market closed")
+- **Depends on:** B5, B6 · **Files:** `scripts/broker-{configure,capture,smoke}.ts`, `package.json` · **Scope:** S
 
 ### Checkpoint B
-- [x] Gate green · every exported core function has a test · `db:generate` clean · commit + push (first staging-eligible push is still a no-op until T11)
+- [ ] Gate green · every exported function tested · Scott skims the `tradingAllowed` reasons and the transition-only auditing
 
-## Phase 3: Deploy
+## Phase 2: Staging, then production
 
-### T9: Accounts, Neon branches, roles, secrets (human-in-the-loop)
-Write each step into `docs/SETUP.md` as it's done. Steps marked *(Scott)* need a dashboard login.
+### B8: Staging deploy + weekend verification
 - **Acceptance:**
-  - [x] *(Scott)* Neon project `trader`: rename the default branch to `production` and create a `staging` child branch; copy both owner pooled URLs into a local `.env`
-  - [x] Run `db:migrate` against both branches; run `packages/core/scripts/app-role.ts` via `scripts/set-db-secret.sh` (idempotent, rotates the password, and verifies by connecting as the role; `trader_app` gets `SELECT/INSERT/UPDATE/DELETE` on `job_runs` and `SELECT/INSERT` only on `audit_events`) on both
-  - [x] *(Scott)* Cloudflare API token (Workers edit) and `npx wrangler login` locally
-  - [x] Worker secret `DATABASE_URL` (app role) for `--env staging`
-  - [x] …and for `--env production`. The Worker only exists after the first `main` deploy, so this happens in T12 (Scott runs `scripts/set-db-secret.sh production`).
-  - [x] GitHub repo secrets through `gh secret set`: `CLOUDFLARE_API_TOKEN`, `STAGING_MIGRATE_URL`, `PRODUCTION_MIGRATE_URL`
-- **Verify:** `gh secret list` shows all three; connecting as `trader_app`, `UPDATE audit_events …` is denied and `CREATE TABLE x()` is denied
-- **Depends on:** T1 (T5 for the migrate step) · **Files:** `packages/core/scripts/app-role.ts`, `scripts/set-db-secret.sh`, `docs/SETUP.md`, `.env.example` · **Scope:** S (code) + manual
+  - [ ] Staging Worker secrets `ALPACA_KEY_ID` / `ALPACA_SECRET_KEY` piped from `.env` (`STAGING_ALPACA_*`); `docs/SETUP.md` updated
+  - [ ] `broker:configure -- --env staging` → safe config
+  - [ ] Branch push → staging deploy; weekend ticks record `skipped: market closed`; heartbeat still healthy
+  - [ ] SC-5: margin 2 → next eligible sync `tradingAllowed = false` + one `broker.config_unsafe`; restored → cleared (re-checked Monday if the market-closed gate prevents the weekend run; a `--force` sync script run is acceptable for this check)
+- **Depends on:** B7 · **Files:** `docs/SETUP.md`, `scripts/set-alpaca-secret.sh` · **Scope:** S
 
-### T10: `apps/engine` Worker
+### B9: Monday 2026-11-02 session (paper)
 - **Acceptance:**
-  - [x] `wrangler.jsonc` with `env.staging`/`env.production` (`TRADING_ENV` var, cron `*/15 * * * *`, `observability.enabled`, `preview_urls: false`)
-  - [x] `scheduled()`: `parseConfig` → if invalid, log names and return; else Neon Pool → `runJob` for each job mapped to `controller.cron` with `scheduledTime`; `ctx.waitUntil(pool.end())`
-  - [x] `fetch()`: bad config → 503 JSON naming missing/invalid vars; `GET /healthz` → `getHealth` (200 if healthy, else 503); anything else → 404
-- **Verify:** `npm run dev` with `.dev.vars` pointing at **Neon staging**: firing `__scheduled` twice with the same time produces one row (SC-6); `/healthz` returns 200; blanking `DATABASE_URL` → 503 naming it (SC-5)
-- **Depends on:** T8, T9 · **Files:** `apps/engine/{wrangler.jsonc,src/index.ts,package.json}`, `apps/engine/.dev.vars.example` · **Scope:** S
+  - [ ] SC-2: during market hours staging syncs `succeeded` and the tables match the paper account
+  - [ ] SC-3: `broker:smoke` passes
+  - [ ] SC-4: one `equity_snapshots` row for 2026-11-02 after the close
+  - [ ] Fixtures refreshed from the real fill (`broker:capture`)
+- **Depends on:** B8 · **Scope:** XS (verification)
 
-### T11: CI workflow
+### B10: Production
 - **Acceptance:**
-  - [x] `build` job on every push (no `pull_request` trigger: PR branches are pushed anyway, so it would run twice): `npm ci`, typecheck, test (Node 22, npm cache)
-  - [x] `deploy-staging` on `push` to a branch other than `main`: needs `build` → `db:migrate` with `STAGING_MIGRATE_URL` → `wrangler deploy --env staging`
-  - [x] `deploy-production` on `push` to `main`: needs `build` → `db:migrate` with `PRODUCTION_MIGRATE_URL` → `wrangler deploy --env production`
-  - [x] Separate deploy concurrency groups, `cancel-in-progress: false`
-- **Verify:** push a feature branch → `build` + `deploy-staging` green, production untouched
-- **Depends on:** T9, T10 · **Files:** `.github/workflows/ci.yml` · **Scope:** S
+  - [ ] *(Scott)* live key pair in `.env` (`PRODUCTION_ALPACA_*`); *(Scott)* runs `scripts/set-alpaca-secret.sh production` and `npm run broker:configure -w @trader/core -- --env production`
+  - [ ] PR to `main` → production deploy; `/healthz` 200; first sync backfills; `trading_allowed = true`; **no orders placed**
+  - [ ] SC-7: sync durations within free-plan CPU (from `job_runs`)
+- **Depends on:** B9 · **Scope:** XS
 
-### T12: Go-live verification + SETUP.md polish
-- **Acceptance:**
-  - [x] SC-3: within 15 min of a feature-branch deploy, staging `/healthz` → 200 `"env":"staging"`
-  - [x] SC-4: merge that branch to `main` → production `/healthz` → 200 `"env":"production"`
-  - [x] SC-1/2/7 rechecked; `docs/SETUP.md` covers staging reset from production and Neon point-in-time restore
-- **Verify:** `curl` both `/healthz` URLs; `job_runs` has heartbeat rows in both branches
-- **Depends on:** T11 · **Files:** `docs/SETUP.md`, `tasks/todo.md` · **Scope:** XS
-
-### Checkpoint C (foundation complete)
-- [x] All 7 spec success criteria checked (2026-10-31)
-- [ ] Scott reviews · next: `SPEC-broker.md`
+### Checkpoint C
+- [ ] All 7 spec success criteria checked · Scott reviews

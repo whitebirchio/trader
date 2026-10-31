@@ -1,92 +1,74 @@
-# Implementation Plan: `foundation`
+# Implementation Plan: `broker`
 
-> Implements [SPEC-foundation.md](../SPEC-foundation.md) (approved 2026-10-31). Tasks are tracked in [todo.md](todo.md).
-> **Status: Complete** (2026-10-31). Approved by Scott on 2026-10-31.
+> Implements [SPEC-broker.md](../SPEC-broker.md) (approved 2026-10-31). Tasks are tracked in [todo.md](todo.md). The foundation plan is archived in [done/](done/).
+> **Status: DRAFT — awaiting approval.**
 
 ## Overview
 
-Stand up the `whitebirchio/trader` monorepo with the `@trader/core` package (config, money, schema, audit log, job runner, health) and a thin `apps/engine` Worker, then deploy it to two environments. Feature branches go to staging and `main` goes to production, with CI migrating each Neon branch before deploying. When this plan is done, both environments record a heartbeat every 15 minutes and report it on `/healthz`. Nothing trades yet.
+Add the Alpaca adapter, the `sync-broker` job (account checks, activities, orders, positions, equity snapshots, FIFO lots and reconciliation, `tradingAllowed`), and an idempotent `submitOrder`. Everything is built and verified on staging (paper) first. The paper fill and after-close snapshot checks wait for Monday 2026-11-02. Production gets the live keys and its account configuration **before** the merge to `main`, because merging makes Alpaca config required there.
 
 ## Dependency graph
 
 ```
-T1 repo skeleton ──┬── T2 ADRs + CLAUDE.md (docs; parallel-safe)
-                   │
-                   ├── T3 config ───────────────────────────────┐
-                   ├── T4 money ──┐                             │
-                   │              ▼                             │
-                   └── T5 schema + PGlite harness ──┬── T6 audit log (append-only)
-                                                    │       │
-                                                    │       ▼
-                                                    └── T7 job runner + heartbeat ── T8 health
-                                                                                       │
-          T9 accounts & DBs (Scott + CLI; can start any time after T1) ──┐              │
-                                                                         ▼              ▼
-                                                              T10 engine Worker (local, against Neon staging)
-                                                                         │
-                                                                         ▼
-                                                              T11 CI: build → migrate → deploy
-                                                                         │
-                                                                         ▼
-                                                              T12 go-live verification + SETUP.md polish
+B1 config + port types ──┬── B2 Alpaca adapter (reads) ──┐
+                         │                                ├── B5 sync-broker job ──┐
+                         ├── B3 FIFO lots (pure) ─────────┤                         ├── B7 scripts: configure + smoke
+                         └── B4 migration 0002 ───────────┘── B6 submitOrder ───────┘          │
+                                                                                               ▼
+                                                    B8 staging: deploy + weekend checks ── B9 Monday: paper fill + snapshot
+                                                                                               │
+                                                                                               ▼
+                                                                           B10 production: live keys → configure → merge
 ```
 
 ## Architecture decisions (made during planning)
 
-- **Neon driver: `Pool` over WebSockets** (`drizzle-orm/neon-serverless`), not `neon-http`. Later modules (`portfolio` writing a rebalance plan plus its audit events) need real transactions, and Corpus already uses this pattern. The Pool is created once per Worker invocation and closed in `ctx.waitUntil(pool.end())`.
-- **Append-only audit log is enforced at two layers.** A `BEFORE UPDATE OR DELETE` trigger raises an exception; it lives in a hand-written Drizzle migration (`drizzle-kit generate --custom`), so PGlite tests exercise it. The `trader_app` role also has `INSERT, SELECT` only on `audit_events`.
-- **Two roles per Neon branch**, as in Fred. The owner role exists only as the CI migrate secret (and in Scott's local `.env`). `trader_app` is the Worker's `DATABASE_URL`. `app_role.sql` is idempotent and is re-run on both branches.
-- **Wrangler environments** come from one `wrangler.jsonc` with `env.staging` and `env.production`. Each sets `TRADING_ENV`, its cron, and observability. `--env staging` produces the worker name `trader-engine-staging`.
-- **CI branch routing:** `push` to `main` deploys production, and `push` to any other branch deploys staging. `pull_request` events only build, so a branch push isn't deployed twice. Each target has its own deploy `concurrency` group, with `cancel-in-progress: false`.
-- **Job registry:** `apps/engine` maps each cron expression to its job names, and `@trader/core` owns the job implementations. In this module the registry is `*/15 * * * *` → `heartbeat`.
-- **Node:** Node 22 in CI to match Corpus, with `engines: >=22`. Scott runs Node 24 locally, which also works.
+- **The adapter lives in core** (`src/broker/alpaca.ts`), taking an injected `fetch` and a `TradingEnv`. It's pure HTTP with no SDK, so it needs no separate package, and the port still keeps `sync`/`orders` testable with a fake broker.
+- **`tradingAllowed` is persisted** on the `broker_account` row as `trading_allowed` plus `blocked_reasons` (jsonb). Audit events fire on **transitions only** (reasons added or cleared), so a stuck condition produces one event, not 96 a day. `risk` will read this row.
+- **`broker_activities` is insert-only.** It gets the same trigger pattern as `audit_events` (a generic `reject_mutation()` function, reused for both). The REVOKE for `trader_app` sits in a `DO` block guarded by `pg_roles`, so the migration still runs in PGlite, where the role doesn't exist.
+- **`client_order_id`** is the caller-supplied intent key (e.g. `portfolio`'s `<plan-id>:<symbol>:<side>`), hashed to fit Alpaca's 48-character limit and prefixed with the env (`stg-`/`prd-`) so the two accounts' ids never collide in logs.
+- **Sync windows:** activities are fetched from `max(at) − 3 days`, so late-posting activities (dividends, corrections) are caught. Insert-or-ignore makes the overlap free. The first sync backfills the account's whole history.
+- **Equity snapshot:** the first sync after the close on a trading day writes that date's row. It's keyed by `trading_date`, so later syncs that day are no-ops.
+- **Fixtures** are recorded from the paper account by `scripts/broker-capture.ts`, scrubbed of account numbers and ids. Fill and order fixtures are refreshed after Monday's smoke trade. Until then, tests use fixtures shaped from Alpaca's documented schema, marked as such.
 
 ## Task list
 
-### Phase 1: Repo and decisions
-- [ ] T1: Repo skeleton (workspaces, toolchain, private GitHub repo)
-- [ ] T2: Backfill ADRs 001–011, `CLAUDE.md`, `README.md`
+### Phase 1: Core (offline, PGlite + fakes)
+- [ ] B1: Config vars + port and domain types
+- [ ] B2: `AlpacaBroker` read methods + fixtures
+- [ ] B3: `buildLots` (FIFO, realized closures, splits)
+- [ ] B4: Migration 0002 (tables, insert-only activities)
 
-### Checkpoint A (after T1–T2)
-- [ ] `npm ci && npm run typecheck && npm test` green; repo pushed; Scott skims ADR index
+### Checkpoint A
+- [ ] Gate green · `db:generate` clean
 
-### Phase 2: Core (all PGlite-tested, no network)
-- [ ] T3: `parseConfig`
-- [ ] T4: `money` helpers
-- [ ] T5: Schema, migrations, PGlite harness
-- [ ] T6: Audit log (append-only)
-- [ ] T7: Job runner + heartbeat job
-- [ ] T8: `getHealth`
+- [ ] B5: `syncBroker` + `sync-broker` job + fake broker
+- [ ] B6: `submitOrder` (idempotent, timeout recovery)
+- [ ] B7: `broker:configure`, `broker:capture`, `broker:smoke` scripts
 
-### Checkpoint B (after T3–T8)
-- [ ] Every exported core function has a test; typecheck and tests green; `db:generate` produces no diff
+### Checkpoint B
+- [ ] Gate green · every exported function tested · Scott skims the sync/`tradingAllowed` behaviour
 
-### Phase 3: Deploy
-- [ ] T9: Accounts, Neon branches, roles, secrets (human-in-the-loop)
-- [ ] T10: `apps/engine` Worker, verified locally against Neon staging
-- [ ] T11: CI workflow (build → migrate → deploy by branch)
-- [ ] T12: Go-live verification on both environments + `docs/SETUP.md` final pass
+### Phase 2: Staging, then production
+- [ ] B8: Staging secrets + deploy + weekend verification (SC-2 skip path, SC-5)
+- [ ] B9: Monday session: smoke fill, live sync, after-close snapshot (SC-2, SC-3, SC-4)
+- [ ] B10: Production: live keys, configure, merge, read-only sync (SC-6, SC-7)
 
 ### Checkpoint C (complete)
-- [ ] All 7 spec success criteria verified and checked off in `todo.md`; Scott reviews before `broker` spec begins
-
-## Parallelization
-
-- T2 (docs) runs in parallel with T3–T8.
-- T9 (account setup) is mostly Scott's clicks and can happen any time after T1. Starting it early keeps T10 from stalling.
-- T3, T4 and T5 are independent of each other. T6 and T7 need T5.
+- [ ] All 7 success criteria verified · Scott reviews · next: `SPEC-risk.md` / `SPEC-notifications.md`
 
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Manual account setup (Neon, Cloudflare token, secrets) blocks deploy | Med | T9 is early and parallel, and its steps are written as a checklist in `docs/SETUP.md`. `gh` is already authenticated, so I create the repo and set secrets myself. |
-| A migration from an abandoned feature branch leaves staging's schema ahead of `main` | Low | Staging is a Neon child of production, and resetting it from its parent restores it (ask-first, per the spec). Documented in SETUP.md. |
-| Merging a bad migration to `main` hits production automatically | High (later) | Migrations are additive only, destructive changes are ask-first (spec Boundaries), and the branch runs on staging before merge. Neon point-in-time restore is the backstop, documented in SETUP.md. |
-| Workers free plan allows 10 ms CPU per invocation | Low now, Med later | Heartbeat is I/O-bound. If `portfolio` math exceeds the limit, Workers Paid ($5/mo) is the fix. Flag it in the `portfolio` spec. |
-| PGlite and Neon behave differently (trigger, `numeric` text format) | Low | T5 and T6 tests cover them, and T10 re-checks the trigger against real Neon by trying an `UPDATE` as `trader_app` and confirming it is denied. |
-| Concurrent feature branches overwrite each other on staging | Low | Accepted with one developer; documented. |
+| Merging makes Alpaca keys required in production | High (prod 503) | B10 sets the live secrets and verifies the config **before** the merge. Production returns 503 until then, but nothing trades, so the worst case is only a red health check. |
+| Alpaca response shapes differ from the docs | Med | Zod-parse at the edge, with fixtures recorded from the real paper account (B7) and refreshed after a real fill (B9). |
+| Lots drift from positions (splits, transfers, corrections) | Med | Reconciliation on every sync sets `tradingAllowed = false` with a reason, so a mismatch stops trading. Lots are recomputed from activities each time, so a fix to the activity data heals them. |
+| Ambiguous submit (timeout) leads to a duplicate order | High | Intent row first, a fixed `client_order_id`, and recovery by lookup. The client id is never regenerated. |
+| Paper fills don't behave like live fills | Low | Accepted. Paper is for code paths; the live account sees no orders until `risk` exists. |
+| Free-plan CPU (10 ms) is exceeded by a sync with many activities | Low | First-sync backfill is the worst case. Durations are recorded in `job_runs`. Fallback: paginate the backfill across ticks. |
+| The live account has holdings that predate the system | Unknown | The first production sync backfills all activities, so lots include them. Pre-existing positions are fine, but tell me if the $1k is already invested. |
 
 ## Open questions
 
-- None blocking. T9 needs about 15 minutes of Scott's time in the Neon and Cloudflare dashboards. The exact steps go in `docs/SETUP.md` during T9.
+- None blocking. B10 needs the live key pair and about 5 minutes of your time.
