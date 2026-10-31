@@ -48,17 +48,17 @@
 
 ### N5: Scripts + docs
 - **Acceptance:**
-  - [ ] `notify:test --env <env>` (queues a `test` email that the next tick sends) and `notify:preview --env <env> [--digest]` (prints, sends nothing)
-  - [ ] `docs/SETUP.md` "Email" section (DNS move steps, catch-all, binding); `CLAUDE.md` architecture line
+  - [x] `notify:test --env <env>` (queues a `test` email that the next tick sends) and `notify:preview --env <env> [--digest]` (prints, sends nothing)
+  - [x] `docs/SETUP.md` "Email" section (DNS move steps, catch-all, binding); `CLAUDE.md` architecture line
 - **Depends on:** N4 · **Scope:** S
 
 ### N6: DNS move (Scott leads)
 - **Acceptance:**
-  - [ ] *(Scott)* inventory from Squarespace (DNS records + forwarding)
-  - [ ] *(Scott)* DNSSEC off; *(me)* DS record confirmed gone
-  - [ ] *(Scott)* zone added to Cloudflare; *(me)* import checked against the inventory, GitHub Pages records DNS-only
-  - [ ] *(Scott)* Email Routing: Gmail verified, catch-all → Gmail
-  - [ ] *(Scott)* nameservers switched; *(me)* site, GitHub challenge and MX checked through Cloudflare's nameservers; *(Scott)* test email to a random @whitebirch.io address arrives
+  - [x] Inventory: from public DNS (Scott confirmed catch-all forwarding)
+  - [x] *(Scott)* DNSSEC off; *(me)* DS confirmed gone at the `.io` registry
+  - [x] *(Scott)* zone added to Cloudflare; *(me)* import checked: GitHub Pages A/AAAA (DNS-only), `www`, the challenge TXT all present. **The import dropped MX/SPF**, so mail was undeliverable until Email Routing was enabled.
+  - [x] *(Scott)* Email Routing: Gmail verified, catch-all → Gmail; MX/SPF/DKIM published and visible on 1.1.1.1, 8.8.8.8 and 9.9.9.9
+  - [x] *(Scott)* nameservers switched (done *before* the record check, out of the planned order, without harm); *(me)* site, GitHub challenge and MX checked through Cloudflare's nameservers; *(Scott)* test email to a random @whitebirch.io address arrives
   - [ ] *(Scott)* DNSSEC re-enabled in Cloudflare and its DS added at the registrar; *(me)* DS confirmed
 - **Depends on:** — · **Scope:** manual
 
