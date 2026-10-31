@@ -42,12 +42,13 @@
 - **Verify:** `npx vitest run notifications`; gate · **Depends on:** N2, N3 · **Scope:** M
 
 ### Checkpoint A
-- [ ] Gate green · `db:generate` clean · Scott skims the sample urgent email and digest (in the PR description)
+- [x] Gate green · `db:generate` clean · Scott skimmed the sample urgent email and digest (2026-10-31)
 
 ## Phase 3: Operate
 
 ### N5: Scripts + docs
 - **Acceptance:**
+  - [x] `notify:run --env <env>` (queueing step on demand, so checks don't wait for the cron)
   - [x] `notify:test --env <env>` (queues a `test` email that the next tick sends) and `notify:preview --env <env> [--digest]` (prints, sends nothing)
   - [x] `docs/SETUP.md` "Email" section (DNS move steps, catch-all, binding); `CLAUDE.md` architecture line
 - **Depends on:** N4 · **Scope:** S
@@ -64,8 +65,8 @@
 
 ### N7: Verify and ship
 - **Acceptance:**
-  - [ ] SC-3: staging `notify:test` arrives with `[paper]`
-  - [ ] SC-4: staging `risk:kill` / `risk:resume` → one suppressed urgent row each; re-tick → nothing new
+  - [x] SC-3: staging `notify:test` sent at 19:30Z via the real binding (message id returned) and confirmed in Scott's Gmail
+  - [x] SC-4: staging `risk:kill` / `risk:resume` → one suppressed urgent row each; a re-run → nothing new (via `notify:run`, which runs the same `queueUrgent` the Worker does)
   - [ ] SC-5: Monday after the close, a suppressed staging digest for 2026-11-02 (`notify:preview` shows it)
   - [ ] SC-6: PR → production; *(Scott)* `notify:test --env production` arrives; first production digest after a close
 - **Depends on:** N5, N6 · **Scope:** S

@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, inArray, isNotNull, isNull } from "drizzle-orm";
 import { auditEvents, notificationItems, notifications } from "../db/schema.js";
 import type { Db } from "../db/client.js";
+import type { TradingEnv } from "../env.js";
 import type { JobFn } from "../jobs.js";
 import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS } from "../risk/limits.js";
@@ -33,6 +34,24 @@ const toNotifiable = (e: EventRow, extra: Record<string, unknown> = {}): Notifia
  */
 export const notifyUrgent: JobFn = async ({ db, env, mailer, now }) => {
   const at = now();
+  const queued = await queueUrgent(db, env, at);
+  const delivery = await deliver(db, mailer, at);
+  return { status: "succeeded", detail: { ...queued, ...delivery } };
+};
+
+export interface QueueUrgentResult {
+  events: number;
+  folded: number;
+  queued: boolean;
+}
+
+/**
+ * The queueing half of notify-urgent: find un-emailed urgent events, compose
+ * one email, enqueue it, fold throttled job failures. No sending, so operator
+ * scripts can run it on demand (`notify:run`); delivery stays in the Worker,
+ * which holds the send_email binding.
+ */
+export async function queueUrgent(db: Db, env: TradingEnv, at: Date): Promise<QueueUrgentResult> {
   const recent = await db
     .select()
     .from(auditEvents)
@@ -75,9 +94,8 @@ export const notifyUrgent: JobFn = async ({ db, env, mailer, now }) => {
     queued = result.status === "queued";
   }
   await foldEvents(db, "urgent", fold, at);
-  const delivery = await deliver(db, mailer, at);
-  return { status: "succeeded", detail: { events: send.length, folded: fold.length, queued, ...delivery } };
-};
+  return { events: send.length, folded: fold.length, queued };
+}
 
 async function lastFailureEmailAt(db: Db, job: string): Promise<Date | null> {
   const [row] = await db
