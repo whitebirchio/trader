@@ -8,6 +8,7 @@ import { checkDrawdown, riskGate } from "../../src/risk/gate.js";
 import { getRiskState, setKillSwitch } from "../../src/risk/state.js";
 import type { Proposal } from "../../src/risk/types.js";
 import { FakeBroker } from "../broker/fake-broker.js";
+import { FakeMailer } from "../notifications/fake-mailer.js";
 import { createTestDb } from "../helpers.js";
 
 let db: Db;
@@ -155,7 +156,7 @@ describe("checkDrawdown", () => {
   });
 
   it("runs as part of every sync-broker job", async () => {
-    await runJob({ db, env: "staging", broker, now: () => NOW }, "sync-broker", new Date("2026-11-02T15:00:00Z"));
+    await runJob({ db, env: "staging", broker, mailer: new FakeMailer(), now: () => NOW }, "sync-broker", new Date("2026-11-02T15:00:00Z"));
     const [run] = (await db.select().from(jobRuns)).filter((r) => r.job === "sync-broker");
     expect(run?.status).toBe("succeeded");
     expect(run?.detail).toMatchObject({ risk: { drawdownPct: "0", halted: "no", buysPaused: false } });

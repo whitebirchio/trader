@@ -21,7 +21,17 @@
   },
   "vars": {
     "TRADING_ENV": "staging",
+    "NOTIFY_FROM": "trader@whitebirch.io",
+    "NOTIFY_TO": "scott.schmalz@gmail.com",
   },
+  // Owner emails (SPEC-notifications). Restricted to the one verified address,
+  // so this Worker can't email anyone else. Free via Email Routing.
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "destination_address": "scott.schmalz@gmail.com",
+    },
+  ],
   // Secrets (`npx wrangler secret put <NAME> --env <env>`):
   //   DATABASE_URL — Neon pooled URL for the trader_app role on that env's branch
   //                  (scripts/set-db-secret.sh; docs/SETUP.md)
@@ -32,13 +42,19 @@
       "name": "trader-engine-staging",
       "vars": {
         "TRADING_ENV": "staging",
+        "NOTIFY_FROM": "trader@whitebirch.io",
+        "NOTIFY_TO": "scott.schmalz@gmail.com",
       },
+      "send_email": [{ "name": "EMAIL", "destination_address": "scott.schmalz@gmail.com" }],
     },
     "production": {
       "name": "trader-engine",
       "vars": {
         "TRADING_ENV": "production",
+        "NOTIFY_FROM": "trader@whitebirch.io",
+        "NOTIFY_TO": "scott.schmalz@gmail.com",
       },
+      "send_email": [{ "name": "EMAIL", "destination_address": "scott.schmalz@gmail.com" }],
     },
   },
 }

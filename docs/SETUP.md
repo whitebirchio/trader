@@ -94,6 +94,24 @@ npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy A
 
 These scripts use the owner database URL and the environment's Alpaca keys from `.env`.
 
+## Email (notifications)
+
+Trader emails only you, from `trader@whitebirch.io`, using Cloudflare Email Routing's free send-to-verified-address path (SPEC-notifications).
+
+**Domain setup (done 2026-10-31).** whitebirch.io's DNS moved from Squarespace to Cloudflare. The nameservers are `edward`/`janet.ns.cloudflare.com`.
+- **Kept as they were:** the GitHub Pages `A`/`AAAA` records (DNS-only), `www` → `whitebirchio.github.io`, and the `_github-pages-challenge-whitebirchio` TXT.
+- **Replaced:** Squarespace's Mailgun-based forwarding became Email Routing, with a **catch-all → your Gmail** (verified). Email Routing publishes the `route1/2/3.mx.cloudflare.net` MX, the SPF and the `cf2024-1` DKIM records.
+- **Still to do:** re-enable DNSSEC (Cloudflare → DNS → Settings → DNSSEC, then add the DS at the registrar), and delete the leftover Mailgun `k1._domainkey` record.
+
+**The Worker's side.** `apps/engine/wrangler.jsonc` has a `send_email` binding (`EMAIL`) with `destination_address` set to your Gmail, so the Worker can't email anyone else, plus the `NOTIFY_FROM` and `NOTIFY_TO` vars.
+
+| Command | Does |
+|---|---|
+| `npm run notify:test -w @trader/core -- --env staging\|production` | queue a test email; the next tick sends it |
+| `npm run notify:preview -w @trader/core -- --env … [--digest]` | print the pending urgent email or today's digest; sends nothing |
+
+Staging queues everything but sends only test emails; its rows show `suppressed`. The outbox is the `notifications` table (`status`, `attempts`, `last_error`, `message_id`).
+
 ## Local development
 
 ```sh

@@ -1,0 +1,55 @@
+import type { AuditKind } from "../audit.js";
+
+export type Route = "urgent" | "digest" | "ignore";
+
+/**
+ * Where each audit kind is emailed (SPEC-notifications). A `Record` over every
+ * AuditKind, so adding a kind without deciding its route fails to typecheck.
+ */
+const ROUTES: Record<AuditKind, Route> = {
+  "job.failed": "urgent", // throttled per job in the outbox
+
+  "order.intent": "ignore", // always followed by submitted or rejected
+  "order.submitted": "digest",
+  "order.partially_filled": "digest",
+  "order.filled": "digest",
+  "order.canceled": "digest",
+  "order.rejected": "digest",
+  "order.unknown": "urgent",
+  "order.external": "urgent",
+
+  "broker.config_unsafe": "urgent",
+  "broker.account_changed": "urgent",
+  "broker.reconcile_mismatch": "urgent",
+  "broker.trading_allowed": "urgent",
+
+  "risk.order_clipped": "digest",
+  "risk.order_rejected": "digest",
+  "risk.buys_paused": "urgent",
+  "risk.buys_resumed": "digest",
+  "risk.halted": "urgent",
+  "risk.kill_switch_on": "urgent",
+  "risk.resumed": "urgent",
+};
+
+export function routeFor(kind: string): Route {
+  return (ROUTES as Record<string, Route>)[kind] ?? "urgent"; // an unknown kind is loud, not lost
+}
+
+export const URGENT_KINDS = (Object.keys(ROUTES) as AuditKind[]).filter((k) => ROUTES[k] === "urgent");
+export const DIGEST_KINDS = (Object.keys(ROUTES) as AuditKind[]).filter((k) => ROUTES[k] === "digest");
+
+/** Most severe first, for ordering several urgent events in one email. */
+export const SEVERITY: Partial<Record<AuditKind, number>> = {
+  "risk.halted": 0,
+  "risk.kill_switch_on": 1,
+  "broker.account_changed": 2,
+  "broker.config_unsafe": 3,
+  "broker.reconcile_mismatch": 4,
+  "order.external": 5,
+  "order.unknown": 6,
+  "risk.buys_paused": 7,
+  "job.failed": 8,
+  "risk.resumed": 9,
+  "broker.trading_allowed": 10,
+};

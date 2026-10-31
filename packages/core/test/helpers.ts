@@ -8,6 +8,7 @@ import type { Db } from "../src/db/client.js";
 import type { TradingEnv } from "../src/env.js";
 import type { JobDeps } from "../src/jobs.js";
 import { FakeBroker } from "./broker/fake-broker.js";
+import { FakeMailer } from "./notifications/fake-mailer.js";
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "drizzle");
 
@@ -41,6 +42,11 @@ export async function createTestDb(): Promise<{ db: Db; pglite: PGlite }> {
 }
 
 /** Job dependencies over a test DB; the broker defaults to an empty fake. */
-export function deps(db: Db, env: TradingEnv = "staging", broker: BrokerAdapter = new FakeBroker()): JobDeps {
-  return { db, env, broker, now: () => new Date() };
+export function deps(
+  db: Db,
+  env: TradingEnv = "staging",
+  broker: BrokerAdapter = new FakeBroker(),
+  mailer: FakeMailer = new FakeMailer(),
+): JobDeps {
+  return { db, env, broker, mailer, now: () => new Date() };
 }

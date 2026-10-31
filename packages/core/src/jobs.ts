@@ -4,6 +4,8 @@ import type { BrokerAdapter } from "./broker/port.js";
 import { syncBroker } from "./broker/sync.js";
 import { checkDrawdown } from "./risk/gate.js";
 import type { Db } from "./db/client.js";
+import { notifyDigest, notifyUrgent } from "./notifications/jobs.js";
+import type { Mailer } from "./notifications/port.js";
 import { jobRuns } from "./db/schema.js";
 import type { TradingEnv } from "./env.js";
 
@@ -12,6 +14,7 @@ export interface JobDeps {
   db: Db;
   env: TradingEnv;
   broker: BrokerAdapter;
+  mailer: Mailer;
   now: () => Date;
 }
 
@@ -47,7 +50,12 @@ const syncBrokerJob: JobFn = async ({ db, env, broker, now }) => {
 };
 
 /** Every job the engine can run. Later modules register `rebalance`, … */
-export const JOBS = { heartbeat, "sync-broker": syncBrokerJob } satisfies Record<string, JobFn>;
+export const JOBS = {
+  heartbeat,
+  "sync-broker": syncBrokerJob,
+  "notify-urgent": notifyUrgent,
+  "notify-digest": notifyDigest,
+} satisfies Record<string, JobFn>;
 export type JobName = keyof typeof JOBS;
 
 const MAX_ERROR_LENGTH = 2000;
