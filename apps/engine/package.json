@@ -12,7 +12,9 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@trader/core": "*"
+    "@neondatabase/serverless": "^1.2.0",
+    "@trader/core": "*",
+    "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
     "wrangler": "^4.156.0"

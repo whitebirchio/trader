@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { recordEvent } from "./audit.js";
 import type { Db } from "./db/client.js";
 import { jobRuns } from "./db/schema.js";
@@ -27,6 +27,19 @@ export const JOBS = { heartbeat } satisfies Record<string, JobFn>;
 export type JobName = keyof typeof JOBS;
 
 const MAX_ERROR_LENGTH = 2000;
+
+// started_at defaults to the database's now(), so finished_at must use the same
+// clock: a Worker's Date only advances across I/O, which skews durations.
+const dbNow = sql`now()`;
+
+/**
+ * The idempotency slot for a cron firing: its scheduled time floored to the
+ * minute. Cloudflare passes the trigger time, but anything sub-minute (local
+ * `wrangler dev` passes "now", jitter on redelivery) must not open a second slot.
+ */
+export function slotFor(scheduledTime: number): Date {
+  return new Date(Math.floor(scheduledTime / 60_000) * 60_000);
+}
 
 /**
  * Run one job for one scheduled time, at most once (ADR-007). The slot is
@@ -57,7 +70,7 @@ export async function runJob(
     const error = (e instanceof Error ? e.message : String(e)).slice(0, MAX_ERROR_LENGTH);
     await db
       .update(jobRuns)
-      .set({ status: "failed", error, finishedAt: new Date() })
+      .set({ status: "failed", error, finishedAt: dbNow })
       .where(eq(jobRuns.id, run.id));
     await recordEvent(db, {
       actor: "system",
@@ -72,7 +85,7 @@ export async function runJob(
   const detail = result.status === "skipped" ? { reason: result.reason } : result.detail;
   await db
     .update(jobRuns)
-    .set({ status: result.status, detail: detail ?? null, finishedAt: new Date() })
+    .set({ status: result.status, detail: detail ?? null, finishedAt: dbNow })
     .where(eq(jobRuns.id, run.id));
   return result;
 }

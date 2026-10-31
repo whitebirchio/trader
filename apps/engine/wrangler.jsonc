@@ -1,7 +1,42 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "trader-engine",
+  // Top level is for `wrangler dev` only (reads .dev.vars). Real deploys always
+  // name an environment (ADR-005, ADR-006), and the top-level name is
+  // deliberately neither of theirs, so a bare `wrangler deploy` can't
+  // overwrite production.
+  "name": "trader-engine-dev",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Persisted Workers Logs (free tier: 200k events/day, 3-day retention).
+  "observability": {
+    "enabled": true,
+  },
+  // No per-version preview hostnames: nothing should reach the engine except
+  // through its environment's workers.dev URL.
+  "preview_urls": false,
+  "triggers": {
+    // Must match SCHEDULE in src/index.ts.
+    "crons": ["*/15 * * * *"],
+  },
+  "vars": {
+    "TRADING_ENV": "staging",
+  },
+  // Secrets (`npx wrangler secret put DATABASE_URL --env <env>`):
+  //   DATABASE_URL — Neon pooled URL for the trader_app role on that env's branch
+  //                  (packages/core/scripts/app-role.ts; docs/SETUP.md)
+  "env": {
+    "staging": {
+      "name": "trader-engine-staging",
+      "vars": {
+        "TRADING_ENV": "staging",
+      },
+    },
+    "production": {
+      "name": "trader-engine",
+      "vars": {
+        "TRADING_ENV": "production",
+      },
+    },
+  },
 }
