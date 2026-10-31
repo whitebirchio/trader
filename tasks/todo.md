@@ -87,34 +87,35 @@ Record the decisions already made so no future session re-derives them.
 ### T9: Accounts, Neon branches, roles, secrets (human-in-the-loop)
 Write each step into `docs/SETUP.md` as it's done. Steps marked *(Scott)* need a dashboard login.
 - **Acceptance:**
-  - [ ] *(Scott)* Neon project `trader`: rename the default branch to `production` and create a `staging` child branch; copy both owner pooled URLs into a local `.env`
-  - [ ] Run `db:migrate` against both branches; run `scripts/sql/app_role.sql` (idempotent; `trader_app` gets `SELECT/INSERT/UPDATE/DELETE` on `job_runs` and `SELECT/INSERT` only on `audit_events`) on both
-  - [ ] *(Scott)* Cloudflare API token (Workers edit) and `npx wrangler login` locally
-  - [ ] Worker secrets: `DATABASE_URL` (app role) for `--env staging` and `--env production`
-  - [ ] GitHub repo secrets through `gh secret set`: `CLOUDFLARE_API_TOKEN`, `STAGING_MIGRATE_URL`, `PRODUCTION_MIGRATE_URL`
+  - [x] *(Scott)* Neon project `trader`: rename the default branch to `production` and create a `staging` child branch; copy both owner pooled URLs into a local `.env`
+  - [x] Run `db:migrate` against both branches; run `packages/core/scripts/app-role.ts` via `scripts/set-db-secret.sh` (idempotent, rotates the password, and verifies by connecting as the role; `trader_app` gets `SELECT/INSERT/UPDATE/DELETE` on `job_runs` and `SELECT/INSERT` only on `audit_events`) on both
+  - [x] *(Scott)* Cloudflare API token (Workers edit) and `npx wrangler login` locally
+  - [x] Worker secret `DATABASE_URL` (app role) for `--env staging`
+  - [ ] …and for `--env production`. The Worker only exists after the first `main` deploy, so this happens in T12 (Scott runs `scripts/set-db-secret.sh production`).
+  - [x] GitHub repo secrets through `gh secret set`: `CLOUDFLARE_API_TOKEN`, `STAGING_MIGRATE_URL`, `PRODUCTION_MIGRATE_URL`
 - **Verify:** `gh secret list` shows all three; connecting as `trader_app`, `UPDATE audit_events …` is denied and `CREATE TABLE x()` is denied
-- **Depends on:** T1 (T5 for the migrate step) · **Files:** `scripts/sql/app_role.sql`, `docs/SETUP.md`, `.env.example` · **Scope:** S (code) + manual
+- **Depends on:** T1 (T5 for the migrate step) · **Files:** `packages/core/scripts/app-role.ts`, `scripts/set-db-secret.sh`, `docs/SETUP.md`, `.env.example` · **Scope:** S (code) + manual
 
 ### T10: `apps/engine` Worker
 - **Acceptance:**
-  - [ ] `wrangler.jsonc` with `env.staging`/`env.production` (`TRADING_ENV` var, cron `*/15 * * * *`, `observability.enabled`, `preview_urls: false`)
-  - [ ] `scheduled()`: `parseConfig` → if invalid, log names and return; else Neon Pool → `runJob` for each job mapped to `controller.cron` with `scheduledTime`; `ctx.waitUntil(pool.end())`
-  - [ ] `fetch()`: bad config → 503 JSON naming missing/invalid vars; `GET /healthz` → `getHealth` (200 if healthy, else 503); anything else → 404
+  - [x] `wrangler.jsonc` with `env.staging`/`env.production` (`TRADING_ENV` var, cron `*/15 * * * *`, `observability.enabled`, `preview_urls: false`)
+  - [x] `scheduled()`: `parseConfig` → if invalid, log names and return; else Neon Pool → `runJob` for each job mapped to `controller.cron` with `scheduledTime`; `ctx.waitUntil(pool.end())`
+  - [x] `fetch()`: bad config → 503 JSON naming missing/invalid vars; `GET /healthz` → `getHealth` (200 if healthy, else 503); anything else → 404
 - **Verify:** `npm run dev` with `.dev.vars` pointing at **Neon staging**: firing `__scheduled` twice with the same time produces one row (SC-6); `/healthz` returns 200; blanking `DATABASE_URL` → 503 naming it (SC-5)
 - **Depends on:** T8, T9 · **Files:** `apps/engine/{wrangler.jsonc,src/index.ts,package.json}`, `apps/engine/.dev.vars.example` · **Scope:** S
 
 ### T11: CI workflow
 - **Acceptance:**
-  - [ ] `build` job on every push/PR: `npm ci`, typecheck, test (Node 22, npm cache)
-  - [ ] `deploy-staging` on `push` to a branch other than `main`: needs `build` → `db:migrate` with `STAGING_MIGRATE_URL` → `wrangler deploy --env staging`
-  - [ ] `deploy-production` on `push` to `main`: needs `build` → `db:migrate` with `PRODUCTION_MIGRATE_URL` → `wrangler deploy --env production`
-  - [ ] Separate deploy concurrency groups, `cancel-in-progress: false`
-- **Verify:** push a feature branch → `build` + `deploy-staging` green, production untouched; open a PR → `build` only
+  - [x] `build` job on every push (no `pull_request` trigger: PR branches are pushed anyway, so it would run twice): `npm ci`, typecheck, test (Node 22, npm cache)
+  - [x] `deploy-staging` on `push` to a branch other than `main`: needs `build` → `db:migrate` with `STAGING_MIGRATE_URL` → `wrangler deploy --env staging`
+  - [x] `deploy-production` on `push` to `main`: needs `build` → `db:migrate` with `PRODUCTION_MIGRATE_URL` → `wrangler deploy --env production`
+  - [x] Separate deploy concurrency groups, `cancel-in-progress: false`
+- **Verify:** push a feature branch → `build` + `deploy-staging` green, production untouched
 - **Depends on:** T9, T10 · **Files:** `.github/workflows/ci.yml` · **Scope:** S
 
 ### T12: Go-live verification + SETUP.md polish
 - **Acceptance:**
-  - [ ] SC-3: within 15 min of a feature-branch deploy, staging `/healthz` → 200 `"env":"staging"`
+  - [x] SC-3: within 15 min of a feature-branch deploy, staging `/healthz` → 200 `"env":"staging"`
   - [ ] SC-4: merge that branch to `main` → production `/healthz` → 200 `"env":"production"`
   - [ ] SC-1/2/7 rechecked; `docs/SETUP.md` covers staging reset from production and Neon point-in-time restore
 - **Verify:** `curl` both `/healthz` URLs; `job_runs` has heartbeat rows in both branches

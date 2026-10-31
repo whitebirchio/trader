@@ -1,0 +1,1 @@
+DATABASE_URL=postgresql://trader_app:CHANGE_ME@ep-…-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require
