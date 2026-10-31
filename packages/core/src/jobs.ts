@@ -29,6 +29,15 @@ export type JobName = keyof typeof JOBS;
 const MAX_ERROR_LENGTH = 2000;
 
 /**
+ * The idempotency slot for a cron firing: its scheduled time floored to the
+ * minute. Cloudflare passes the trigger time, but anything sub-minute (local
+ * `wrangler dev` passes "now", jitter on redelivery) must not open a second slot.
+ */
+export function slotFor(scheduledTime: number): Date {
+  return new Date(Math.floor(scheduledTime / 60_000) * 60_000);
+}
+
+/**
  * Run one job for one scheduled time, at most once (ADR-007). The slot is
  * claimed before the job runs, so a redelivered cron event loses the insert
  * race and becomes a no-op. A job that throws is recorded as failed and

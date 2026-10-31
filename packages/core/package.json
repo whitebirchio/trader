@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:app-role": "tsx scripts/app-role.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

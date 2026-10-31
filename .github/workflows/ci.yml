@@ -1,0 +1,79 @@
+# Build → migrate → deploy, routed by branch (ADR-006):
+#   - any branch other than main → staging (Alpaca paper)
+#   - main                       → production (live money)
+# Migrations run before the Worker deploys, so new code never meets an old
+# schema. Secrets are repo-level (no GitHub Environments: the org is on the
+# Free plan and the repo is private).
+#
+# Only `push` triggers builds: every PR branch is pushed anyway, and its
+# checks show on the PR, so a pull_request trigger would just run them twice.
+name: CI
+
+on:
+  push:
+  # Manual re-run of the current branch's pipeline without a new commit.
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy-staging:
+    needs: build
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Queue rather than cancel: a half-finished migrate+deploy is worse than a late one.
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Migrate Neon staging branch
+        run: npm run db:migrate -w @trader/core
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_MIGRATE_URL }}
+      - name: Deploy trader-engine-staging
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: apps/engine
+          command: deploy --env staging
+
+  deploy-production:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Migrate Neon production branch
+        run: npm run db:migrate -w @trader/core
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_MIGRATE_URL }}
+      - name: Deploy trader-engine
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: apps/engine
+          command: deploy --env production

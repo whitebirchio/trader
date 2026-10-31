@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "../src/db/client.js";
 import { auditEvents, jobRuns } from "../src/db/schema.js";
-import { runJob } from "../src/jobs.js";
+import { runJob, slotFor } from "../src/jobs.js";
 import { createTestDb } from "./helpers.js";
 
 let db: Db;
@@ -83,5 +83,16 @@ describe("runJob", () => {
     await runJob(db, "staging", "heartbeat", scheduledFor);
     await runJob(db, "staging", "heartbeat", new Date(scheduledFor.getTime() + 15 * 60_000));
     expect(await db.select().from(jobRuns)).toHaveLength(2);
+  });
+});
+
+describe("slotFor", () => {
+  it("floors a firing to its minute", () => {
+    expect(slotFor(Date.parse("2026-11-02T14:30:00.000Z")).toISOString()).toBe(
+      "2026-11-02T14:30:00.000Z",
+    );
+    expect(slotFor(Date.parse("2026-11-02T14:30:59.948Z")).toISOString()).toBe(
+      "2026-11-02T14:30:00.000Z",
+    );
   });
 });
