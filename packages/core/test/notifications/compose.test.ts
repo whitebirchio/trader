@@ -108,3 +108,11 @@ describe("composeDigest trade lines", () => {
     expect(email.text).toContain("Broker rejected an order for VTI: insufficient buying power");
   });
 });
+
+describe("buys paused wording", () => {
+  it("says 'down', with the time in New York", () => {
+    const email = composeUrgent([{ kind: "risk.buys_paused", subject: null, payload: { dailyChangePct: "-5.3" }, at: new Date("2026-11-03T15:15:00Z") }], "production");
+    expect(email.text).toContain("Buys paused for today (Tue, Nov 3, 10:15 AM ET)");
+    expect(email.text).toContain("The account is down 5.3% since yesterday's close.");
+  });
+});

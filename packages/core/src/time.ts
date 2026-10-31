@@ -42,3 +42,17 @@ export function marketTimeToUtc(date: string, time: string): Date {
   const guess = naiveUtc - offsetMinutes(new Date(naiveUtc)) * 60_000;
   return new Date(naiveUtc - offsetMinutes(new Date(guess)) * 60_000);
 }
+
+const displayFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: MARKET_TZ,
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** "Tue, Nov 3, 10:15 AM ET": instants as people read them in emails. */
+export function formatMarketTime(instant: Date): string {
+  return `${displayFmt.format(instant)} ET`;
+}

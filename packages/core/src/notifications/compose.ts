@@ -1,5 +1,6 @@
 import type { TradingEnv } from "../env.js";
-import { compare } from "../money.js";
+import { compare, sub } from "../money.js";
+import { formatMarketTime } from "../time.js";
 import type { OutgoingEmail } from "./port.js";
 import { SEVERITY } from "./routing.js";
 
@@ -35,7 +36,7 @@ export function describe(e: NotifiableEvent): Described {
     case "risk.buys_paused":
       return {
         headline: "Buys paused for today",
-        lines: [`The account is ${str(p.dailyChangePct)}% since yesterday's close.`, "Sells still run. Buys resume tomorrow, or if it recovers above the limit."],
+        lines: [`The account is down ${sub("0", str(p.dailyChangePct || "0"))}% since yesterday's close.`, "Sells still run. Buys resume tomorrow, or if it recovers above the limit."],
       };
     case "broker.config_unsafe":
     case "broker.account_changed":
@@ -87,12 +88,12 @@ export function composeUrgent(events: NotifiableEvent[], env: TradingEnv): Outgo
   const subject = `${prefix(env)}Trader: ${first}${more}`;
 
   const text = described
-    .map(({ e, d }) => [`${d.headline} (${e.at.toISOString()})`, ...d.lines.map((l) => `  ${l}`)].join("\n"))
+    .map(({ e, d }) => [`${d.headline} (${formatMarketTime(e.at)})`, ...d.lines.map((l) => `  ${l}`)].join("\n"))
     .join("\n\n");
   const html = described
     .map(
       ({ e, d }) =>
-        `<h3>${escapeHtml(d.headline)}</h3><p style="color:#666">${escapeHtml(e.at.toISOString())}</p><ul>${d.lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`,
+        `<h3>${escapeHtml(d.headline)}</h3><p style="color:#666">${escapeHtml(formatMarketTime(e.at))}</p><ul>${d.lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`,
     )
     .join("");
   return { subject, text: `${text}\n\n— Trader (${env})\n`, html: `${html}<p style="color:#666">— Trader (${escapeHtml(env)})</p>` };
