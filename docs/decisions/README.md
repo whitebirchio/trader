@@ -15,3 +15,4 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 | [009](009-money-as-numeric-and-big.md) | Money is `numeric` in Postgres and `Big` in code, never a JS `number` | Accepted | 2026-10-31 |
 | [010](010-wash-sales-are-a-cost.md) | Wash sales are a cost the strategy weighs, not a rule | Accepted | 2026-10-31 |
 | [011](011-no-broker-order-tools-for-claude.md) | Claude never gets broker order tools | Accepted | 2026-10-31 |
+| [012](012-halts-freeze-owner-resumes.md) | Halts freeze everything; only the owner resumes | Accepted | 2026-10-31 |

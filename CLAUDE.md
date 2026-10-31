@@ -42,6 +42,7 @@ After editing `apps/engine/wrangler.jsonc`, run `npm run cf-typegen -w trader-en
 **Hexagonal core + thin adapters** (ADR-002). All logic and its tests live in `packages/core` (`@trader/core`), which has no Worker, HTTP or MCP dependencies. External services (Alpaca, email) sit behind ports defined in core. `apps/engine` is a Cloudflare Worker whose `scheduled()` maps cron expressions to jobs and whose `fetch()` serves `/healthz`. Both stay a validate → call core → respond shell.
 
 - **Broker** (`src/broker/`, SPEC-broker): `BrokerAdapter` port + `AlpacaBroker` (host from `TRADING_ENV` only). `sync-broker` mirrors the account every 15 min during the session + 30 min after the close, rebuilds FIFO lots from fills, and persists `tradingAllowed` on `broker_account`. `submitOrder` is idempotent per intent key; no job calls it until `risk` exists.
+- **Risk** (`src/risk/`, SPEC-risk): `evaluateOrders` is a pure rule pipeline over a `RiskSnapshot`. `riskGate` is the only path to `submitOrder`: it loads the snapshot, evaluates, and persists the snapshot and every decision. Limits are code (`limits.ts`, ask before changing). The kill switch and drawdown halt freeze everything and only the owner resumes them (ADR-012). `sync-broker` runs `checkDrawdown` after each sync.
 - **Jobs** run through `runJob` (ADR-007): it claims `(job, scheduled_for)` first, so a redelivered cron is a no-op, and records every outcome in `job_runs`.
 - **Audit log** (ADR-008): every state-changing action appends to `audit_events` with an actor (`system | claude | owner`). The table is append-only (trigger + role grants); correct mistakes by appending.
 - **Config** is Zod-validated at every entry point. Invalid config fails closed: no jobs run, and routes return 503 naming the bad vars (never their values).
@@ -64,7 +65,7 @@ Tests live in `packages/core/test/` and run against **PGlite** with the real `dr
 
 - **Always:** gate (`typecheck && test`) before committing; keep logic in core; write an audit event for every state change; note each new dependency and why in its commit message (no prior approval needed).
 - **Ask first:** destructive migrations; changing `audit_events` or `job_runs` shape; changing CI deploy triggers; setting or rotating production secrets; resetting the staging Neon branch.
-- **Never:** commit secrets, `.env*` or `.dev.vars*`; run DDL from the Worker; update or delete audit events; let staging config reach a live account; give Claude order-placing tools.
+- **Never:** commit secrets, `.env*` or `.dev.vars*`; run DDL from the Worker; update or delete audit events; let staging config reach a live account; give Claude order-placing tools; let a non-owner path change limits, clear a halt or turn off the kill switch.
 
 ## Specs & docs
 

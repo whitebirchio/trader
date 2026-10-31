@@ -29,6 +29,27 @@
       "when": 1793456622594,
       "tag": "0003_broker_activities_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793468683911,
+      "tag": "0004_risk",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793468684301,
+      "tag": "0005_risk_append_only_and_seed",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793468762970,
+      "tag": "0006_broker_last_equity",
+      "breakpoints": true
     }
   ]
 }

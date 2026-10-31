@@ -8,7 +8,7 @@ Trader is an autonomous US-equity portfolio. **Claude owns the strategy**: it re
 |---|---|---|
 | `foundation` | npm-workspaces monorepo, Neon + Drizzle schema base, Workers deploy + GitHub Actions CI, staging/production environments, job runner, audit-event log, config validation | — |
 | `broker` | `BrokerAdapter` port + Alpaca impl; one account per environment (paper = staging, live = production); daily bars; notional/fractional orders; fill, position, equity and tax-lot sync | `foundation` |
-| `risk` | Guardrail engine (pure functions): per-position and per-sleeve caps, drawdown circuit breakers, no same-day round trips (PDT), kill switch; fails closed | `foundation` |
+| `risk` | Guardrail engine (pure functions): per-position and per-sleeve caps, buy eligibility (no leveraged/inverse, penny, illiquid, non-fractionable, recent IPOs), drawdown and daily-loss breakers on a flow-adjusted index, kill switch; fails closed. (The PDT rule was retired in June 2026, so there's no same-day-round-trip rule.) | `foundation` |
 | `portfolio` | Versioned strategy model (Claude-authored), quant core engine driven by Claude-tuned parameters, satellite theses with expiry, sleeve targets → rebalance plan → `risk` → `broker`; wash-sale cost awareness; benchmark tracking vs VTI | `broker`, `risk` |
 | `agent` | Remote MCP server (OAuth, like Fred's) with research/data, portfolio-read, `submit_strategy` and control-plane tools, plus the scheduled Claude Code research routine that drives it | `portfolio` |
 | `notifications` | Email for every trade and every meaningful autonomous action, driven from the audit log | `foundation` |

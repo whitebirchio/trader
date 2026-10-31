@@ -133,6 +133,7 @@ const assetSchema = z.object({
   status: z.string(),
   tradable: z.boolean(),
   fractionable: z.boolean(),
+  margin_requirement_long: dec.nullish(),
 });
 
 // Bars arrive as JSON numbers. String() of a parsed double is its shortest
@@ -384,7 +385,14 @@ export class AlpacaBroker implements BrokerAdapter {
     });
     if (raw === null) return null;
     const a = assetSchema.parse(raw);
-    return { symbol: a.symbol, name: a.name, status: a.status, tradable: a.tradable, fractionable: a.fractionable };
+    return {
+      symbol: a.symbol,
+      name: a.name,
+      status: a.status,
+      tradable: a.tradable,
+      fractionable: a.fractionable,
+      marginRequirementLong: a.margin_requirement_long ?? null,
+    };
   }
 
   async getDailyBars(symbols: string[], start: Date, end: Date): Promise<Record<string, Bar[]>> {

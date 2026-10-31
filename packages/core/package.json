@@ -20,7 +20,11 @@
     "broker:capture": "tsx scripts/broker-capture.ts",
     "broker:configure": "tsx scripts/broker-configure.ts",
     "broker:smoke": "tsx scripts/broker-smoke.ts",
-    "broker:sync": "tsx scripts/broker-sync.ts"
+    "broker:sync": "tsx scripts/broker-sync.ts",
+    "risk:status": "tsx scripts/risk-status.ts",
+    "risk:kill": "tsx scripts/risk-kill.ts",
+    "risk:resume": "tsx scripts/risk-resume.ts",
+    "risk:check": "tsx scripts/risk-check.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

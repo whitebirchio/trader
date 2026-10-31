@@ -10,6 +10,9 @@ beforeEach(async () => {
   await pglite.exec(`
     INSERT INTO audit_events (actor, kind) VALUES ('system', 'job.failed');
     INSERT INTO broker_activities (id, type, at, raw) VALUES ('a-1', 'DIV', now(), '{}');
+    INSERT INTO risk_gate_runs (id, limits_version, snapshot) VALUES ('00000000-0000-0000-0000-000000000001', 'v', '{}');
+    INSERT INTO risk_decisions (gate_run_id, intent_key, symbol, side, sleeve, verdict, reasons, limits_version)
+      VALUES ('00000000-0000-0000-0000-000000000001', 'k', 'VTI', 'buy', 'core', 'approved', '[]', 'v');
   `);
 });
 

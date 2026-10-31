@@ -1,7 +1,7 @@
 /**
  * Record Alpaca PAPER responses as test fixtures, scrubbed of identifiers.
  *
- *   npm run broker:capture -w @trader/core
+ *   npm run broker:capture -w @trader/core [-- name ...]   (default: all)
  *
  * Reads STAGING_ALPACA_KEY_ID / STAGING_ALPACA_SECRET_KEY from the repo .env.
  * Paper only: there is no flag to point it at the live account.
@@ -48,7 +48,24 @@ const captures: Record<string, string> = {
   bars: `${data}/v2/stocks/bars?symbols=VTI,SPY&timeframe=1Day&start=2026-10-26T00:00:00Z&end=${end}&adjustment=all&feed=sip&limit=10`,
 };
 
+// Assets the risk eligibility tests are pinned to (SPEC-risk): broad, sector,
+// thematic, single-stock, leveraged, inverse and short-duration Treasury funds.
+const ELIGIBILITY_ASSETS = ["VTI", "QQQ", "AAPL", "XLK", "ARKK", "VGSH", "TQQQ", "SQQQ", "SH", "SPXL", "UVXY", "SOXL"];
+
+const only = process.argv.slice(2);
+if (only.length === 0 || only.includes("assets")) {
+  const assets = [];
+  for (const symbol of ELIGIBILITY_ASSETS) {
+    const res = await fetch(`${trading}/v2/assets/${symbol}`, { headers });
+    if (!res.ok) throw new Error(`asset ${symbol}: HTTP ${res.status}`);
+    assets.push(await res.json());
+  }
+  writeFileSync(join(out, "assets.json"), `${JSON.stringify(scrub(assets), null, 2)}\n`);
+  console.log(`captured assets (${assets.length})`);
+}
+
 for (const [name, url] of Object.entries(captures)) {
+  if (only.length > 0 && !only.includes(name)) continue;
   const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
   writeFileSync(join(out, `${name}.json`), `${JSON.stringify(scrub(await res.json()), null, 2)}\n`);

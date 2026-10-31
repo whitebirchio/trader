@@ -21,7 +21,15 @@ export type AuditKind =
   | "broker.account_changed"
   | "broker.config_unsafe"
   | "broker.reconcile_mismatch"
-  | "broker.trading_allowed";
+  | "broker.trading_allowed"
+  // Guardrails (SPEC-risk).
+  | "risk.order_clipped"
+  | "risk.order_rejected"
+  | "risk.buys_paused"
+  | "risk.buys_resumed"
+  | "risk.halted"
+  | "risk.kill_switch_on"
+  | "risk.resumed";
 
 export type AuditActor = (typeof auditEvents.actor.enumValues)[number];
 export type AuditEvent = typeof auditEvents.$inferSelect;
