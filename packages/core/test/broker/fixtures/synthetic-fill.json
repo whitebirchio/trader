@@ -1,0 +1,14 @@
+{
+  "id": "20261102093501500::fill-1",
+  "activity_type": "FILL",
+  "transaction_time": "2026-11-02T14:35:01.5Z",
+  "type": "fill",
+  "price": "306.01",
+  "qty": "0.016339869",
+  "side": "buy",
+  "symbol": "VTI",
+  "leaves_qty": "0",
+  "order_id": "order-1",
+  "cum_qty": "0.016339869",
+  "order_status": "filled"
+}

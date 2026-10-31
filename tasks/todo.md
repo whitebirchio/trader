@@ -7,37 +7,37 @@
 
 ### B1: Config vars + port and domain types
 - **Acceptance:**
-  - [ ] `parseConfig` requires `ALPACA_KEY_ID` and `ALPACA_SECRET_KEY` and still reports names only. The tests are updated.
-  - [ ] `broker/port.ts`: the `BrokerAdapter` interface and types (`Account`, `AccountConfig`, `Position`, `BrokerOrder`, `Activity`, `Bar`, `Clock`, `CalendarDay`, `Asset`, `OrderRequest`). Money is a decimal string everywhere.
-  - [ ] `alpacaHosts(env)`: staging → paper host, production → live host. No override.
+  - [x] `parseConfig` requires `ALPACA_KEY_ID` and `ALPACA_SECRET_KEY` and still reports names only. The tests are updated.
+  - [x] `broker/port.ts`: the `BrokerAdapter` interface and types (`Account`, `AccountConfig`, `Position`, `BrokerOrder`, `Activity`, `Bar`, `Clock`, `CalendarDay`, `Asset`, `OrderRequest`). Money is a decimal string everywhere.
+  - [x] `alpacaHosts(env)`: staging → paper host, production → live host. No override.
 - **Verify:** `npx vitest run config broker/hosts`; gate
 - **Depends on:** — · **Files:** `src/config.ts`, `src/broker/port.ts`, `src/broker/hosts.ts`, tests · **Scope:** S
 
 ### B2: `AlpacaBroker` read methods
 - **Acceptance:**
-  - [ ] `getAccount`, `getAccountConfig`, `getClock`, `getCalendar`, `getPositions`, `getOrders(after)`, `getOrderByClientId`, `getActivities(after)` (follows `page_token`), `getAsset`, `getDailyBars(symbols, start, end)` (`feed=sip`, `adjustment=all`, end clamped to ≥15 min ago, paginated)
-  - [ ] Every response is Zod-parsed. A 4xx/5xx becomes a typed `BrokerHttpError` (status, Alpaca code) with no secrets in the message.
-  - [ ] Tests assert host-per-env, auth headers, query params, pagination and parsing against fixtures.
+  - [x] `getAccount`, `getAccountConfig`, `getClock`, `getCalendar`, `getPositions`, `getOrders(after)`, `getOrderByClientId`, `getActivities(after)` (follows `page_token`), `getAsset`, `getDailyBars(symbols, start, end)` (`feed=sip`, `adjustment=all`, end clamped to ≥15 min ago, paginated)
+  - [x] Every response is Zod-parsed. A 4xx/5xx becomes a typed `BrokerHttpError` (status, Alpaca code) with no secrets in the message.
+  - [x] Tests assert host-per-env, auth headers, query params, pagination and parsing against fixtures.
 - **Verify:** `npx vitest run broker/alpaca`; gate
 - **Depends on:** B1 · **Files:** `src/broker/alpaca.ts`, `test/broker/alpaca.test.ts`, `test/broker/fixtures/*` · **Scope:** M
 
 ### B3: `buildLots`
 - **Acceptance:**
-  - [ ] Pure FIFO: open lots per symbol (`qty`, `costBasis`, `openedAt`) and realized closures (`qty`, `proceeds`, `costBasis`, `gain`, `openedAt`, `closedAt`) from FILL + SPLIT activities
-  - [ ] Tests: partial fills; several buys and a partial sell; a full close; a loss followed by a rebuy within 30 days (both closure and new lot present with dates); a 2:1 split
+  - [x] Pure FIFO: open lots per symbol (`qty`, `costBasis`, `openedAt`) and realized closures (`qty`, `proceeds`, `costBasis`, `gain`, `openedAt`, `closedAt`) from FILL activities. **Deviation:** splits and other share-affecting corporate actions are *flagged as issues* (which blocks trading that symbol) rather than modelled, because their activity shapes vary and a wrong guess would corrupt basis. Revisit when one is actually observed.
+  - [x] Tests: partial fills; several buys and a partial sell; a full close; a loss followed by a rebuy within 30 days (both closure and new lot present with dates); a split (flagged)
 - **Verify:** `npx vitest run broker/lots`; gate
 - **Depends on:** B1 · **Files:** `src/broker/lots.ts`, `test/broker/lots.test.ts` · **Scope:** S
 
 ### B4: Migration 0002
 - **Acceptance:**
-  - [ ] Schema: `broker_account`, `broker_activities`, `orders`, `positions`, `equity_snapshots` per the spec, with `trading_allowed` + `blocked_reasons` on `broker_account`
-  - [ ] A custom migration generalizes the append-only trigger (`reject_mutation()`) and applies it to `broker_activities`. A guarded `REVOKE UPDATE, DELETE, TRUNCATE … FROM trader_app` runs when the role exists.
-  - [ ] Tests: a numeric round trip on a new column; UPDATE/DELETE on `broker_activities` raise; the `audit_events` trigger still raises
+  - [x] Schema: `broker_account`, `broker_activities`, `orders`, `positions`, `equity_snapshots` per the spec, with `trading_allowed` + `blocked_reasons` on `broker_account`
+  - [x] A custom migration adds a generic `reject_mutation()` trigger function and applies it to `broker_activities` (`audit_events` keeps its own, untouched). A guarded `REVOKE UPDATE, DELETE, TRUNCATE … FROM trader_app` runs when the role exists.
+  - [x] Tests: a numeric round trip on a new column; UPDATE/DELETE on `broker_activities` raise; the `audit_events` trigger still raises
 - **Verify:** `npx vitest run db audit`; `db:generate` clean; gate
 - **Depends on:** B1 · **Files:** `src/db/schema.ts`, `drizzle/0002_*`, `drizzle/0003_*`, tests · **Scope:** M
 
 ### Checkpoint A
-- [ ] Gate green · `db:generate` clean · commit + push (staging deploy is still fine: B1's config requires the staging secrets, so **set them before this push**, which is the first step of B8)
+- [x] Gate green · `db:generate` clean · commit + push (staging deploy is still fine: B1's config requires the staging secrets, so **set them before this push**, which is the first step of B8)
 
 ### B5: `syncBroker` + `sync-broker` job
 - **Acceptance:**
