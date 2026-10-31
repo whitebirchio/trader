@@ -1,6 +1,6 @@
 # Spec: `foundation`
 
-> **Status: Approved** (Scott, 2026-10-31). Module 1 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on nothing.
+> **Status: Implemented** (2026-10-31). Approved by Scott on 2026-10-31; every success criterion verified on the live environments. Module 1 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on nothing.
 
 ## Objective
 
@@ -180,6 +180,20 @@ Naming: files are kebab-case; tables are plural snake_case; job names (`heartbea
 5. Deploying with `DATABASE_URL` unset makes the Worker return `503` naming `DATABASE_URL` (not its value), and its cron logs the config error and runs nothing.
 6. Firing the same scheduled time twice (`__scheduled` locally) produces one `job_runs` row.
 7. `CLAUDE.md`, `README.md`, `docs/SETUP.md` and the ADR index exist. The ADRs cover: Workers + Neon hosting; the hexagonal core; Claude owns strategy while code owns risk; Claude via scheduled MCP routine with no server-side LLM; paper as staging with one account per environment; branch-based deploys (feature → staging, `main` → production); the append-only audit log; idempotent job runs; money as `numeric` + `Big`; wash sales as a cost rather than a rule; no broker order tools for Claude.
+
+## Verification (2026-10-31)
+
+| # | Criterion | Evidence |
+|---|---|---|
+| 1 | Fresh clone is green | `git clone` of `main` @ `ed4e532` → `npm ci`, typecheck, 35/35 tests |
+| 2 | Migrations + least-privilege role | CI migrated both branches; `app-role.ts`, connected as `trader_app`, was refused UPDATE/DELETE on `audit_events` and CREATE TABLE on both branches |
+| 3 | Staging heartbeat + health | Cloudflare cron slot 13:45:00Z `succeeded`; `/healthz` 200 `"env":"staging"` |
+| 4 | Production heartbeat + health | PR #1 merged → CI deploy; slot 14:00:00Z `succeeded`; `/healthz` 200 `"env":"production"` |
+| 5 | Fail closed | Staging before its secret: 503 `{"missing":["DATABASE_URL"]}`; production likewise until `set-db-secret.sh` ran |
+| 6 | Idempotent slot | Local `__scheduled` twice in one minute → `succeeded`, then `duplicate` |
+| 7 | Docs + ADRs | `CLAUDE.md`, `README.md`, `docs/SETUP.md`, ADRs 001–011 |
+
+**Deviations from the spec:** the role setup is `scripts/app-role.ts` + `scripts/set-db-secret.sh` rather than a hand-run `app_role.sql`; the cron slot is floored to the minute (`slotFor`); CI has no `pull_request` trigger. Each is explained in the code or commit that made it.
 
 ## Resolved Questions (2026-10-31)
 
