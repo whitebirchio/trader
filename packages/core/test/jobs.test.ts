@@ -96,3 +96,11 @@ describe("slotFor", () => {
     );
   });
 });
+
+describe("job run timing", () => {
+  it("never records finished_at before started_at", async () => {
+    await runJob(db, "staging", "heartbeat", scheduledFor);
+    const [run] = await db.select().from(jobRuns);
+    expect(run?.finishedAt?.getTime()).toBeGreaterThanOrEqual(run?.startedAt.getTime() ?? Infinity);
+  });
+});
