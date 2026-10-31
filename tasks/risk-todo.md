@@ -71,8 +71,9 @@
   - [x] SC-2: `risk:check` on staging: VTI $50 approved; TQQQ/SQQQ/SH rejected; a 30% single-stock buy clipped to 20%; a buy larger than cash clipped
   - [x] SC-3: `risk:kill` → all rejected; `risk:resume` → restored; both `actor: "owner"`
   - [x] SC-4/SC-5 covered by tests. **Deviation:** no staging halt fixture, because fake equity snapshots would stay in staging's index and skew later drawdown readings
-  - [ ] PR → production; *(Scott)* `risk:status --env production` shows no halt, no kill switch, drawdown 0%
+  - [x] PR → production (#4, merged 2026-10-31 18:05Z); *(Scott)* `risk:status --env production`: no halt, no kill switch, drawdown 0% (broker 'never synced' until Monday's open)
 - **Depends on:** R6 · **Scope:** S
 
 ### Checkpoint C
-- [ ] All 6 success criteria checked · Scott reviews · next: `SPEC-notifications.md`
+- [x] All 6 success criteria checked
+- [ ] Scott reviews · next: `SPEC-notifications.md`
