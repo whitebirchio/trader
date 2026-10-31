@@ -19,7 +19,8 @@
     "db:app-role": "tsx scripts/app-role.ts",
     "broker:capture": "tsx scripts/broker-capture.ts",
     "broker:configure": "tsx scripts/broker-configure.ts",
-    "broker:smoke": "tsx scripts/broker-smoke.ts"
+    "broker:smoke": "tsx scripts/broker-smoke.ts",
+    "broker:sync": "tsx scripts/broker-sync.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

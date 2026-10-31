@@ -22,9 +22,11 @@
   "vars": {
     "TRADING_ENV": "staging",
   },
-  // Secrets (`npx wrangler secret put DATABASE_URL --env <env>`):
+  // Secrets (`npx wrangler secret put <NAME> --env <env>`):
   //   DATABASE_URL — Neon pooled URL for the trader_app role on that env's branch
-  //                  (packages/core/scripts/app-role.ts; docs/SETUP.md)
+  //                  (scripts/set-db-secret.sh; docs/SETUP.md)
+  //   ALPACA_KEY_ID, ALPACA_SECRET_KEY — that env's own key pair: paper in staging,
+  //                  live in production (scripts/set-alpaca-secret.sh)
   "env": {
     "staging": {
       "name": "trader-engine-staging",

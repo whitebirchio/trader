@@ -41,28 +41,29 @@
 
 ### B5: `syncBroker` + `sync-broker` job
 - **Acceptance:**
-  - [ ] Clock and calendar gate: run while open or within 30 min after the close, otherwise `skipped: market closed`
-  - [ ] Pins the account number; checks status, blocks, `max_margin_multiplier = "1"`, `no_shorting`, `fractional_trading`; upserts the account state
-  - [ ] Activities insert-or-ignore from `max(at) − 3d` (full backfill on first run); orders upserted by `client_order_id` and audited on status transitions; positions replaced; one `equity_snapshots` row per trading date after the close
-  - [ ] Reconciliation: open-lot qty per symbol = position qty (exact `Big` compare)
-  - [ ] `trading_allowed` + `blocked_reasons` persisted; `broker.*` audit events on transitions only
-  - [ ] `test/broker/fake-broker.ts` (scriptable in-memory adapter); `sync-broker` added to `JOBS` and to the engine's `*/15` schedule
+  - [x] Clock and calendar gate: run while open or within 30 min after the close, otherwise `skipped: market closed`
+  - [x] Pins the account number; checks status, blocks, `max_margin_multiplier = "1"`, `no_shorting`, `fractional_trading`; upserts the account state
+  - [x] Activities insert-or-ignore from `max(at) − 3d` (full backfill on first run); orders upserted by `client_order_id` and audited on status transitions; positions replaced; one `equity_snapshots` row per trading date after the close
+  - [x] Reconciliation: open-lot qty per symbol = position qty (exact `Big` compare)
+  - [x] `trading_allowed` + `blocked_reasons` persisted; `broker.*` audit events on transitions only
+  - [x] `test/broker/fake-broker.ts` (scriptable in-memory adapter); `sync-broker` added to `JOBS` and to the engine's `*/15` schedule
 - **Verify:** `npx vitest run broker/sync`; gate
 - **Depends on:** B2, B3, B4 · **Files:** `src/broker/sync.ts`, `src/jobs.ts`, `test/broker/{sync.test,fake-broker}.ts`, `apps/engine/src/index.ts` · **Scope:** M
 
 ### B6: `submitOrder`
 - **Acceptance:**
-  - [ ] `clientOrderId(env, intentKey)`: deterministic, ≤48 chars, env-prefixed
-  - [ ] Records the intent row + `order.intent` audit **before** the broker call. A known client id → `already_submitted` with no call. A rejection → `rejected` + audit. A timeout or network error → `unknown`, which `syncBroker` resolves via `getOrderByClientId`.
-  - [ ] Validates notional (2 dp, ≥ $1) or qty (9 dp, > 0), not both
+  - [x] `clientOrderId(env, intentKey)`: deterministic, ≤48 chars, env-prefixed
+  - [x] Records the intent row + `order.intent` audit **before** the broker call. A known client id → `already_submitted` with no call. A rejection → `rejected` + audit. A timeout or network error → `unknown`, which `syncBroker` resolves via `getOrderByClientId`.
+  - [x] Validates notional (2 dp, ≥ $1) or qty (9 dp, > 0), not both
 - **Verify:** `npx vitest run broker/orders`; gate
 - **Depends on:** B4, B5 (fake broker) · **Files:** `src/broker/orders.ts`, `test/broker/orders.test.ts` · **Scope:** S
 
 ### B7: Scripts
 - **Acceptance:**
-  - [ ] `broker:configure -- --env <env> [--margin N]`: prints the current config and applies the safe one (or N for the SC-5 test, **staging only**)
-  - [ ] `broker:capture -- --env staging`: records scrubbed fixtures
-  - [ ] `broker:smoke`: refuses unless `--env staging` and the market is open; submits a $5 VTI buy through `submitOrder`, syncs until filled (≤2 min), asserts the lot = position and the audit trail, then re-submits the same intent and asserts `already_submitted`
+  - [x] `broker:configure -- --env <env> [--margin N]`: prints the current config and applies the safe one (or N for the SC-5 test, **staging only**)
+  - [x] `broker:capture`: records scrubbed fixtures (paper only, no `--env` flag)
+  - [x] `broker:sync -- --env staging [--force]`: one sync by hand (added for weekend verification and ops)
+  - [x] `broker:smoke`: refuses unless `--env staging` and the market is open; submits a $5 VTI buy through `submitOrder`, syncs until filled (≤2 min), asserts the lot = position and the audit trail, then re-submits the same intent and asserts `already_submitted`
 - **Verify:** dry runs against paper (weekend: configure + capture; smoke refuses with "market closed")
 - **Depends on:** B5, B6 · **Files:** `scripts/broker-{configure,capture,smoke}.ts`, `package.json` · **Scope:** S
 
@@ -73,10 +74,10 @@
 
 ### B8: Staging deploy + weekend verification
 - **Acceptance:**
-  - [ ] Staging Worker secrets `ALPACA_KEY_ID` / `ALPACA_SECRET_KEY` piped from `.env` (`STAGING_ALPACA_*`); `docs/SETUP.md` updated
-  - [ ] `broker:configure -- --env staging` → safe config
+  - [x] Staging Worker secrets `ALPACA_KEY_ID` / `ALPACA_SECRET_KEY` piped from `.env` (`STAGING_ALPACA_*`); `docs/SETUP.md` updated
+  - [x] `broker:configure -- --env staging` → safe config (paper was margin 4 + shorting on)
   - [ ] Branch push → staging deploy; weekend ticks record `skipped: market closed`; heartbeat still healthy
-  - [ ] SC-5: margin 2 → next eligible sync `tradingAllowed = false` + one `broker.config_unsafe`; restored → cleared (re-checked Monday if the market-closed gate prevents the weekend run; a `--force` sync script run is acceptable for this check)
+  - [x] SC-5 (via `broker:sync --force` on paper, 2026-10-31): margin 2 → next eligible sync `tradingAllowed = false` + one `broker.config_unsafe`; restored → cleared (re-checked Monday if the market-closed gate prevents the weekend run; a `--force` sync script run is acceptable for this check)
 - **Depends on:** B7 · **Files:** `docs/SETUP.md`, `scripts/set-alpaca-secret.sh` · **Scope:** S
 
 ### B9: Monday 2026-11-02 session (paper)

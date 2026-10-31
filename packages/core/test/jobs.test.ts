@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "../src/db/client.js";
 import { auditEvents, jobRuns } from "../src/db/schema.js";
 import { runJob, slotFor } from "../src/jobs.js";
-import { createTestDb } from "./helpers.js";
+import { createTestDb, deps } from "./helpers.js";
 
 let db: Db;
 const scheduledFor = new Date("2026-11-02T14:30:00Z");
@@ -13,7 +13,7 @@ beforeEach(async () => {
 
 describe("runJob", () => {
   it("runs the registered heartbeat and records success", async () => {
-    const outcome = await runJob(db, "staging", "heartbeat", scheduledFor);
+    const outcome = await runJob(deps(db, "staging"), "heartbeat", scheduledFor);
     expect(outcome).toEqual({ status: "succeeded", detail: { env: "staging" } });
 
     const [run] = await db.select().from(jobRuns);
@@ -25,7 +25,7 @@ describe("runJob", () => {
 
   it("passes the run context to the job", async () => {
     let seen: unknown;
-    await runJob(db, "production", "heartbeat", scheduledFor, async (ctx) => {
+    await runJob(deps(db, "production"), "heartbeat", scheduledFor, async (ctx) => {
       seen = { env: ctx.env, scheduledFor: ctx.scheduledFor, hasRunId: ctx.runId.length > 0 };
       return { status: "succeeded" };
     });
@@ -33,7 +33,7 @@ describe("runJob", () => {
   });
 
   it("records a skip with its reason", async () => {
-    const outcome = await runJob(db, "staging", "heartbeat", scheduledFor, async () => ({
+    const outcome = await runJob(deps(db, "staging"), "heartbeat", scheduledFor, async () => ({
       status: "skipped",
       reason: "market closed",
     }));
@@ -43,7 +43,7 @@ describe("runJob", () => {
   });
 
   it("records a thrown error as failed, audits it, and does not rethrow", async () => {
-    const outcome = await runJob(db, "staging", "heartbeat", scheduledFor, async () => {
+    const outcome = await runJob(deps(db, "staging"), "heartbeat", scheduledFor, async () => {
       throw new Error("boom");
     });
     expect(outcome).toEqual({ status: "failed", error: "boom" });
@@ -69,10 +69,10 @@ describe("runJob", () => {
       calls++;
       return { status: "succeeded" as const };
     };
-    expect(await runJob(db, "staging", "heartbeat", scheduledFor, job)).toEqual({
+    expect(await runJob(deps(db, "staging"), "heartbeat", scheduledFor, job)).toEqual({
       status: "succeeded",
     });
-    expect(await runJob(db, "staging", "heartbeat", scheduledFor, job)).toEqual({
+    expect(await runJob(deps(db, "staging"), "heartbeat", scheduledFor, job)).toEqual({
       status: "duplicate",
     });
     expect(calls).toBe(1);
@@ -80,8 +80,8 @@ describe("runJob", () => {
   });
 
   it("runs again for the next scheduled time", async () => {
-    await runJob(db, "staging", "heartbeat", scheduledFor);
-    await runJob(db, "staging", "heartbeat", new Date(scheduledFor.getTime() + 15 * 60_000));
+    await runJob(deps(db, "staging"), "heartbeat", scheduledFor);
+    await runJob(deps(db, "staging"), "heartbeat", new Date(scheduledFor.getTime() + 15 * 60_000));
     expect(await db.select().from(jobRuns)).toHaveLength(2);
   });
 });
@@ -99,7 +99,7 @@ describe("slotFor", () => {
 
 describe("job run timing", () => {
   it("never records finished_at before started_at", async () => {
-    await runJob(db, "staging", "heartbeat", scheduledFor);
+    await runJob(deps(db, "staging"), "heartbeat", scheduledFor);
     const [run] = await db.select().from(jobRuns);
     expect(run?.finishedAt?.getTime()).toBeGreaterThanOrEqual(run?.startedAt.getTime() ?? Infinity);
   });
