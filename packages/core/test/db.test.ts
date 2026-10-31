@@ -23,6 +23,8 @@ describe("schema", () => {
       "broker_activities",
       "equity_snapshots",
       "job_runs",
+      "notification_items",
+      "notifications",
       "orders",
       "positions",
       "risk_decisions",

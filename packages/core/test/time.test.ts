@@ -18,3 +18,10 @@ describe("market time", () => {
     expect(() => marketTimeToUtc("2026-13-40", "16:00")).toThrow();
   });
 });
+
+describe("formatMarketTime", () => {
+  it("shows instants in New York time", async () => {
+    const { formatMarketTime } = await import("../src/time.js");
+    expect(formatMarketTime(new Date("2026-11-03T15:15:00Z"))).toBe("Tue, Nov 3, 10:15 AM ET");
+  });
+});

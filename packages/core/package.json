@@ -24,7 +24,10 @@
     "risk:status": "tsx scripts/risk-status.ts",
     "risk:kill": "tsx scripts/risk-kill.ts",
     "risk:resume": "tsx scripts/risk-resume.ts",
-    "risk:check": "tsx scripts/risk-check.ts"
+    "risk:check": "tsx scripts/risk-check.ts",
+    "notify:test": "tsx scripts/notify-test.ts",
+    "notify:preview": "tsx scripts/notify-preview.ts",
+    "notify:run": "tsx scripts/notify-run.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",
