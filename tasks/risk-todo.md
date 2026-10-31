@@ -34,7 +34,7 @@
 
 ### Checkpoint A
 - [x] Gate green
-- [ ] Scott skims a sample of rejection/clip reasons (printed in the PR description)
+- [x] Scott skimmed the rejection/clip wording (2026-10-31)
 
 ## Phase 2: State, gate, sync hook
 
@@ -61,16 +61,16 @@
 
 ### R6: Owner scripts + docs
 - **Acceptance:**
-  - [ ] `risk:status`, `risk:kill --reason`, `risk:resume --reason`, `risk:check --buy SYM=N --sell SYM=N [--sleeve satellite]`, all with `--env staging|production`; `check` is a dry run (`evaluateOrders` on a live snapshot, nothing recorded)
-  - [ ] `docs/SETUP.md` "Risk controls" section; `CLAUDE.md` architecture line; ADR-012 "Halts freeze everything; only the owner resumes"
+  - [x] `risk:status`, `risk:kill --reason`, `risk:resume --reason`, `risk:check --buy SYM=N --sell SYM=N [--sleeve satellite]`, all with `--env staging|production`; `check` is a dry run (`evaluateOrders` on a live snapshot, nothing recorded)
+  - [x] `docs/SETUP.md` "Risk controls" section; `CLAUDE.md` architecture line; ADR-012 "Halts freeze everything; only the owner resumes"
 - **Verify:** run all four against staging
 - **Depends on:** R5 · **Files:** `scripts/risk-*.ts`, `package.json`, docs · **Scope:** S
 
 ### R7: Verify and ship
 - **Acceptance:**
-  - [ ] SC-2: `risk:check` on staging: VTI $50 approved; TQQQ/SQQQ/SH rejected; a 30% single-stock buy clipped to 20%; a buy larger than cash clipped
-  - [ ] SC-3: `risk:kill` → all rejected; `risk:resume` → restored; both `actor: "owner"`
-  - [ ] SC-4/SC-5 covered by tests (and a staging fixture for the halt)
+  - [x] SC-2: `risk:check` on staging: VTI $50 approved; TQQQ/SQQQ/SH rejected; a 30% single-stock buy clipped to 20%; a buy larger than cash clipped
+  - [x] SC-3: `risk:kill` → all rejected; `risk:resume` → restored; both `actor: "owner"`
+  - [x] SC-4/SC-5 covered by tests. **Deviation:** no staging halt fixture, because fake equity snapshots would stay in staging's index and skew later drawdown readings
   - [ ] PR → production; *(Scott)* `risk:status --env production` shows no halt, no kill switch, drawdown 0%
 - **Depends on:** R6 · **Scope:** S
 

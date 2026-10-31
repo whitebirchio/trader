@@ -74,6 +74,26 @@ Operator scripts (staging/paper only):
 
 Configuration and the `tradingAllowed` verdict are visible in `broker_account` (`trading_allowed`, `blocked_reasons`). Each change in the verdict is one `broker.*` audit event.
 
+## Risk controls
+
+The limits are code in `packages/core/src/risk/limits.ts`. Changing one is a PR, which runs on paper (staging) before it reaches live. The kill switch and the drawdown halt are database state that only you can clear (ADR-012). Each command takes `--env staging|production` and records your `--reason` in the audit log as `actor: owner`:
+
+```sh
+npm run risk:status -w @trader/core -- --env production                     # kill switch, halt, drawdown, today, verdict
+npm run risk:kill   -w @trader/core -- --env production --reason "…"        # stop all trading now (sells too)
+npm run risk:resume -w @trader/core -- --env production --reason "…"        # clear the kill switch and/or halt
+npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy AAPL=300:satellite   # dry run, records nothing
+```
+
+| Stop | Trips when | Blocks | Clears |
+|---|---|---|---|
+| Kill switch | you run `risk:kill` | every order | `risk:resume` |
+| Drawdown halt | flow-adjusted equity ≤ −20% from peak (checked every sync) | every order | `risk:resume` only; recovery doesn't clear it |
+| Daily loss pause | ≤ −5% vs prior close | buys only | by itself, next trading day (or on recovery above −5%) |
+| Broker verdict | `broker_account.trading_allowed` is false | every order | fix the account (see Alpaca above) |
+
+These scripts use the owner database URL and the environment's Alpaca keys from `.env`.
+
 ## Local development
 
 ```sh
