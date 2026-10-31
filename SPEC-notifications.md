@@ -1,6 +1,6 @@
 # Spec: `notifications`
 
-> **Status: DRAFT — awaiting approval.** Module 4 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation` (the audit log). Built before `portfolio` so you hear about halts and trades from the first live order (SPEC-risk resolved question 2).
+> **Status: DRAFT — open questions resolved 2026-10-31; awaiting approval.** Module 4 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation` (the audit log). Built before `portfolio` so you hear about halts and trades from the first live order (SPEC-risk resolved question 2).
 
 ## Objective
 
@@ -30,7 +30,7 @@ Email you about what Trader does, without you having to look. Every meaningful a
 - every digest event of the day, grouped as Trades, then Guardrail decisions
 - the guardrail state (kill switch, halt, drawdown)
 
-It goes out even on quiet days, so its arrival doubles as "Trader is alive". `portfolio` adds a vs-VTI line later.
+It goes out **every trading day**, quiet days included (Scott, 2026-10-31), so its arrival doubles as "Trader is alive". There's no digest on weekends and market holidays: nothing trades and nothing syncs. `portfolio` adds a vs-VTI line later.
 
 ## Setup: moving whitebirch.io DNS to Cloudflare
 
@@ -43,7 +43,7 @@ Order matters. Steps marked *(you)* need your registrar or Cloudflare login. I'l
 3. *(you)* **Add whitebirch.io to Cloudflare** (Free plan). Cloudflare imports the records it can find. I'll compare them against the inventory, record by record.
    - The GitHub Pages records stay **DNS-only** (grey cloud), so GitHub keeps managing the site's HTTPS certificate.
    - The GitHub challenge TXT is kept as is.
-4. *(you)* **Set up Email Routing** in Cloudflare: verify `scott.schmalz@gmail.com` (you'll get one click-to-confirm email), and recreate each forwarding rule from step 1. Cloudflare then replaces the Mailgun MX/SPF records with its own. The Mailgun DKIM (`k1._domainkey`) can be dropped.
+4. *(you)* **Set up Email Routing** in Cloudflare: verify `scott.schmalz@gmail.com` (you'll get one click-to-confirm email), and recreate today's forwarding: a **catch-all** (every @whitebirch.io address → your Gmail). Cloudflare then replaces the Mailgun MX/SPF records with its own. The Mailgun DKIM (`k1._domainkey`) can be dropped.
 5. *(you)* **Switch nameservers** at the registrar to the two Cloudflare gives you. During propagation (minutes to a day), mail arrives through either path, and both forward to Gmail.
 6. **Verify.** I'll check through Cloudflare's nameservers that the site, the GitHub challenge and the MX records resolve. You send a test email to a forwarded address from another account. Then *(you)* re-enable DNSSEC in Cloudflare and add its DS record at the registrar.
 
@@ -51,7 +51,7 @@ Trader's sending uses a Workers `send_email` binding restricted to your verified
 
 ## Assumptions (correct any of these)
 
-1. **Staging sends too, labelled.** Staging (paper) emails have the subject prefix `[paper]`, so you can filter or ignore them in Gmail. Without this, the email path can't be tested before it carries live events. A `NOTIFY_ENABLED=false` var can mute staging later.
+1. **Staging is silent apart from test sends** (Scott, 2026-10-31). Staging still builds and queues its emails, so the code path is exercised and visible in the `notifications` table, but it marks them `suppressed` instead of sending. Only `notify:test` emails (type `test`, subject prefix `[paper]`) are actually sent from staging. Production sends everything.
 2. **Plain, readable email.** Plain text plus a minimal HTML version (no images or tracking), using the human-readable reasons `risk` already writes. Subjects lead with what happened, e.g. `Trader: HALTED, account down 20.1% from peak` or `Trader daily: +0.42%, 3 trades (Mon Nov 2)`.
 3. **One urgent email per event, grouped per tick.** Several urgent events in the same 15-minute tick go out as one email listing them all, so a messy moment doesn't become a burst of emails.
 4. **The outbox is the source of truth for delivery.** A `notifications` table holds each email with its audit event ids, status, attempts and Cloudflare `messageId`. Each audit event belongs to at most one email of each type (urgent or digest).
@@ -85,14 +85,14 @@ apps/engine/src/mailer.ts → CloudflareMailer over env.EMAIL
 
 | Table | Purpose |
 |---|---|
-| `notifications` | `id`, `type` (`urgent` / `digest` / `test`), `digest_date` (unique per date for digests), `subject`, `text`, `html`, `audit_event_ids` (uuid[]), `status` (`pending` / `sending` / `sent` / `failed`), `attempts`, `last_error`, `message_id`, `created_at`, `sent_at` |
+| `notifications` | `id`, `type` (`urgent` / `digest` / `test`), `digest_date` (unique per date for digests), `subject`, `text`, `html`, `audit_event_ids` (uuid[]), `status` (`pending` / `sending` / `sent` / `failed` / `suppressed`), `attempts`, `last_error`, `message_id`, `created_at`, `sent_at` |
 | `notification_items` | (`audit_event_id`, `type`) unique. This is the guarantee that an event is emailed at most once per type. |
 
 ## Testing Strategy
 
 - **Routing** (pure): every `AuditKind` is assigned to exactly one of urgent, digest or ignore. A test fails when a new kind is added without a decision, so new modules can't forget.
-- **Compose** (pure, snapshot): urgent emails for each urgent kind; a busy digest; a quiet-day digest; the `[paper]` prefix on staging.
-- **Outbox** (PGlite + fake mailer): enqueue twice gives one email; a send failure retries with backoff and gives up after 5 attempts with `failed`; two overlapping deliveries send once; `job.failed` throttling.
+- **Compose** (pure, snapshot): urgent emails for each urgent kind; a busy digest; a quiet-day digest; the `[paper]` prefix on staging test sends.
+- **Outbox** (PGlite + fake mailer): staging suppresses everything but `test`; enqueue twice gives one email; a send failure retries with backoff and gives up after 5 attempts with `failed`; two overlapping deliveries send once; `job.failed` throttling.
 - **Digest job:** runs only on trading days, in the after-close window, once per date (redelivery-safe).
 - **Live:** `notify:test` on staging reaches your Gmail; a staging `risk:kill` produces an urgent email within one tick.
 
@@ -107,12 +107,12 @@ apps/engine/src/mailer.ts → CloudflareMailer over env.EMAIL
 1. Gate green; every audit kind is routed.
 2. DNS move done: the site and the GitHub verification still resolve, your existing forwarding still reaches Gmail, and DNSSEC is re-enabled.
 3. `notify:test` on staging lands in your Gmail from `trader@whitebirch.io` with a `[paper]` subject.
-4. Staging `risk:kill` produces one urgent email within 15 minutes, and `risk:resume` another. Re-running the tick sends nothing more.
-5. Monday after the close: one staging digest for 2026-11-02, covering the B9 smoke trade.
-6. Production: the binding is deployed, and the first production digest arrives after a trading day's close. **No trading behaviour changes.**
+4. Staging `risk:kill` queues one urgent notification within 15 minutes (status `suppressed`, nothing sent), and `risk:resume` another. Re-running the tick queues nothing more.
+5. Monday after the close: one staging digest row for 2026-11-02 (`suppressed`) covering the B9 smoke trade, previewable with `notify:preview`.
+6. Production: the binding is deployed, `notify:test --env production` arrives (you run it), and the first production digest arrives after a trading day's close. **No trading behaviour changes.**
 
-## Open Questions
+## Resolved Questions (2026-10-31)
 
-1. **Your forwarding rules.** Which @whitebirch.io addresses forward to Gmail today? Check Squarespace → whitebirch.io → Email forwarding. Is there a catch-all? These have to be recreated in step 4 before the nameserver switch.
-2. **Staging emails.** Are `[paper]`-prefixed staging emails acceptable (assumption 1), or would you rather staging send only `notify:test` emails and stay silent otherwise?
-3. **Quiet-day digests.** Keep sending a digest on trading days with no trades (my default, so its arrival means "alive"), or only when something happened?
+1. **Forwarding today is a catch-all:** every @whitebirch.io address goes to your Gmail. It's recreated as an Email Routing catch-all rule in setup step 4.
+2. **Staging is silent apart from test sends** (assumption 1).
+3. **A digest every trading day,** quiet days included.
