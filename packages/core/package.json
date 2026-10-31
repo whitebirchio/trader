@@ -13,10 +13,22 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.14",
+    "@neondatabase/serverless": "^1.2.0",
+    "@types/big.js": "^7.0.0",
     "@types/node": "^26.1.0",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
     "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "big.js": "^7.0.1",
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
   }
 }

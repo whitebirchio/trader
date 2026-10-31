@@ -34,53 +34,53 @@ Record the decisions already made so no future session re-derives them.
 
 ### T3: `parseConfig`
 - **Acceptance:**
-  - [ ] Zod schema: `TRADING_ENV` ∈ {`staging`,`production`}, `DATABASE_URL` is a `postgres(ql)://` URL
-  - [ ] Returns `{ ok: true, config }` or `{ ok: false, missing, invalid }` with **names only**
-  - [ ] Test: no secret value appears in `JSON.stringify` of a failure result
+  - [x] Zod schema: `TRADING_ENV` ∈ {`staging`,`production`}, `DATABASE_URL` is a `postgres(ql)://` URL
+  - [x] Returns `{ ok: true, config }` or `{ ok: false, missing, invalid }` with **names only**
+  - [x] Test: no secret value appears in `JSON.stringify` of a failure result
 - **Verify:** `npx vitest run config` (in `packages/core`); gate
 - **Depends on:** T1 · **Files:** `src/config.ts`, `test/config.test.ts`, `src/index.ts` · **Scope:** S
 
 ### T4: `money` helpers
 - **Acceptance:**
-  - [ ] Add `big.js` and `@types/big.js`; `src/money.ts` exports parse/format helpers plus arithmetic over decimal strings, with explicit rounding modes
-  - [ ] Tests: `0.1 + 0.2 === "0.3"`; fractional-share quantity math (9 dp) exact; rejects `NaN`/`Infinity`/non-numeric strings
+  - [x] Add `big.js` and `@types/big.js`; `src/money.ts` exports parse/format helpers plus arithmetic over decimal strings, with explicit rounding modes
+  - [x] Tests: `0.1 + 0.2 === "0.3"`; fractional-share quantity math (9 dp) exact; rejects `NaN`/`Infinity`/non-numeric strings
 - **Verify:** `npx vitest run money`; gate
 - **Depends on:** T1 · **Files:** `src/money.ts`, `test/money.test.ts`, `package.json` · **Scope:** S
 
 ### T5: Schema, migrations, PGlite harness
 - **Acceptance:**
-  - [ ] `src/db/schema.ts` defines `job_runs` (unique `(job, scheduled_for)`) and `audit_events` as in the spec; `src/db/client.ts` `Db` type; `drizzle.config.ts` with `casing: "snake_case"`
-  - [ ] Generated migration committed under `drizzle/`; `scripts/migrate.ts` applies migrations using `DATABASE_URL`
-  - [ ] `test/helpers.ts` `createTestDb()` applies all migrations to a fresh PGlite
-  - [ ] Test: a `numeric` value round-trips through PGlite as an exact string
+  - [x] `src/db/schema.ts` defines `job_runs` (unique `(job, scheduled_for)`) and `audit_events` as in the spec; `src/db/client.ts` `Db` type; `drizzle.config.ts` with `casing: "snake_case"`
+  - [x] Generated migration committed under `drizzle/`; `scripts/migrate.ts` applies migrations using `DATABASE_URL`
+  - [x] `test/helpers.ts` `createTestDb()` applies all migrations to a fresh PGlite
+  - [x] Test: a `numeric` value round-trips through PGlite as an exact string
 - **Verify:** `npx vitest run db`; `npm run db:generate -w @trader/core` produces no diff; gate
 - **Depends on:** T1, T4 · **Files:** `src/db/{schema,client}.ts`, `drizzle.config.ts`, `drizzle/*`, `scripts/migrate.ts`, `test/helpers.ts`, `test/db.test.ts` · **Scope:** M
 
 ### T6: Audit log (append-only)
 - **Acceptance:**
-  - [ ] Custom migration adds a `BEFORE UPDATE OR DELETE` trigger on `audit_events` that raises
-  - [ ] `recordEvent(db, { actor, kind, subject?, payload, jobRunId? })` with a typed `AuditKind` union (`job.failed`, `system.config_invalid`, …)
-  - [ ] Tests: insert works; `UPDATE` raises; `DELETE` raises
+  - [x] Custom migration adds a `BEFORE UPDATE OR DELETE` trigger on `audit_events` that raises
+  - [x] `recordEvent(db, { actor, kind, subject?, payload, jobRunId? })` with a typed `AuditKind` union (`job.failed`, `system.config_invalid`, …)
+  - [x] Tests: insert works; `UPDATE` raises; `DELETE` raises
 - **Verify:** `npx vitest run audit`; gate
 - **Depends on:** T5 · **Files:** `drizzle/<n>_audit_append_only.sql` (+ journal), `src/audit.ts`, `test/audit.test.ts` · **Scope:** S
 
 ### T7: Job runner + heartbeat
 - **Acceptance:**
-  - [ ] `runJob(db, job, scheduledFor, fn)` claims the slot through `ON CONFLICT DO NOTHING` and records `succeeded`/`skipped`/`failed` with `finished_at`; on failure, also writes a `job.failed` audit event and never rethrows
-  - [ ] `heartbeat` job implementation (records `succeeded` with `{ env }` detail)
-  - [ ] Tests: success path; thrown error → `failed` row + audit event; same `(job, scheduledFor)` twice → `duplicate`, exactly one row
+  - [x] `runJob(db, job, scheduledFor, fn)` claims the slot through `ON CONFLICT DO NOTHING` and records `succeeded`/`skipped`/`failed` with `finished_at`; on failure, also writes a `job.failed` audit event and never rethrows
+  - [x] `heartbeat` job implementation (records `succeeded` with `{ env }` detail)
+  - [x] Tests: success path; thrown error → `failed` row + audit event; same `(job, scheduledFor)` twice → `duplicate`, exactly one row
 - **Verify:** `npx vitest run jobs`; gate
 - **Depends on:** T5, T6 · **Files:** `src/jobs.ts`, `test/jobs.test.ts`, `src/index.ts` · **Scope:** S
 
 ### T8: `getHealth`
 - **Acceptance:**
-  - [ ] `getHealth(db, env, now)` → `{ env, status: "healthy" | "unhealthy", lastHeartbeatAt, reason? }`, healthy only if the last `succeeded` heartbeat is ≤ 30 min old
-  - [ ] Tests: fresh, stale and never cases
+  - [x] `getHealth(db, env, now)` → `{ env, status: "healthy" | "unhealthy", lastHeartbeatAt, reason? }`, healthy only if the last `succeeded` heartbeat is ≤ 30 min old
+  - [x] Tests: fresh, stale and never cases
 - **Verify:** `npx vitest run health`; gate
 - **Depends on:** T7 · **Files:** `src/health.ts`, `test/health.test.ts` · **Scope:** XS
 
 ### Checkpoint B
-- [ ] Gate green · every exported core function has a test · `db:generate` clean · commit + push (first staging-eligible push is still a no-op until T11)
+- [x] Gate green · every exported core function has a test · `db:generate` clean · commit + push (first staging-eligible push is still a no-op until T11)
 
 ## Phase 3: Deploy
 
