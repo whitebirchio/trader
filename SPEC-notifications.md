@@ -1,6 +1,6 @@
 # Spec: `notifications`
 
-> **Status: DRAFT — open questions resolved 2026-10-31; awaiting approval.** Module 4 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation` (the audit log). Built before `portfolio` so you hear about halts and trades from the first live order (SPEC-risk resolved question 2).
+> **Status: Approved** (Scott, 2026-10-31). Module 4 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation` (the audit log). Built before `portfolio` so you hear about halts and trades from the first live order (SPEC-risk resolved question 2).
 
 ## Objective
 
