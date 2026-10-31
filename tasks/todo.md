@@ -68,7 +68,8 @@
 - **Depends on:** B5, B6 · **Files:** `scripts/broker-{configure,capture,smoke}.ts`, `package.json` · **Scope:** S
 
 ### Checkpoint B
-- [ ] Gate green · every exported function tested · Scott skims the `tradingAllowed` reasons and the transition-only auditing
+- [x] Gate green · every exported function tested
+- [ ] Scott skims the `tradingAllowed` reasons and the transition-only auditing
 
 ## Phase 2: Staging, then production
 
@@ -76,7 +77,7 @@
 - **Acceptance:**
   - [x] Staging Worker secrets `ALPACA_KEY_ID` / `ALPACA_SECRET_KEY` piped from `.env` (`STAGING_ALPACA_*`); `docs/SETUP.md` updated
   - [x] `broker:configure -- --env staging` → safe config (paper was margin 4 + shorting on)
-  - [ ] Branch push → staging deploy; weekend ticks record `skipped: market closed`; heartbeat still healthy
+  - [x] Branch push → staging deploy; weekend ticks record `skipped: market closed` (14:45Z 2026-10-31); heartbeat still healthy
   - [x] SC-5 (via `broker:sync --force` on paper, 2026-10-31): margin 2 → next eligible sync `tradingAllowed = false` + one `broker.config_unsafe`; restored → cleared (re-checked Monday if the market-closed gate prevents the weekend run; a `--force` sync script run is acceptable for this check)
 - **Depends on:** B7 · **Files:** `docs/SETUP.md`, `scripts/set-alpaca-secret.sh` · **Scope:** S
 
