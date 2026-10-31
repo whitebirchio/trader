@@ -19,9 +19,9 @@ Create the npm-workspaces monorepo that mirrors Corpus, and push it to a new **p
 ### T2: ADRs, CLAUDE.md, README
 Record the decisions already made so no future session re-derives them.
 - **Acceptance:**
-  - [ ] `docs/decisions/README.md` index + ADRs: 001 Workers + Neon hosting · 002 hexagonal core · 003 Claude owns strategy, code owns risk · 004 Claude via scheduled MCP routine, no server-side LLM · 005 paper = staging, one account per env · 006 branch-based deploys · 007 idempotent job runs · 008 append-only audit log · 009 money as `numeric` + `Big` · 010 wash sales are a cost, not a rule · 011 no broker order tools for Claude
-  - [ ] `CLAUDE.md`: commands, architecture, invariants, workflow (`/spec` → `/plan` → `/build`, `SPEC-<module>.md`, `tasks/`), boundaries from the spec
-  - [ ] `README.md`: what it is, the module map link, quickstart
+  - [x] `docs/decisions/README.md` index + ADRs: 001 Workers + Neon hosting · 002 hexagonal core · 003 Claude owns strategy, code owns risk · 004 Claude via scheduled MCP routine, no server-side LLM · 005 paper = staging, one account per env · 006 branch-based deploys · 007 idempotent job runs · 008 append-only audit log · 009 money as `numeric` + `Big` · 010 wash sales are a cost, not a rule · 011 no broker order tools for Claude
+  - [x] `CLAUDE.md`: commands, architecture, invariants, workflow (`/spec` → `/plan` → `/build`, `SPEC-<module>.md`, `tasks/`), boundaries from the spec
+  - [x] `README.md`: what it is, the module map link, quickstart
 - **Verify:** every ADR has Status/Date/Context/Decision/Alternatives/Consequences; the ADR list matches spec success criterion 7
 - **Depends on:** T1
 - **Files:** `docs/decisions/*.md`, `CLAUDE.md`, `README.md`
