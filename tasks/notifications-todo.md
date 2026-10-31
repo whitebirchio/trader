@@ -7,38 +7,38 @@
 
 ### N1: Routing + port
 - **Acceptance:**
-  - [ ] `AUDIT_KINDS` const array in `audit.ts`, with `AuditKind` derived from it (no behaviour change)
-  - [ ] `notifications/routing.ts`: `routeFor(kind)` → `urgent | digest | ignore`, per the spec table
-  - [ ] `notifications/port.ts`: `Mailer` + `OutgoingEmail` types
-  - [ ] Test: every `AUDIT_KINDS` entry routes to exactly one class (a new kind without routing fails the build)
+  - [x] `AUDIT_KINDS` const array in `audit.ts`, with `AuditKind` derived from it (no behaviour change)
+  - [x] `notifications/routing.ts`: `routeFor(kind)` → `urgent | digest | ignore`, per the spec table
+  - [x] `notifications/port.ts`: `Mailer` + `OutgoingEmail` types
+  - [x] Test: every `AUDIT_KINDS` entry routes to exactly one class (a new kind without routing fails the build)
 - **Verify:** `npx vitest run notifications/routing`; gate · **Scope:** S
 
 ### N2: Compose
 - **Acceptance:**
-  - [ ] `composeUrgent(events, env)` → `{ subject, text, html }`, one email listing every urgent event in the tick, most severe first
-  - [ ] `composeDigest(data, env)`: equity, cash, the day's flow-adjusted change, positions, the day's trades and guardrail decisions, the guardrail state; a quiet-day variant
-  - [ ] HTML is minimal and escaped (symbols and reasons are untrusted strings); `[paper]` prefix on staging tests
-  - [ ] Snapshot tests for a halt, a kill switch, a busy digest, a quiet digest, and HTML escaping
+  - [x] `composeUrgent(events, env)` → `{ subject, text, html }`, one email listing every urgent event in the tick, most severe first
+  - [x] `composeDigest(data, env)`: equity, cash, the day's flow-adjusted change, positions, the day's trades and guardrail decisions, the guardrail state; a quiet-day variant
+  - [x] HTML is minimal and escaped (symbols and reasons are untrusted strings); `[paper]` prefix on staging tests
+  - [x] Snapshot tests for a halt, a kill switch, a busy digest, a quiet digest, and HTML escaping
 - **Verify:** `npx vitest run notifications/compose`; gate · **Depends on:** N1 · **Scope:** M
 
 ## Phase 2: Delivery
 
 ### N3: Outbox
 - **Acceptance:**
-  - [ ] Migration: `notifications`, `notification_items` (unique `(audit_event_id, type)`)
-  - [ ] `enqueue(db, env, email, eventIds, type)` is idempotent per event and type; on staging, writes `suppressed` unless type is `test`
-  - [ ] `deliver(db, mailer, now)`: conditional claim, send, then `sent`, or a retry with backoff; `failed` after 5 attempts; stale `sending` rows retried
-  - [ ] `job.failed` throttle: one email per job per 6 hours, later failures folded in
-  - [ ] Tests (PGlite + fake mailer): idempotency, suppression, retry/backoff/fail, two overlapping delivers send once, throttling
+  - [x] Migration: `notifications`, `notification_items` (unique `(audit_event_id, type)`)
+  - [x] `enqueue(db, env, email, eventIds, type)` is idempotent per event and type; on staging, writes `suppressed` unless type is `test`
+  - [x] `deliver(db, mailer, now)`: conditional claim, send, then `sent`, or a retry with backoff; `failed` after 5 attempts; stale `sending` rows retried
+  - [x] `job.failed` throttle: one email per job per 6 hours, later failures folded in
+  - [x] Tests (PGlite + fake mailer): idempotency, suppression, retry/backoff/fail, two overlapping delivers send once, throttling
 - **Verify:** `npx vitest run notifications/outbox`; `db:generate` clean; gate · **Depends on:** N1 · **Scope:** M
 
 ### N4: Jobs + mailer
 - **Acceptance:**
-  - [ ] `notify-urgent`: un-notified urgent events → one email per tick → deliver pending
-  - [ ] `notify-digest`: trading day and now ≥ close + 20 min and no digest yet for the date → build (from `broker_account`, `positions`, the risk index, the day's digest events) → enqueue → deliver
-  - [ ] `JobDeps.mailer`; schedule order heartbeat → sync-broker → notify-urgent → notify-digest
-  - [ ] `apps/engine`: `CloudflareMailer` over `env.EMAIL`; `send_email` binding restricted to the owner address; from `trader@whitebirch.io`
-  - [ ] Tests: urgent grouping per tick, digest once per date, quiet day, non-trading day skipped, redelivered tick a no-op
+  - [x] `notify-urgent`: un-notified urgent events → one email per tick → deliver pending
+  - [x] `notify-digest`: trading day and now ≥ close + 20 min and no digest yet for the date → build (from `broker_account`, `positions`, the risk index, the day's digest events) → enqueue → deliver
+  - [x] `JobDeps.mailer`; schedule order heartbeat → sync-broker → notify-urgent → notify-digest
+  - [x] `apps/engine`: `CloudflareMailer` over `env.EMAIL`; `send_email` binding restricted to the owner address; from `trader@whitebirch.io`
+  - [x] Tests: urgent grouping per tick, digest once per date, quiet day, non-trading day skipped, redelivered tick a no-op
 - **Verify:** `npx vitest run notifications`; gate · **Depends on:** N2, N3 · **Scope:** M
 
 ### Checkpoint A

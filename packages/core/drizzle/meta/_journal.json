@@ -50,6 +50,13 @@
       "when": 1793468762970,
       "tag": "0006_broker_last_equity",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793471273775,
+      "tag": "0007_notifications",
+      "breakpoints": true
     }
   ]
 }

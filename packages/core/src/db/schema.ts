@@ -23,6 +23,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -236,4 +237,52 @@ export const riskDecisions = pgTable(
     decidedAt: timestamptz().notNull().defaultNow(),
   },
   (t) => [index("risk_decisions_intent_idx").on(t.intentKey), index("risk_decisions_run_idx").on(t.gateRunId)],
+);
+
+// ---------------------------------------------------------------------------
+// notifications (SPEC-notifications): an outbox of owner emails.
+// ---------------------------------------------------------------------------
+
+/**
+ * Each email, queued before it's sent. `status`: pending → sending → sent, or
+ * back to pending with backoff, or failed after 5 attempts; `suppressed` on
+ * staging (only `test` emails send there). Not append-only: delivery updates it.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    type: text().notNull(),
+    digestDate: date({ mode: "string" }).unique("notifications_digest_date_key"),
+    subject: text().notNull(),
+    text: text().notNull(),
+    html: text().notNull(),
+    status: text().notNull(),
+    attempts: integer().notNull().default(0),
+    nextAttemptAt: timestamptz().notNull().defaultNow(),
+    claimedAt: timestamptz(),
+    lastError: text(),
+    messageId: text(),
+    createdAt: timestamptz().notNull().defaultNow(),
+    sentAt: timestamptz(),
+  },
+  (t) => [index("notifications_due_idx").on(t.status, t.nextAttemptAt)],
+);
+
+/**
+ * Which audit events each email covered: the at-most-once guarantee per
+ * (event, type). `notificationId` is null for events folded into a later
+ * email by throttling (repeated job failures).
+ */
+export const notificationItems = pgTable(
+  "notification_items",
+  {
+    auditEventId: uuid()
+      .notNull()
+      .references(() => auditEvents.id),
+    type: text().notNull(),
+    notificationId: uuid().references(() => notifications.id),
+    createdAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.auditEventId, t.type] })],
 );

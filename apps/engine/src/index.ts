@@ -1,5 +1,6 @@
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
+import { CloudflareMailer } from "./mailer.js";
 import {
   AlpacaBroker,
   type Config,
@@ -14,7 +15,9 @@ import {
 /** Cron expression → jobs it runs, in order. Must match `triggers.crons` in wrangler.jsonc. */
 const SCHEDULE: Record<string, JobName[]> = {
   // sync-broker skips itself outside the session + 30 min (SPEC-broker).
-  "*/15 * * * *": ["heartbeat", "sync-broker"],
+  // Notifications run last, so a halt tripped by this tick's sync is emailed in
+  // this tick, and the digest (16:30 ET tick) sees the after-close sync.
+  "*/15 * * * *": ["heartbeat", "sync-broker", "notify-urgent", "notify-digest"],
 };
 
 /**
@@ -55,9 +58,10 @@ export default {
     const { tradingEnv, alpaca } = parsed.config;
     // The host comes from tradingEnv inside AlpacaBroker; there is no override (ADR-005).
     const broker = new AlpacaBroker({ env: tradingEnv, keyId: alpaca.keyId, secretKey: alpaca.secretKey });
+    const mailer = new CloudflareMailer(env.EMAIL, env.NOTIFY_FROM, env.NOTIFY_TO);
     await withDb(parsed.config, ctx, async (db) => {
       for (const job of jobs) {
-        const outcome = await runJob({ db, env: tradingEnv, broker, now: () => new Date() }, job, scheduledFor);
+        const outcome = await runJob({ db, env: tradingEnv, broker, mailer, now: () => new Date() }, job, scheduledFor);
         console.log("job", { job, scheduledFor: scheduledFor.toISOString(), ...outcome });
       }
     });
