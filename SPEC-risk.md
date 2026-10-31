@@ -128,7 +128,9 @@ Every reason is a sentence a person can read in an email ("TQQQ is leveraged or 
 5. A deposit recorded between snapshots changes neither drawdown nor daily change (test).
 6. Production: migration applied; `risk:status --env production` (you run it) shows no halt, no kill switch and drawdown 0%. `sync-broker` runs the drawdown check each sync. **No orders placed.**
 
-## Open Questions
+## Resolved Questions (2026-10-31)
 
-1. **Kill switch scope.** As specced, the kill switch and the drawdown halt both block sells too, as you chose ("halt all trading"). The alternative is to let exits run under the drawdown halt and block only buys. A halted portfolio then can't sell a falling position, but it also can't panic-sell at the bottom. I've kept your choice; say if you'd rather allow exits.
-2. **Notifications order.** `notifications` (email) is small and independent. I'd build it right after `risk`, so halts and kill-switch events email you before `portfolio` ever places an order. Agreed?
+1. **Halt scope: freeze everything (Option A).** The kill switch and the −20% drawdown halt both block **all** orders, sells included, until you run `risk:resume`. Neither ever sells on its own. Holdings ride the market like buy-and-hold until a human looks.
+
+   Why: at 70% broad ETFs, a −20% drawdown is almost always a market-wide fall, where holding has historically beaten selling. Freezing also keeps the halted portfolio from behaving worse than its own benchmark (buy-and-hold VTSAX). A single holding collapsing is already bounded by the 20% position cap. The daily −5% pause still allows sells.
+2. **`notifications` comes right after `risk`,** so halts and kill-switch events email you before `portfolio` can place an order.
