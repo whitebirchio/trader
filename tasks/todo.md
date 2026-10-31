@@ -106,16 +106,16 @@ Write each step into `docs/SETUP.md` as it's done. Steps marked *(Scott)* need a
 
 ### T11: CI workflow
 - **Acceptance:**
-  - [ ] `build` job on every push (no `pull_request` trigger: PR branches are pushed anyway, so it would run twice): `npm ci`, typecheck, test (Node 22, npm cache)
-  - [ ] `deploy-staging` on `push` to a branch other than `main`: needs `build` → `db:migrate` with `STAGING_MIGRATE_URL` → `wrangler deploy --env staging`
-  - [ ] `deploy-production` on `push` to `main`: needs `build` → `db:migrate` with `PRODUCTION_MIGRATE_URL` → `wrangler deploy --env production`
-  - [ ] Separate deploy concurrency groups, `cancel-in-progress: false`
+  - [x] `build` job on every push (no `pull_request` trigger: PR branches are pushed anyway, so it would run twice): `npm ci`, typecheck, test (Node 22, npm cache)
+  - [x] `deploy-staging` on `push` to a branch other than `main`: needs `build` → `db:migrate` with `STAGING_MIGRATE_URL` → `wrangler deploy --env staging`
+  - [x] `deploy-production` on `push` to `main`: needs `build` → `db:migrate` with `PRODUCTION_MIGRATE_URL` → `wrangler deploy --env production`
+  - [x] Separate deploy concurrency groups, `cancel-in-progress: false`
 - **Verify:** push a feature branch → `build` + `deploy-staging` green, production untouched
 - **Depends on:** T9, T10 · **Files:** `.github/workflows/ci.yml` · **Scope:** S
 
 ### T12: Go-live verification + SETUP.md polish
 - **Acceptance:**
-  - [ ] SC-3: within 15 min of a feature-branch deploy, staging `/healthz` → 200 `"env":"staging"`
+  - [x] SC-3: within 15 min of a feature-branch deploy, staging `/healthz` → 200 `"env":"staging"`
   - [ ] SC-4: merge that branch to `main` → production `/healthz` → 200 `"env":"production"`
   - [ ] SC-1/2/7 rechecked; `docs/SETUP.md` covers staging reset from production and Neon point-in-time restore
 - **Verify:** `curl` both `/healthz` URLs; `job_runs` has heartbeat rows in both branches
