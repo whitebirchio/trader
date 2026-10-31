@@ -1,6 +1,6 @@
 # Spec: `risk`
 
-> **Status: DRAFT — awaiting approval.** Module 3 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation`, and reads `broker`'s tables.
+> **Status: Approved** (Scott, 2026-10-31). Module 3 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation`, and reads `broker`'s tables.
 
 ## Objective
 
