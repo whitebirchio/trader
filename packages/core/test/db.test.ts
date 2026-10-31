@@ -25,6 +25,9 @@ describe("schema", () => {
       "job_runs",
       "orders",
       "positions",
+      "risk_decisions",
+      "risk_gate_runs",
+      "risk_state",
     ]);
   });
 

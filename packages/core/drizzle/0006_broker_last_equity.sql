@@ -1,0 +1,1 @@
+ALTER TABLE "broker_account" ADD COLUMN "last_equity" numeric;

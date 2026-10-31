@@ -77,7 +77,7 @@ export const auditEvents = pgTable(
  * trigger in a migration, and scripts/app-role.ts revokes UPDATE/DELETE/TRUNCATE
  * on each from trader_app. Add new append-only tables here.
  */
-export const APPEND_ONLY_TABLES = ["audit_events", "broker_activities"] as const;
+export const APPEND_ONLY_TABLES = ["audit_events", "broker_activities", "risk_gate_runs", "risk_decisions"] as const;
 
 // ---------------------------------------------------------------------------
 // broker (SPEC-broker.md). Money and quantities are numeric (ADR-009).
@@ -95,6 +95,8 @@ export const brokerAccount = pgTable(
     status: text().notNull(),
     cash: numeric().notNull(),
     equity: numeric().notNull(),
+    /** Alpaca's equity at the prior close: the base for risk's daily-loss check. */
+    lastEquity: numeric(),
     longMarketValue: numeric().notNull(),
     buyingPower: numeric().notNull(),
     multiplier: text().notNull(),
@@ -178,3 +180,60 @@ export const equitySnapshots = pgTable("equity_snapshots", {
   longMarketValue: numeric().notNull(),
   recordedAt: timestamptz().notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// risk (SPEC-risk). Limits are code (src/risk/limits.ts); this is runtime state.
+// ---------------------------------------------------------------------------
+
+/**
+ * Single row (seeded by migration). The kill switch and the drawdown halt are
+ * latched: only an owner command clears them (ADR-012). `buysPausedOn` records
+ * the market date a daily-loss pause was announced, so it's audited once.
+ */
+export const riskState = pgTable(
+  "risk_state",
+  {
+    id: integer().primaryKey().default(1),
+    killSwitch: boolean().notNull().default(false),
+    killReason: text(),
+    halted: boolean().notNull().default(false),
+    haltReason: text(),
+    haltedAt: timestamptz(),
+    buysPausedOn: date({ mode: "string" }),
+    updatedAt: timestamptz().notNull().defaultNow(),
+    updatedBy: auditActor().notNull().default("system"),
+  },
+  (t) => [check("risk_state_singleton", sql`${t.id} = 1`)],
+);
+
+/** One row per riskGate call, with the exact snapshot it evaluated. Insert-only. */
+export const riskGateRuns = pgTable("risk_gate_runs", {
+  id: uuid().primaryKey().defaultRandom(),
+  ranAt: timestamptz().notNull().defaultNow(),
+  limitsVersion: text().notNull(),
+  snapshot: jsonb().$type<Record<string, unknown>>().notNull(),
+});
+
+/** One row per evaluated proposal. Insert-only. */
+export const riskDecisions = pgTable(
+  "risk_decisions",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    gateRunId: uuid()
+      .notNull()
+      .references(() => riskGateRuns.id),
+    intentKey: text().notNull(),
+    symbol: text().notNull(),
+    side: text().notNull(),
+    sleeve: text().notNull(),
+    requestedNotional: numeric(),
+    requestedQty: numeric(),
+    approvedNotional: numeric(),
+    approvedQty: numeric(),
+    verdict: text().notNull(),
+    reasons: jsonb().$type<string[]>().notNull(),
+    limitsVersion: text().notNull(),
+    decidedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [index("risk_decisions_intent_idx").on(t.intentKey), index("risk_decisions_run_idx").on(t.gateRunId)],
+);

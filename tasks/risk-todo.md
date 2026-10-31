@@ -40,22 +40,22 @@
 
 ### R4: Migration 0004 + state
 - **Acceptance:**
-  - [ ] Tables: `risk_state` (singleton), `risk_gate_runs` (snapshot jsonb, limits_version), `risk_decisions`; the last two are in `APPEND_ONLY_TABLES`, with triggers and guarded revokes
-  - [ ] `state.ts`: `getRiskState`, `setKillSwitch(on, reason, actor: "owner")`, `latchHalt(reason)` (conditional, once), `resume(reason, actor: "owner")`; each audits
-  - [ ] Tests: latch once under concurrency; resume clears both; resume with nothing set is a no-op; no claude-actor path exists (type-level: `actor: "owner"` only)
+  - [x] Tables: `risk_state` (singleton, seeded by migration 0005; peak is recomputed from snapshots, not stored), `risk_gate_runs` (snapshot jsonb, limits_version), `risk_decisions`; the last two are in `APPEND_ONLY_TABLES`, with triggers and guarded revokes
+  - [x] `state.ts`: `getRiskState`, `setKillSwitch(on, reason, actor: "owner")`, `latchHalt(reason)` (conditional, once), `resume(reason, actor: "owner")`; each audits
+  - [x] Tests: latch once under concurrency; resume clears both; resume with nothing set is a no-op; no claude-actor path exists (type-level: `actor: "owner"` only)
 - **Verify:** `npx vitest run risk/state append-only db`; `db:generate` clean; gate
 - **Depends on:** — · **Files:** `src/db/schema.ts`, `drizzle/0004_*`, `drizzle/0005_*`, `src/risk/state.ts`, `src/audit.ts`, tests · **Scope:** M
 
 ### R5: `riskGate` + `checkDrawdown`
 - **Acceptance:**
-  - [ ] `riskGate(db, broker, env, proposals, now)`: builds the `RiskSnapshot` from DB (`broker_account`, `positions`, `equity_snapshots`, `broker_activities`, `risk_state`, today's `orders`) plus asset facts from the broker; evaluates; inserts one `risk_gate_runs` row and one `risk_decisions` row per proposal; audits clips and rejections
-  - [ ] `checkDrawdown(db, now)` called at the end of `sync-broker`: latches the halt at ≤ −20%; emits `risk.buys_paused` / `risk.buys_resumed` on daily-loss transitions; an error here never undoes the sync
-  - [ ] Tests (PGlite + fake broker): stale sync rejects all; decisions persisted; halt trips and audits once across repeated syncs; daily-loss transitions audited once each way
+  - [x] `riskGate(db, broker, env, proposals, now)`: builds the `RiskSnapshot` from DB (`broker_account`, `positions`, `equity_snapshots`, `broker_activities`, `risk_state`, today's `orders`) plus asset facts from the broker; evaluates; inserts one `risk_gate_runs` row and one `risk_decisions` row per proposal; audits clips and rejections
+  - [x] `checkDrawdown(db, now)` called at the end of `sync-broker`: latches the halt at ≤ −20%; emits `risk.buys_paused` / `risk.buys_resumed` on daily-loss transitions; an error here never undoes the sync
+  - [x] Tests (PGlite + fake broker): stale sync rejects all; decisions persisted; halt trips and audits once across repeated syncs; daily-loss transitions audited once each way
 - **Verify:** `npx vitest run risk/gate broker/sync`; gate
-- **Depends on:** R3, R4 · **Files:** `src/risk/gate.ts`, `src/jobs.ts`, tests · **Scope:** M
+- **Depends on:** R3, R4 · **Files:** `src/risk/gate.ts`, `src/jobs.ts`, tests; plus migration 0006 adding `broker_account.last_equity` (the daily-loss base), written by `sync-broker` · **Scope:** M
 
 ### Checkpoint B
-- [ ] Gate green · `db:generate` clean · push (staging migrates)
+- [x] Gate green · `db:generate` clean · push (staging migrates)
 
 ## Phase 3: Operate and ship
 
