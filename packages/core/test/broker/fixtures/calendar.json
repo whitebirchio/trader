@@ -1,0 +1,26 @@
+[
+  {
+    "close": "16:00",
+    "date": "2026-10-30",
+    "open": "09:30",
+    "session_close": "2000",
+    "session_open": "0400",
+    "settlement_date": "2026-11-02"
+  },
+  {
+    "close": "16:00",
+    "date": "2026-11-02",
+    "open": "09:30",
+    "session_close": "2000",
+    "session_open": "0400",
+    "settlement_date": "2026-11-03"
+  },
+  {
+    "close": "16:00",
+    "date": "2026-11-03",
+    "open": "09:30",
+    "session_close": "2000",
+    "session_open": "0400",
+    "settlement_date": "2026-11-04"
+  }
+]

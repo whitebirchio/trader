@@ -4,6 +4,8 @@ import { TRADING_ENVS, type TradingEnv } from "./env.js";
 export interface Config {
   tradingEnv: TradingEnv;
   databaseUrl: string;
+  /** The env's own Alpaca key pair: paper in staging, live in production (ADR-005). */
+  alpaca: { keyId: string; secretKey: string };
 }
 
 export type ConfigResult =
@@ -15,6 +17,8 @@ export type ConfigResult =
 const VARS = {
   TRADING_ENV: z.enum(TRADING_ENVS),
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\/\S+$/),
+  ALPACA_KEY_ID: z.string().regex(/^[A-Z0-9]{16,}$/),
+  ALPACA_SECRET_KEY: z.string().regex(/^[A-Za-z0-9]{32,}$/),
 } as const;
 
 type VarName = keyof typeof VARS;
@@ -43,6 +47,10 @@ export function parseConfig(env: Partial<Record<VarName, unknown>>): ConfigResul
     config: {
       tradingEnv: VARS.TRADING_ENV.parse(env.TRADING_ENV),
       databaseUrl: VARS.DATABASE_URL.parse(env.DATABASE_URL),
+      alpaca: {
+        keyId: VARS.ALPACA_KEY_ID.parse(env.ALPACA_KEY_ID),
+        secretKey: VARS.ALPACA_SECRET_KEY.parse(env.ALPACA_SECRET_KEY),
+      },
     },
   };
 }

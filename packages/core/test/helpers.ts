@@ -3,7 +3,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import type { BrokerAdapter } from "../src/broker/port.js";
 import type { Db } from "../src/db/client.js";
+import type { TradingEnv } from "../src/env.js";
+import type { JobDeps } from "../src/jobs.js";
+import { FakeBroker } from "./broker/fake-broker.js";
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "drizzle");
 
@@ -34,4 +38,9 @@ export async function createTestDb(): Promise<{ db: Db; pglite: PGlite }> {
   }
   const db = drizzle(pglite, { casing: "snake_case" }) as unknown as Db;
   return { db, pglite };
+}
+
+/** Job dependencies over a test DB; the broker defaults to an empty fake. */
+export function deps(db: Db, env: TradingEnv = "staging", broker: BrokerAdapter = new FakeBroker()): JobDeps {
+  return { db, env, broker, now: () => new Date() };
 }

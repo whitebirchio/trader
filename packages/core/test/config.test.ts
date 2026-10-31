@@ -2,41 +2,59 @@ import { describe, expect, it } from "vitest";
 import { parseConfig } from "../src/config.js";
 
 const SECRET_URL = "postgresql://trader_app:s3cretPassw0rd@ep-x-pooler.us-east-2.aws.neon.tech/neondb";
+const KEY_ID = "PKTESTKEY0000000000000000A";
+const SECRET_KEY = "s3cretAlpacaSecretKey000000000000000000000000";
+
+const valid = {
+  TRADING_ENV: "staging",
+  DATABASE_URL: SECRET_URL,
+  ALPACA_KEY_ID: KEY_ID,
+  ALPACA_SECRET_KEY: SECRET_KEY,
+};
 
 describe("parseConfig", () => {
   it("accepts a valid environment", () => {
-    const result = parseConfig({ TRADING_ENV: "staging", DATABASE_URL: SECRET_URL });
-    expect(result).toEqual({
+    expect(parseConfig(valid)).toEqual({
       ok: true,
-      config: { tradingEnv: "staging", databaseUrl: SECRET_URL },
+      config: {
+        tradingEnv: "staging",
+        databaseUrl: SECRET_URL,
+        alpaca: { keyId: KEY_ID, secretKey: SECRET_KEY },
+      },
     });
   });
 
   it("accepts postgres:// as well as postgresql://", () => {
     const url = SECRET_URL.replace("postgresql://", "postgres://");
-    const result = parseConfig({ TRADING_ENV: "production", DATABASE_URL: url });
-    expect(result.ok).toBe(true);
+    expect(parseConfig({ ...valid, TRADING_ENV: "production", DATABASE_URL: url }).ok).toBe(true);
   });
 
   it("reports missing vars by name", () => {
-    const result = parseConfig({});
-    expect(result).toEqual({ ok: false, missing: ["DATABASE_URL", "TRADING_ENV"], invalid: [] });
+    expect(parseConfig({})).toEqual({
+      ok: false,
+      missing: ["ALPACA_KEY_ID", "ALPACA_SECRET_KEY", "DATABASE_URL", "TRADING_ENV"],
+      invalid: [],
+    });
   });
 
   it("treats an empty string as missing", () => {
-    const result = parseConfig({ TRADING_ENV: "staging", DATABASE_URL: "" });
-    expect(result).toEqual({ ok: false, missing: ["DATABASE_URL"], invalid: [] });
+    expect(parseConfig({ ...valid, DATABASE_URL: "" })).toEqual({
+      ok: false,
+      missing: ["DATABASE_URL"],
+      invalid: [],
+    });
   });
 
   it("reports invalid vars by name", () => {
-    const result = parseConfig({ TRADING_ENV: "live", DATABASE_URL: "mysql://nope" });
-    expect(result).toEqual({ ok: false, missing: [], invalid: ["DATABASE_URL", "TRADING_ENV"] });
+    expect(
+      parseConfig({ ...valid, TRADING_ENV: "live", DATABASE_URL: "mysql://nope", ALPACA_KEY_ID: "pk-lower" }),
+    ).toEqual({ ok: false, missing: [], invalid: ["ALPACA_KEY_ID", "DATABASE_URL", "TRADING_ENV"] });
   });
 
   it("never echoes a secret value in a failure", () => {
-    const result = parseConfig({ TRADING_ENV: "bogus", DATABASE_URL: SECRET_URL });
+    const result = parseConfig({ ...valid, TRADING_ENV: "bogus", ALPACA_SECRET_KEY: "short" });
     expect(result.ok).toBe(false);
-    expect(JSON.stringify(result)).not.toContain("s3cretPassw0rd");
-    expect(JSON.stringify(result)).not.toContain("bogus");
+    const json = JSON.stringify(result);
+    for (const secret of ["s3cretPassw0rd", "bogus", "short", KEY_ID]) expect(json).not.toContain(secret);
   });
 });

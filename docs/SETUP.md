@@ -52,10 +52,34 @@ The Worker must exist first, so for a new environment, deploy once and then run 
 
 Don't create `trader_app` from the Neon console. Console-created roles join `neon_superuser`.
 
+## Alpaca (broker)
+
+Each environment has its own key pair: **paper** for staging and **live** for production (ADR-005). The Worker derives the Alpaca host from `TRADING_ENV`. A paper key sent to the live host gets `401` (checked 2026-10-31), so a key in the wrong environment can't reach the other account.
+
+1. Put the keys in `.env` as `STAGING_ALPACA_KEY_ID` / `STAGING_ALPACA_SECRET_KEY` (paper) and `PRODUCTION_ALPACA_KEY_ID` / `PRODUCTION_ALPACA_SECRET_KEY` (live).
+2. Set the Worker secrets: `scripts/set-alpaca-secret.sh staging` (or `production`). The Worker must already exist.
+3. Apply the required account configuration: margin multiplier 1, so buying power = cash; shorting off; fractional trading on. Until it's applied, `sync-broker` reports `tradingAllowed = false`:
+   ```sh
+   npm run broker:configure -w @trader/core -- --env staging --check   # show only
+   npm run broker:configure -w @trader/core -- --env staging           # apply
+   ```
+
+Operator scripts (staging/paper only):
+
+| Command | Does |
+|---|---|
+| `npm run broker:sync -w @trader/core -- --env staging [--force]` | one sync now; `--force` ignores the market-hours gate |
+| `npm run broker:smoke -w @trader/core -- --env staging` | $5 VTI buy → fill → lot/position/audit checks (market hours only) |
+| `npm run broker:capture -w @trader/core` | re-record scrubbed test fixtures from the paper account |
+
+Configuration and the `tradingAllowed` verdict are visible in `broker_account` (`trading_allowed`, `blocked_reasons`). Each change in the verdict is one `broker.*` audit event.
+
 ## Local development
 
 ```sh
-sed -n 's/^STAGING_MIGRATE_URL=//p' .env | tr -d "'\"" | sed 's/^/DATABASE_URL=/' > apps/engine/.dev.vars
+{ sed -n 's/^STAGING_MIGRATE_URL=//p' .env | tr -d "'\"" | sed 's/^/DATABASE_URL=/'
+  sed -n 's/^STAGING_ALPACA_KEY_ID=//p' .env | tr -d "'\"" | sed 's/^/ALPACA_KEY_ID=/'
+  sed -n 's/^STAGING_ALPACA_SECRET_KEY=//p' .env | tr -d "'\"" | sed 's/^/ALPACA_SECRET_KEY=/'; } > apps/engine/.dev.vars
 npm run dev                                          # :8787, TRADING_ENV=staging
 curl "http://localhost:8787/__scheduled?cron=*/15+*+*+*+*"
 curl http://localhost:8787/healthz
