@@ -7,33 +7,34 @@
 
 ### R1: Limits, types, eligibility
 - **Acceptance:**
-  - [ ] `risk/limits.ts`: every number in the spec's limits table, plus the broad-ETF list; `limitsVersion()` hash
-  - [ ] Types: `Proposal` (intent key, symbol, side, sleeve, notional or qty), `RiskSnapshot`, `AssetFacts`, `Decision`
-  - [ ] `getAsset` returns `marginRequirementLong` (adapter + fixture + fake broker)
-  - [ ] `eligibility.ts`: leveraged/inverse (margin ≥ 50 OR name pattern), penny (< $5), illiquid (20-day ADV < $10M), IPO (< 90 days of bars), not tradable / not fractionable. Each returns a readable reason.
-  - [ ] Tests against recorded assets: VTI, QQQ, AAPL, XLK, ARKK pass; TQQQ, SQQQ, SH, SPXL, UVXY, SOXL rejected; a "Short-Term Treasury" fund passes
+  - [x] `risk/limits.ts`: every number in the spec's limits table, plus the broad-ETF list; `limitsVersion()` hash
+  - [x] Types: `Proposal` (intent key, symbol, side, sleeve, notional or qty), `RiskSnapshot`, `AssetFacts`, `Decision`
+  - [x] `getAsset` returns `marginRequirementLong` (adapter + fixture + fake broker)
+  - [x] `eligibility.ts`: leveraged/inverse (margin ≥ 50 OR name pattern), penny (< $5), illiquid (20-day ADV < $10M), IPO (< 90 days of bars), not tradable / not fractionable. Each returns a readable reason.
+  - [x] Tests against recorded assets: VTI, QQQ, AAPL, XLK, ARKK pass; TQQQ, SQQQ, SH, SPXL, UVXY, SOXL rejected; a "Short-Term Treasury" fund passes
 - **Verify:** `npx vitest run risk/eligibility`; gate
 - **Depends on:** — · **Files:** `src/risk/{limits,types,eligibility}.ts`, `src/broker/{port,alpaca}.ts`, tests + fixtures · **Scope:** M
 
 ### R2: Flow-adjusted equity index
 - **Acceptance:**
-  - [ ] `buildIndex(snapshots, flows)` → daily index, running peak, drawdown; `liveIndex(state, equityNow, flowsToday, lastEquity)` → current drawdown and daily change
-  - [ ] Flows = `CSD`, `CSW`, `JNLC`, `JNLS` net amounts by market date
-  - [ ] Tests: a deposit or withdrawal between snapshots doesn't move the index; a −20% path; recovery after a new peak; no snapshots yet (uses `last_equity`)
+  - [x] `buildIndex(snapshots, flows)` → daily index, running peak, drawdown; `liveIndex(state, equityNow, flowsToday, lastEquity)` → current drawdown and daily change
+  - [x] Flows = `CSD`, `CSW`, `JNLC`, `JNLS` net amounts by market date
+  - [x] Tests: a deposit or withdrawal between snapshots doesn't move the index; a −20% path; recovery after a new peak; no snapshots yet (uses `last_equity`)
 - **Verify:** `npx vitest run risk/index`; gate
-- **Depends on:** — · **Files:** `src/risk/index.ts`, test · **Scope:** S
+- **Depends on:** — · **Files:** `src/risk/equity-index.ts` (renamed from the plan's `index.ts` so it can't be mistaken for a barrel file), test · **Scope:** S
 
 ### R3: `evaluateOrders`
 - **Acceptance:**
-  - [ ] Rule pipeline in spec order: kill switch → drawdown halt → broker verdict → fresh data → daily-loss pause (buys) → no shorting (clip sells) → eligibility (buys) → position cap (non-broad, 20%) → sleeve cap (satellite, 30%) → cash (minus buffer) → runaway guard
-  - [ ] Clips compose; a remainder under $1 becomes a reject; proposals are evaluated in order, consuming cash and caps as they go
-  - [ ] Sells pass eligibility, caps and the daily-loss pause; the kill switch and halt block sells
-  - [ ] Table-driven tests: pass/clip/reject for every rule, plus precedence
+  - [x] Rule pipeline in spec order: kill switch → drawdown halt → broker verdict → fresh data → daily-loss pause (buys) → no shorting (clip sells) → eligibility (buys) → position cap (non-broad, 20%) → sleeve cap (satellite, 30%) → cash (minus buffer) → runaway guard
+  - [x] Clips compose; a remainder under $1 becomes a reject; proposals are evaluated in order, consuming cash and caps as they go
+  - [x] Sells pass eligibility, caps and the daily-loss pause; the kill switch and halt block sells
+  - [x] Table-driven tests: pass/clip/reject for every rule, plus precedence
 - **Verify:** `npx vitest run risk/rules`; gate
 - **Depends on:** R1, R2 · **Files:** `src/risk/rules.ts`, test · **Scope:** M
 
 ### Checkpoint A
-- [ ] Gate green · Scott skims a sample of rejection/clip reasons (printed in the PR description)
+- [x] Gate green
+- [ ] Scott skims a sample of rejection/clip reasons (printed in the PR description)
 
 ## Phase 2: State, gate, sync hook
 

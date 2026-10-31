@@ -183,7 +183,12 @@ describe("AlpacaBroker", () => {
 
   it("parses an asset (recorded)", async () => {
     const { b } = broker({ "/v2/assets/VTI": () => ({ body: fixture("asset-VTI") }) });
-    expect(await b.getAsset("VTI")).toMatchObject({ symbol: "VTI", tradable: true, fractionable: true });
+    expect(await b.getAsset("VTI")).toMatchObject({
+      symbol: "VTI",
+      tradable: true,
+      fractionable: true,
+      marginRequirementLong: "30",
+    });
   });
 
   it("submits a notional market day order", async () => {

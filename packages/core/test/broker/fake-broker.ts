@@ -60,7 +60,9 @@ export class FakeBroker implements BrokerAdapter {
   positions: Position[] = [];
   orders: BrokerOrder[] = [];
   activities: Activity[] = [];
-  assets: Asset[] = [{ symbol: "VTI", name: "Vanguard Total Stock Market ETF", status: "active", tradable: true, fractionable: true }];
+  assets: Asset[] = [
+    { symbol: "VTI", name: "Vanguard Total Stock Market ETF", status: "active", tradable: true, fractionable: true, marginRequirementLong: "30" },
+  ];
   bars: Record<string, Bar[]> = {};
   nextSubmit: SubmitBehaviour = { kind: "accept" };
   calls: Record<string, number> = {};
