@@ -142,6 +142,7 @@ function accountRow(account: Account, config: AccountConfig, now: Date) {
     status: account.status,
     cash: account.cash,
     equity: account.equity,
+    lastEquity: account.lastEquity,
     longMarketValue: account.longMarketValue,
     buyingPower: account.buyingPower,
     multiplier: account.multiplier,

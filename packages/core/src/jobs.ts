@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { recordEvent } from "./audit.js";
 import type { BrokerAdapter } from "./broker/port.js";
 import { syncBroker } from "./broker/sync.js";
+import { checkDrawdown } from "./risk/gate.js";
 import type { Db } from "./db/client.js";
 import { jobRuns } from "./db/schema.js";
 import type { TradingEnv } from "./env.js";
@@ -34,7 +35,15 @@ const heartbeat: JobFn = async ({ env }) => ({ status: "succeeded", detail: { en
 const syncBrokerJob: JobFn = async ({ db, env, broker, now }) => {
   const result = await syncBroker(db, broker, env, now());
   if (result.status === "skipped") return { status: "skipped", reason: result.reason };
-  return { status: "succeeded", detail: { ...result.detail } };
+  // The drawdown check runs on what the sync just wrote. If it fails, the sync
+  // still counts: its data is written, and the error is visible in the detail.
+  let risk: Record<string, unknown>;
+  try {
+    risk = { ...(await checkDrawdown(db, now())) };
+  } catch (e) {
+    risk = { error: e instanceof Error ? e.message : String(e) };
+  }
+  return { status: "succeeded", detail: { ...result.detail, risk } };
 };
 
 /** Every job the engine can run. Later modules register `rebalance`, … */

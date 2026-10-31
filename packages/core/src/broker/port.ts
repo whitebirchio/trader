@@ -94,6 +94,8 @@ export interface Asset {
   status: string;
   tradable: boolean;
   fractionable: boolean;
+  /** Alpaca's long margin requirement, percent as a decimal string ("30", "75"). Leveraged funds run ≥ 50. */
+  marginRequirementLong: string | null;
 }
 
 export interface Bar {
