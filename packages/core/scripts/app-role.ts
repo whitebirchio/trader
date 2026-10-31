@@ -18,6 +18,7 @@
  * neon_superuser, which would make a second admin rather than an app user.
  */
 import { neon } from "@neondatabase/serverless";
+import { APPEND_ONLY_TABLES } from "../src/db/schema.js";
 
 const ROLE = "trader_app";
 const ownerUrl = process.env.DATABASE_URL;
@@ -58,8 +59,8 @@ const statements = [
   // Tables added by later migrations get the same DML grants automatically…
   `ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${ROLE}`,
   `ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${ROLE}`,
-  // …except the audit log, which is append-only (the trigger is the other layer).
-  `REVOKE UPDATE, DELETE, TRUNCATE ON audit_events FROM ${ROLE}`,
+  // …except append-only tables (ADR-008); their triggers are the other layer.
+  ...APPEND_ONLY_TABLES.map((t) => `REVOKE UPDATE, DELETE, TRUNCATE ON ${t} FROM ${ROLE}`),
 ];
 for (const statement of statements) await owner.query(statement);
 
@@ -107,8 +108,10 @@ async function expectDenied(label: string, query: string): Promise<void> {
 
 await app.query("SELECT count(*) FROM job_runs");
 log("  ✓ can read job_runs");
-await expectDenied("UPDATE audit_events", "UPDATE audit_events SET kind = kind WHERE false");
-await expectDenied("DELETE audit_events", "DELETE FROM audit_events WHERE false");
+for (const t of APPEND_ONLY_TABLES) {
+  await expectDenied(`UPDATE ${t}`, `UPDATE ${t} SET id = id WHERE false`);
+  await expectDenied(`DELETE ${t}`, `DELETE FROM ${t} WHERE false`);
+}
 await expectDenied("CREATE TABLE", "CREATE TABLE trader_app_probe (id int)");
 log(`${ROLE} ready.`);
 

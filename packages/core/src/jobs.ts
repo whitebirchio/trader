@@ -1,12 +1,20 @@
 import { eq, sql } from "drizzle-orm";
 import { recordEvent } from "./audit.js";
+import type { BrokerAdapter } from "./broker/port.js";
+import { syncBroker } from "./broker/sync.js";
 import type { Db } from "./db/client.js";
 import { jobRuns } from "./db/schema.js";
 import type { TradingEnv } from "./env.js";
 
-export interface JobContext {
+/** What a job may touch. The engine builds the real ones; tests pass fakes. */
+export interface JobDeps {
   db: Db;
   env: TradingEnv;
+  broker: BrokerAdapter;
+  now: () => Date;
+}
+
+export interface JobContext extends JobDeps {
   runId: string;
   scheduledFor: Date;
 }
@@ -22,8 +30,15 @@ export type JobFn = (ctx: JobContext) => Promise<JobResult>;
 /** Proves the scheduler, the database and the deploy are alive; read by getHealth. */
 const heartbeat: JobFn = async ({ env }) => ({ status: "succeeded", detail: { env } });
 
-/** Every job the engine can run. Later modules register `sync-broker`, `rebalance`, … */
-export const JOBS = { heartbeat } satisfies Record<string, JobFn>;
+/** Mirror the Alpaca account into Postgres and refresh the tradingAllowed verdict (SPEC-broker). */
+const syncBrokerJob: JobFn = async ({ db, env, broker, now }) => {
+  const result = await syncBroker(db, broker, env, now());
+  if (result.status === "skipped") return { status: "skipped", reason: result.reason };
+  return { status: "succeeded", detail: { ...result.detail } };
+};
+
+/** Every job the engine can run. Later modules register `rebalance`, … */
+export const JOBS = { heartbeat, "sync-broker": syncBrokerJob } satisfies Record<string, JobFn>;
 export type JobName = keyof typeof JOBS;
 
 const MAX_ERROR_LENGTH = 2000;
@@ -49,12 +64,12 @@ export function slotFor(scheduledTime: number): Date {
  * sharing its cron tick.
  */
 export async function runJob(
-  db: Db,
-  env: TradingEnv,
+  deps: JobDeps,
   job: JobName,
   scheduledFor: Date,
   fn: JobFn = JOBS[job],
 ): Promise<JobOutcome> {
+  const { db } = deps;
   const claimed = await db
     .insert(jobRuns)
     .values({ job, scheduledFor, status: "running" })
@@ -65,7 +80,7 @@ export async function runJob(
 
   let result: JobResult;
   try {
-    result = await fn({ db, env, runId: run.id, scheduledFor });
+    result = await fn({ ...deps, runId: run.id, scheduledFor });
   } catch (e) {
     const error = (e instanceof Error ? e.message : String(e)).slice(0, MAX_ERROR_LENGTH);
     await db

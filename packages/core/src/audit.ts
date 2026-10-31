@@ -6,7 +6,22 @@ import { auditEvents } from "./db/schema.js";
  * modules extend this union (`order.submitted`, `strategy.activated`, …);
  * `notifications` decides which kinds email Scott.
  */
-export type AuditKind = "job.failed";
+export type AuditKind =
+  | "job.failed"
+  // Orders (SPEC-broker). `order.external` = an order placed outside Trader, e.g. in the Alpaca app.
+  | "order.intent"
+  | "order.submitted"
+  | "order.unknown"
+  | "order.partially_filled"
+  | "order.filled"
+  | "order.canceled"
+  | "order.rejected"
+  | "order.external"
+  // Broker safety verdict transitions (tradingAllowed).
+  | "broker.account_changed"
+  | "broker.config_unsafe"
+  | "broker.reconcile_mismatch"
+  | "broker.trading_allowed";
 
 export type AuditActor = (typeof auditEvents.actor.enumValues)[number];
 export type AuditEvent = typeof auditEvents.$inferSelect;

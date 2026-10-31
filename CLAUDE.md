@@ -23,6 +23,7 @@ npm run db:migrate -w @trader/core        # applies to $DATABASE_URL (owner role
 npm run dev                               # wrangler dev --test-scheduled on :8787 (needs apps/engine/.dev.vars)
 curl "http://localhost:8787/__scheduled?cron=*/15+*+*+*+*"   # fire the cron locally
 curl http://localhost:8787/healthz
+npm run broker:sync -w @trader/core -- --env staging --force   # one paper sync now (see docs/SETUP.md)
 ```
 
 After editing `apps/engine/wrangler.jsonc`, run `npm run cf-typegen -w trader-engine` to regenerate `worker-configuration.d.ts`.
@@ -40,6 +41,7 @@ After editing `apps/engine/wrangler.jsonc`, run `npm run cf-typegen -w trader-en
 
 **Hexagonal core + thin adapters** (ADR-002). All logic and its tests live in `packages/core` (`@trader/core`), which has no Worker, HTTP or MCP dependencies. External services (Alpaca, email) sit behind ports defined in core. `apps/engine` is a Cloudflare Worker whose `scheduled()` maps cron expressions to jobs and whose `fetch()` serves `/healthz`. Both stay a validate → call core → respond shell.
 
+- **Broker** (`src/broker/`, SPEC-broker): `BrokerAdapter` port + `AlpacaBroker` (host from `TRADING_ENV` only). `sync-broker` mirrors the account every 15 min during the session + 30 min after the close, rebuilds FIFO lots from fills, and persists `tradingAllowed` on `broker_account`. `submitOrder` is idempotent per intent key; no job calls it until `risk` exists.
 - **Jobs** run through `runJob` (ADR-007): it claims `(job, scheduled_for)` first, so a redelivered cron is a no-op, and records every outcome in `job_runs`.
 - **Audit log** (ADR-008): every state-changing action appends to `audit_events` with an actor (`system | claude | owner`). The table is append-only (trigger + role grants); correct mistakes by appending.
 - **Config** is Zod-validated at every entry point. Invalid config fails closed: no jobs run, and routes return 503 naming the bad vars (never their values).

@@ -1,0 +1,1 @@
+`synthetic-*.json` are hand-written from Alpaca's documented schemas, because the paper account had no orders or fills when fixtures were first captured (2026-10-31, a Saturday). Replace them with `npm run broker:capture` output after the first real paper fill (tasks/todo.md B9).

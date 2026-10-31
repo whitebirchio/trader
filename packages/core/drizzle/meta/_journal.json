@@ -15,6 +15,20 @@
       "when": 1793452909500,
       "tag": "0001_audit_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793456622266,
+      "tag": "0002_broker",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793456622594,
+      "tag": "0003_broker_activities_append_only",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import {
+  AlpacaBroker,
   type Config,
   type Db,
   type JobName,
@@ -12,7 +13,8 @@ import {
 
 /** Cron expression → jobs it runs, in order. Must match `triggers.crons` in wrangler.jsonc. */
 const SCHEDULE: Record<string, JobName[]> = {
-  "*/15 * * * *": ["heartbeat"],
+  // sync-broker skips itself outside the session + 30 min (SPEC-broker).
+  "*/15 * * * *": ["heartbeat", "sync-broker"],
 };
 
 /**
@@ -50,9 +52,12 @@ export default {
       return;
     }
     const scheduledFor = slotFor(controller.scheduledTime);
+    const { tradingEnv, alpaca } = parsed.config;
+    // The host comes from tradingEnv inside AlpacaBroker; there is no override (ADR-005).
+    const broker = new AlpacaBroker({ env: tradingEnv, keyId: alpaca.keyId, secretKey: alpaca.secretKey });
     await withDb(parsed.config, ctx, async (db) => {
       for (const job of jobs) {
-        const outcome = await runJob(db, parsed.config.tradingEnv, job, scheduledFor);
+        const outcome = await runJob({ db, env: tradingEnv, broker, now: () => new Date() }, job, scheduledFor);
         console.log("job", { job, scheduledFor: scheduledFor.toISOString(), ...outcome });
       }
     });
