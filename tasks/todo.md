@@ -28,7 +28,7 @@ Record the decisions already made so no future session re-derives them.
 - **Scope:** M (docs only)
 
 ### Checkpoint A
-- [ ] Gate green · repo pushed (private) · Scott skims the ADR index
+- [x] Gate green · repo pushed (private) · Scott skims the ADR index
 
 ## Phase 2: Core
 
@@ -91,7 +91,7 @@ Write each step into `docs/SETUP.md` as it's done. Steps marked *(Scott)* need a
   - [x] Run `db:migrate` against both branches; run `packages/core/scripts/app-role.ts` via `scripts/set-db-secret.sh` (idempotent, rotates the password, and verifies by connecting as the role; `trader_app` gets `SELECT/INSERT/UPDATE/DELETE` on `job_runs` and `SELECT/INSERT` only on `audit_events`) on both
   - [x] *(Scott)* Cloudflare API token (Workers edit) and `npx wrangler login` locally
   - [x] Worker secret `DATABASE_URL` (app role) for `--env staging`
-  - [ ] …and for `--env production`. The Worker only exists after the first `main` deploy, so this happens in T12 (Scott runs `scripts/set-db-secret.sh production`).
+  - [x] …and for `--env production`. The Worker only exists after the first `main` deploy, so this happens in T12 (Scott runs `scripts/set-db-secret.sh production`).
   - [x] GitHub repo secrets through `gh secret set`: `CLOUDFLARE_API_TOKEN`, `STAGING_MIGRATE_URL`, `PRODUCTION_MIGRATE_URL`
 - **Verify:** `gh secret list` shows all three; connecting as `trader_app`, `UPDATE audit_events …` is denied and `CREATE TABLE x()` is denied
 - **Depends on:** T1 (T5 for the migrate step) · **Files:** `packages/core/scripts/app-role.ts`, `scripts/set-db-secret.sh`, `docs/SETUP.md`, `.env.example` · **Scope:** S (code) + manual
@@ -116,10 +116,11 @@ Write each step into `docs/SETUP.md` as it's done. Steps marked *(Scott)* need a
 ### T12: Go-live verification + SETUP.md polish
 - **Acceptance:**
   - [x] SC-3: within 15 min of a feature-branch deploy, staging `/healthz` → 200 `"env":"staging"`
-  - [ ] SC-4: merge that branch to `main` → production `/healthz` → 200 `"env":"production"`
-  - [ ] SC-1/2/7 rechecked; `docs/SETUP.md` covers staging reset from production and Neon point-in-time restore
+  - [x] SC-4: merge that branch to `main` → production `/healthz` → 200 `"env":"production"`
+  - [x] SC-1/2/7 rechecked; `docs/SETUP.md` covers staging reset from production and Neon point-in-time restore
 - **Verify:** `curl` both `/healthz` URLs; `job_runs` has heartbeat rows in both branches
 - **Depends on:** T11 · **Files:** `docs/SETUP.md`, `tasks/todo.md` · **Scope:** XS
 
 ### Checkpoint C (foundation complete)
-- [ ] All 7 spec success criteria checked · Scott reviews · next: `SPEC-broker.md`
+- [x] All 7 spec success criteria checked (2026-10-31)
+- [ ] Scott reviews · next: `SPEC-broker.md`

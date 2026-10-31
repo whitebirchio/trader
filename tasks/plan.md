@@ -1,7 +1,7 @@
 # Implementation Plan: `foundation`
 
 > Implements [SPEC-foundation.md](../SPEC-foundation.md) (approved 2026-10-31). Tasks are tracked in [todo.md](todo.md).
-> **Status: DRAFT — awaiting approval.**
+> **Status: Complete** (2026-10-31). Approved by Scott on 2026-10-31.
 
 ## Overview
 
