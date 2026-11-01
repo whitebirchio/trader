@@ -7,7 +7,7 @@
 - [x] D3: core read models: `overviewView`, `performanceSeries`, `holdingsView`, `strategyView` + `strategyHistory`, `activityView`; tests
 - [x] D4: `db:dashboard-role` (SELECT-only; INSERT check) + `scripts/set-dashboard-secrets.sh`
 - [x] D5: `apps/dashboard` shell: Next 16 + Tailwind 4, Google OIDC (PKCE/state/nonce, claims, owner allow-list), signed session, middleware, CSP; tests
-- [ ] D6: pages: overview + chart, holdings, strategy + history, activity; staging banner; PWA manifest and icons
+- [x] D6: pages: overview + chart, holdings, strategy + history, activity; staging banner; PWA manifest and icons
 - [ ] D7: infra: `TraderCerts` stack (one ACM certificate for both names; deployed first, then DNS-validated) + `dashboard` construct: versioned code bucket + BucketDeployment, Web Function + revision + IamAuth endpoint (maxEnvironments 2, rate limit), resource policy (this distribution only), role (3 SSM params only), both log groups (30 days), CloudFront (OAC lambda/always-amz-auth, CachingDisabled, AllViewerExceptHostHeader); assertions
 - [ ] D8: *(Scott)* Google OAuth client + Cloudflare DNS; staging deploy; verify SC-2, 3, 4, 6
 - [ ] D9: production PR → merge → DNS → verify SC-5; CAPABILITY-MAP + SETUP.md updated

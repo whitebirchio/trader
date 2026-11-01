@@ -7,8 +7,8 @@
   --border: #e3e2de;
   --text: #0b0b0b;
   --muted: #6b6a66;
-  --portfolio: #2a78d6;
-  --benchmark: #9a9893;
+  --portfolio: #2a78d6; /* categorical slot 1, validated with slot 2 on --surface */
+  --benchmark: #eb6834;
   --good: #0c8a0c;
   --bad: #c43535;
   --warn: #b77400;
@@ -21,8 +21,8 @@
     --border: #2e2d2b;
     --text: #f4f3f0;
     --muted: #9b9a95;
-    --portfolio: #5b9be6;
-    --benchmark: #77756f;
+    --portfolio: #3987e5;
+    --benchmark: #d95926;
     --good: #3fbf5a;
     --bad: #e46161;
     --warn: #e0a33a;
