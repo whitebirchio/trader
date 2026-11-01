@@ -74,20 +74,26 @@ export function rankUniverse(bars: Record<string, DailyClose[]>, p: SystematicPa
   return { ranked: scored.map((s, i) => ({ ...s, rank: i + 1 })), excluded };
 }
 
+/**
+ * Where money that has nowhere better to go sits (Scott, 2026-11-01): VTI, the
+ * benchmark, never idle cash. This is risk capital, and VTI is "idle".
+ */
+export const IDLE_SYMBOL = "VTI";
+
 export interface SystematicAllocation {
-  /** Symbol → share of the systematic sleeve (0–1). Includes the defensive symbol if used. */
+  /** Symbol → share of the systematic sleeve (0–1), summing to 1. May include the defensive symbol and IDLE_SYMBOL. */
   weights: Map<string, number>;
-  /** Share left as cash (trend-filtered slots when `defensive` is null). */
-  cash: number;
+  /** The picks in rank order (what overflow tops up first). */
+  picks: Ranked[];
   /** Why each slot holds what it holds, for the plan record and emails. */
   notes: string[];
 }
 
 /**
  * Pick the top N (skipping `skip`, e.g. open wash-sale windows) and weight
- * them. A slot whose pick is below its trend line goes to `defensive` (or
- * cash), keeping that pick's weight. Weights + cash sum to 1. Nothing ranked
- * means all cash.
+ * them. A slot whose pick is below its trend line goes to `defensive`, or to
+ * IDLE_SYMBOL if there is none, keeping that pick's weight. Weights sum to 1.
+ * Nothing ranked means all IDLE_SYMBOL.
  */
 export function selectSystematic(ranking: Ranking, p: SystematicParams, skip: ReadonlySet<string> = new Set()): SystematicAllocation {
   const notes: string[] = [];
@@ -102,27 +108,25 @@ export function selectSystematic(ranking: Ranking, p: SystematicParams, skip: Re
   }
   const weights = new Map<string, number>();
   if (eligible.length === 0) {
-    notes.push("Nothing ranked: the systematic sleeve is held as cash");
-    return { weights, cash: 1, notes };
+    notes.push(`Nothing ranked: the systematic sleeve sits in ${IDLE_SYMBOL}`);
+    return { weights: new Map([[IDLE_SYMBOL, 1]]), picks: [], notes };
   }
 
   const raw = eligible.map((r) => (p.weighting === "equal" || r.volatility <= 0 ? 1 : 1 / r.volatility));
   const total = raw.reduce((a, b) => a + b, 0);
-  let cash = 0;
+  const add = (symbol: string, w: number) => weights.set(symbol, (weights.get(symbol) ?? 0) + w);
   eligible.forEach((r, i) => {
     const w = raw[i]! / total;
     if (r.aboveTrend) {
-      weights.set(r.symbol, (weights.get(r.symbol) ?? 0) + w);
+      add(r.symbol, w);
       notes.push(`${r.symbol}: rank ${r.rank}, ${(r.momentum * 100).toFixed(1)}% momentum`);
-    } else if (p.defensive) {
-      weights.set(p.defensive, (weights.get(p.defensive) ?? 0) + w);
-      notes.push(`${r.symbol} (rank ${r.rank}) is below its ${p.trendFilterDays}-day average, so its slot goes to ${p.defensive}`);
     } else {
-      cash += w;
-      notes.push(`${r.symbol} (rank ${r.rank}) is below its ${p.trendFilterDays}-day average, so its slot is held as cash`);
+      const to = p.defensive ?? IDLE_SYMBOL;
+      add(to, w);
+      notes.push(`${r.symbol} (rank ${r.rank}) is below its ${p.trendFilterDays}-day average, so its slot goes to ${to}`);
     }
   });
-  return { weights, cash, notes };
+  return { weights, picks: eligible.filter((r) => r.aboveTrend), notes };
 }
 
 function mean(xs: number[]): number {

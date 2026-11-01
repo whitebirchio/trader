@@ -1,65 +1,102 @@
 import { describe, expect, it } from "vitest";
 import { add, compare } from "../../src/money.js";
-import type { SystematicAllocation } from "../../src/portfolio/systematic.js";
+import { LIMITS } from "../../src/risk/limits.js";
+import type { SystematicParams } from "../../src/portfolio/strategy.js";
+import type { Ranked, Ranking } from "../../src/portfolio/systematic.js";
 import { buildTargets, weightToDecimal } from "../../src/portfolio/targets.js";
 import type { ThesisState } from "../../src/portfolio/theses.js";
 import { thesis } from "./fixtures.js";
 
 const active = (id: string, symbol: string, w: string): ThesisState => ({ state: "active", thesis: thesis({ id, symbol, targetWeightPct: w }) });
-const alloc = (weights: Record<string, number>, cash = 0): SystematicAllocation => ({
-  weights: new Map(Object.entries(weights)),
-  cash,
-  notes: Object.keys(weights).map((s, i) => `${s}: rank ${i + 1}, 10.0% momentum`),
+const ranked = (symbols: string[], below: string[] = []): Ranking => ({
+  ranked: symbols.map((symbol, i): Ranked => ({ symbol, rank: i + 1, momentum: 0.5 - i * 0.05, aboveTrend: !below.includes(symbol), volatility: 0.02 })),
+  excluded: [],
 });
-const sum = (xs: { dollars: string }[]) => xs.reduce((s, t) => add(s, t.dollars), "0");
+const params = (o: Partial<SystematicParams> = {}): SystematicParams => ({
+  universe: ["NVDA", "MSFT", "META", "QQQ", "AMZN", "XOM"],
+  lookbackDays: 252,
+  skipRecentDays: 21,
+  topN: 2,
+  trendFilterDays: 200,
+  weighting: "equal",
+  volatilityDays: 63,
+  defensive: null,
+  ...o,
+});
+const RANKING = ranked(["NVDA", "MSFT", "META", "QQQ", "AMZN", "XOM"]);
+const build = (o: Partial<Parameters<typeof buildTargets>[0]> = {}) =>
+  buildTargets({ states: [], ranking: RANKING, params: params(), skip: new Set(), equity: "1000", limits: LIMITS, ...o });
+const table = (r: ReturnType<typeof build>) => Object.fromEntries(r.targets.map((t) => [t.symbol, t.dollars]));
+const sum = (r: ReturnType<typeof build>) => r.targets.reduce((s, t) => add(s, t.dollars), "0");
 
 describe("buildTargets", () => {
+  it("the walkthrough: top-2 picks capped at $200 each, the overflow goes down the ranking (option 1b)", () => {
+    const r = build();
+    expect(table(r)).toEqual({ NVDA: "200", MSFT: "200", META: "200", QQQ: "200", AMZN: "200" });
+    expect(r.investable).toBe("1000"); // no cash buffer (Scott, 2026-11-01)
+    expect(r.targets.find((t) => t.symbol === "META")?.reason).toBe("META: rank 3, added because higher-ranked picks hit the 20% position limit");
+    expect(r.notes).toContain("NVDA held at $200 (the 20% position limit)");
+  });
+
+  it("puts whatever the ranking can't take into VTI", () => {
+    const r = build({ ranking: ranked(["NVDA", "MSFT", "META"]) });
+    expect(table(r)).toEqual({ NVDA: "200", MSFT: "200", META: "200", VTI: "400" });
+    expect(r.targets.find((t) => t.symbol === "VTI")?.reason).toBe("VTI: holds what no ranked pick could take");
+  });
+
+  it("skips names below trend and in wash-sale windows when going down the ranking", () => {
+    const r = build({ ranking: ranked(["NVDA", "MSFT", "META", "QQQ", "AMZN"], ["META"]), skip: new Set(["QQQ"]) });
+    expect(table(r)).toEqual({ NVDA: "200", MSFT: "200", AMZN: "200", VTI: "400" });
+  });
+
+  it("lets broad ETFs absorb overflow without a cap", () => {
+    const r = build({ ranking: ranked(["NVDA", "VTI", "MSFT"]), params: params({ universe: ["NVDA", "VTI", "MSFT"] }) });
+    expect(table(r)).toEqual({ NVDA: "200", VTI: "800" });
+  });
+
   it("allocates conviction first and gives systematic the remainder", () => {
-    // $1000 equity, $10 buffer → $990 investable. 20% AAPL = $198; $792 to systematic.
-    const { targets, investable } = buildTargets([active("a", "AAPL", "20")], alloc({ VTI: 0.75, QQQ: 0.25 }), "1000", "10");
-    expect(investable).toBe("990");
-    expect(targets).toEqual([
-      { symbol: "AAPL", sleeve: "conviction", dollars: "198", reason: "thesis a" },
-      { symbol: "VTI", sleeve: "systematic", dollars: "594", reason: "VTI: rank 1, 10.0% momentum" },
-      { symbol: "QQQ", sleeve: "systematic", dollars: "198", reason: "QQQ: rank 2, 10.0% momentum" },
-    ]);
+    // 20% AAPL ($200), then $800 systematic over NVDA/MSFT: $400 each → capped → overflow down the ranking.
+    const r = build({ states: [active("a", "AAPL", "20")] });
+    expect(table(r)).toEqual({ AAPL: "200", NVDA: "200", MSFT: "200", META: "200", QQQ: "200" });
+    expect(r.targets[0]).toMatchObject({ symbol: "AAPL", sleeve: "conviction", reason: "thesis a" });
   });
 
-  it("is all systematic with no theses, and all conviction at 100%", () => {
-    expect(buildTargets([], alloc({ VTI: 1 }), "1000", "10").targets).toEqual([
-      expect.objectContaining({ symbol: "VTI", sleeve: "systematic", dollars: "990" }),
-    ]);
+  it("is all conviction at 100%, and gives stopped or stale theses nothing", () => {
     const five = ["A", "B", "C", "D", "E"].map((s) => active(s.toLowerCase(), s, "20"));
-    const { targets } = buildTargets(five, alloc({ VTI: 1 }), "1000", "10");
-    expect(targets.every((t) => t.sleeve === "conviction")).toBe(true);
-    expect(sum(targets)).toBe("990");
-  });
-
-  it("gives stopped and stale theses no target, so their share flows to systematic", () => {
+    expect(build({ states: five }).targets.every((t) => t.sleeve === "conviction")).toBe(true);
     const states: ThesisState[] = [
       { state: "stopped", thesis: thesis({ id: "s", symbol: "XYZ" }), reason: "x", newlyStopped: true },
       { state: "stale", thesis: thesis({ id: "t", symbol: "OLD" }), reason: "y" },
     ];
-    const { targets } = buildTargets(states, alloc({ VTI: 1 }), "1000", "10");
-    expect(targets.map((t) => t.symbol)).toEqual(["VTI"]);
-    expect(targets[0]?.dollars).toBe("990");
+    expect(table(build({ states, params: params({ universe: ["VTI"], topN: 1 }), ranking: ranked(["VTI"]) }))).toEqual({ VTI: "1000" });
   });
 
-  it("never allocates more than investable, even with awkward weights", () => {
-    const thirds = alloc({ AAA: 1 / 3, BBB: 1 / 3, CCC: 1 / 3 });
-    const { targets, investable } = buildTargets([active("a", "AAPL", "7.77")], thirds, "1003.37", "10.03");
-    expect(compare(sum(targets), investable)).toBeLessThanOrEqual(0);
-    expect(targets.every((t) => /^\d+(\.\d{1,2})?$/.test(t.dollars))).toBe(true);
+  it("sends trend-filtered slots to the defensive holding, or to VTI", () => {
+    const r = build({ ranking: ranked(["NVDA", "MSFT"], ["MSFT"]) });
+    expect(table(r)).toEqual({ NVDA: "200", VTI: "800" });
+    const d = build({ ranking: ranked(["NVDA", "MSFT"], ["MSFT"]), params: params({ defensive: "SGOV" }) });
+    // SGOV isn't on the broad-ETF list, so it's capped too and the rest reaches VTI (open question: exempt T-bill ETFs?).
+    expect(table(d)).toEqual({ NVDA: "200", SGOV: "200", VTI: "600" });
   });
 
-  it("reports the cash share of trend-filtered slots", () => {
-    const { heldAsCash, targets } = buildTargets([], alloc({ VTI: 0.5 }, 0.5), "1000", "10");
-    expect(heldAsCash).toBe("495");
-    expect(targets[0]?.dollars).toBe("495");
+  it("version 0: everything in VTI", () => {
+    expect(table(build({ params: params({ universe: ["VTI"], topN: 1, trendFilterDays: null }), ranking: ranked(["VTI"]) }))).toEqual({ VTI: "1000" });
   });
 
-  it("handles an account smaller than its buffer", () => {
-    expect(buildTargets([], alloc({ VTI: 1 }), "4", "5")).toEqual({ targets: [], investable: "0", heldAsCash: "0" });
+  it("never allocates more than investable, in cents, even with awkward numbers", () => {
+    const r = build({ states: [active("a", "AAPL", "7.77")], equity: "1003.37", params: params({ topN: 3 }) });
+    expect(compare(sum(r), r.investable)).toBeLessThanOrEqual(0);
+    expect(compare(sum(r), "1003.36")).toBeGreaterThanOrEqual(0); // at most a cent of rounding left over
+    expect(r.targets.every((t) => /^\d+(\.\d{1,2})?$/.test(t.dollars))).toBe(true);
+  });
+
+  it("respects a configured cash buffer", () => {
+    const r = build({ limits: { ...LIMITS, cashBufferMin: "5", cashBufferPct: "1" }, params: params({ universe: ["VTI"], topN: 1 }), ranking: ranked(["VTI"]) });
+    expect(r.investable).toBe("990");
+  });
+
+  it("handles an empty account", () => {
+    expect(build({ equity: "0" }).targets).toEqual([]);
   });
 });
 

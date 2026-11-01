@@ -81,7 +81,7 @@ describe("selectSystematic", () => {
   it("holds the top N with equal weights", () => {
     const a = selectSystematic(rankUniverse(bars, params()), params());
     expect(Object.fromEntries(a.weights)).toEqual({ AAA: 0.5, BBB: 0.5 });
-    expect(a.cash).toBe(0);
+    expect(a.picks.map((p) => p.symbol)).toEqual(["AAA", "BBB"]);
   });
 
   it("weights by inverse volatility, summing to 1", () => {
@@ -92,15 +92,16 @@ describe("selectSystematic", () => {
     expect(w.AAA! + w.BBB!).toBeCloseTo(1, 12);
   });
 
-  it("sends a slot below trend to the defensive holding, or to cash", () => {
+  it("sends a slot below trend to the defensive holding, or to VTI (never cash)", () => {
     const p = params({ trendFilterDays: 10, topN: 2 });
     const down = { ...bars, BBB: series(30, (i) => (i <= 9 ? 100 : 140 - i)) };
     const withDefensive = selectSystematic(rankUniverse(down, p), { ...p, defensive: "SGOV" });
     expect(Object.fromEntries(withDefensive.weights)).toEqual({ AAA: 0.5, SGOV: 0.5 });
     expect(withDefensive.notes).toContain("BBB (rank 2) is below its 10-day average, so its slot goes to SGOV");
-    const toCash = selectSystematic(rankUniverse(down, p), p);
-    expect(Object.fromEntries(toCash.weights)).toEqual({ AAA: 0.5 });
-    expect(toCash.cash).toBe(0.5);
+    const toIdle = selectSystematic(rankUniverse(down, p), p);
+    expect(Object.fromEntries(toIdle.weights)).toEqual({ AAA: 0.5, VTI: 0.5 });
+    expect(toIdle.notes).toContain("BBB (rank 2) is below its 10-day average, so its slot goes to VTI");
+    expect(toIdle.picks.map((r) => r.symbol)).toEqual(["AAA"]);
   });
 
   it("skips wash-sale symbols and substitutes the next rank", () => {
@@ -109,9 +110,9 @@ describe("selectSystematic", () => {
     expect(a.notes[0]).toBe("AAA (rank 1) skipped: sold at a loss in the last 30 days (wash-sale window)");
   });
 
-  it("holds cash when nothing can be ranked", () => {
+  it("sits in VTI when nothing can be ranked", () => {
     const a = selectSystematic({ ranked: [], excluded: [] }, params());
-    expect(a).toEqual({ weights: new Map(), cash: 1, notes: ["Nothing ranked: the systematic sleeve is held as cash"] });
+    expect(a).toEqual({ weights: new Map([["VTI", 1]]), picks: [], notes: ["Nothing ranked: the systematic sleeve sits in VTI"] });
   });
 
   it("version 0 shape: one symbol, topN 1 → 100% of it", () => {

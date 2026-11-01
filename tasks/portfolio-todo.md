@@ -18,7 +18,7 @@
 - **Files:** `src/portfolio/systematic.ts`, test · **Scope:** S
 
 ### P3: Targets
-- [x] `buildTargets(strategy, thesisStates, ranking, equity, cashBuffer)` → `{symbol, sleeve, weight, dollars}[]`: conviction first (active theses only), the remainder to systematic; `toDollarTargets` in `Big`, cents, sums ≤ investable
+- [x] **Revised at Checkpoint A (2026-11-01):** `buildTargets({states, ranking, params, skip, equity, limits})` applies risk's per-name cap, sends the overflow down the ranking and then to VTI (option 1b), with no cash anywhere (buffer $0; trend-filtered and no-rank slots → VTI). Originally `buildTargets(strategy, thesisStates, ranking, equity, cashBuffer)` → `{symbol, sleeve, weight, dollars}[]`: conviction first (active theses only), the remainder to systematic; `toDollarTargets` in `Big`, cents, sums ≤ investable
 - [x] Tests: empty conviction → all systematic; 100% conviction → no systematic; stopped/stale theses excluded; exact dollar sums
 - **Files:** `src/portfolio/targets.ts`, test · **Depends on:** P1, P2 · **Scope:** S
 
@@ -33,7 +33,7 @@
 - **Files:** `src/portfolio/planner.ts`, test · **Depends on:** P3, P4 · **Scope:** M
 
 ### Checkpoint A
-- [ ] Gate green · Scott skims a rendered sample plan
+- [x] Gate green · Scott reviewed a rendered sample plan → decisions: option 1b for over-cap targets; no cash buffer (idle money sits in VTI)
 
 ## Phase 2: Wiring
 

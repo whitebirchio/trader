@@ -63,7 +63,8 @@ It runs on **its own EventBridge Scheduler schedule**, `trader-rebalance-<env>`:
    - Thesis states: stop-loss (last close ≤ average cost × (1 − stop%)), staleness, and removal.
    - Conviction targets = Σ active thesis weights, capped by `risk` at 100%.
    - Systematic targets = the rest. Rank the universe (minus any conviction symbols) by return over `lookbackDays` skipping `skipRecentDays`, apply the trend filter, take `topN`, weight them, and send filtered-out slots to `defensive`.
-   - Each target in dollars = weight × (equity − risk's cash buffer).
+   - Each target in dollars = weight × (equity − risk's cash buffer). The buffer is **$0** (Scott, 2026-11-01): this is risk capital, so nothing sits in cash.
+   - **No dollar sits idle** (Scott, 2026-11-01; option 1b). A systematic name above `risk`'s 20% per-name cap is held at the cap. The excess first tops up the chosen picks still under the cap, in rank order. Then it goes **further down the ranking** (names above their trend, outside wash-sale windows), each filled to the cap. Whatever is still left goes to **VTI**, which as a broad ETF is exempt from the cap. Trend-filtered slots without a `defensive` symbol, and "nothing rankable", also go to VTI, never cash. `topN` therefore means "at least N names".
 2. **Plan trades:** exits, and drift beyond `max(relativePct × target, minTradeUsd)`. **Sells first:** a tick with sells places only the sells, and a later tick places the buys once the fills have settled into cash. This avoids sizing buys on money that hasn't arrived yet.
 3. **Wash-sale awareness (ADR-010):** a *systematic* buy of a symbol sold at a loss in the last 30 days is skipped, and the next-ranked symbol takes its place. *Conviction* buys go ahead: that's Claude's informed call, and `agent` will show it the open wash-sale windows. Every skip is noted in the plan.
 4. **Gate and submit:** proposals → `riskGate` (with sleeve attribution) → `submitOrder` for the approved and clipped ones. Intent keys are `<planId>:<symbol>:<side>`, so re-running a step can't double an order (ADR-007, SPEC-broker).
@@ -152,3 +153,5 @@ packages/core/src/portfolio/
 1. ~~**Workers Paid ($5/mo).**~~ **Superseded 2026-11-01:** the engine moved to AWS (ADR-014), so there's no Workers CPU limit and no Cloudflare upgrade.
 2. **Version 0 = 100% VTI** until Claude's first strategy.
 3. **Stop-losses are required on every thesis, 5–50%.** No default: a thesis without one fails validation.
+4. **Over-cap systematic targets → option 1b** (Scott, 2026-11-01): cap, then overflow down the ranking, then VTI. See the daily check.
+5. **No cash buffer; idle money sits in VTI** (Scott, 2026-11-01). `risk`'s `cashBufferMin`/`cashBufferPct` are now `0`.

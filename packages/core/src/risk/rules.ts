@@ -95,10 +95,12 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
     }
 
     const cashRoom = sub(sub(snapshot.cash, buffer), state.plannedBuys);
+    const available = round(maxOf(cashRoom, "0"), 2, "down");
+    const hasBuffer = compare(buffer, "0") > 0;
     const cashStop = limitTo(
       cashRoom,
-      `Reduced to the cash available ($${round(maxOf(cashRoom, "0"), 2, "down")}, keeping a $${buffer} buffer).`,
-      `Not enough cash: $${round(maxOf(cashRoom, "0"), 2, "down")} available after the $${buffer} buffer.`,
+      hasBuffer ? `Reduced to the cash available ($${available}, keeping a $${buffer} buffer).` : `Reduced to the cash available ($${available}).`,
+      hasBuffer ? `Not enough cash: $${available} available after the $${buffer} buffer.` : `Not enough cash: $${available} available.`,
     );
     if (cashStop) return reject(proposal, cashStop);
 

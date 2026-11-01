@@ -26,9 +26,14 @@ export const LIMITS = {
   /** Alpaca margin requirement at or above this marks a leveraged/volatility product. */
   leveragedMarginPct: "50",
 
-  /** Cash kept back from buys: the larger of a floor and a share of equity. */
-  cashBufferMin: "5",
-  cashBufferPct: "1",
+  /**
+   * Cash kept back from buys: the larger of a floor and a share of equity.
+   * Zero by the owner's choice (2026-11-01): this is risk capital, and idle
+   * money sits in VTI, not cash. Notional market buys can't overspend, and
+   * Alpaca's fees come out of sell proceeds.
+   */
+  cashBufferMin: "0",
+  cashBufferPct: "0",
 
   /** Runaway guard per trading day. */
   maxOrdersPerDay: 40,

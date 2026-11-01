@@ -30,7 +30,7 @@ When `risk` is done:
 | **Penny / illiquid** | last close < **$5** or 20-day avg dollar volume < **$10M** | buys | reject |
 | **Non-fractionable / not tradable** | ineligible | buys | reject |
 | **Recent IPO** | < **90 days** of daily bars | buys | reject |
-| **Cash** | total buys ≤ cash − buffer (max of $5 or 1% of equity) | buys | clip the last buys in plan order |
+| **Cash** | total buys ≤ cash − buffer. The buffer is **$0** (Scott, 2026-11-01): idle money sits in VTI, not cash. Notional buys can't overspend, and fees come out of sells. | buys | clip the last buys in plan order |
 | **No shorting** | sell qty ≤ held qty | sells | clip to held qty |
 | **Runaway guard** | ≤ 40 orders per trading day; buy notional ≤ 100% of equity per day | every order | reject the excess |
 

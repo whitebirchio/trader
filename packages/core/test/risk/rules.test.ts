@@ -194,8 +194,21 @@ describe("conviction sleeve cap", () => {
 });
 
 describe("cash", () => {
-  it("keeps a buffer (max of $5 or 1% of equity) and clips the last buy", () => {
+  // The owner set the buffer to $0; the buffer logic is still tested with one.
+  const buffered = { ...LIMITS, cashBufferMin: "5", cashBufferPct: "1" };
+
+  it("keeps no buffer by default: buys may use all the cash", () => {
+    expect([LIMITS.cashBufferMin, LIMITS.cashBufferPct]).toEqual(["0", "0"]);
     const decisions = run(snapshot(), buy("VTI", "900"), buy("VTI", "200"));
+    expect(decisions.map((d) => [d.verdict, d.notional])).toEqual([
+      ["approved", "900"],
+      ["clipped", "100"],
+    ]);
+    expect(decisions[1]?.reasons).toEqual(["Reduced to the cash available ($100)."]);
+  });
+
+  it("keeps a buffer when one is configured (max of the floor or a % of equity) and clips the last buy", () => {
+    const decisions = evaluateOrders(snapshot(), [buy("VTI", "900"), buy("VTI", "200")], buffered);
     expect(decisions.map((d) => [d.verdict, d.notional])).toEqual([
       ["approved", "900"],
       ["clipped", "90"],
@@ -205,7 +218,11 @@ describe("cash", () => {
 
   it("rejects when less than $1 would remain", () => {
     const s = snapshot({ cash: "10.50" });
-    expect(run(s, buy("VTI", "50"))[0]).toMatchObject({
+    expect(run(snapshot({ cash: "0.50" }), buy("VTI", "50"))[0]).toMatchObject({
+      verdict: "rejected",
+      reasons: ["Not enough cash: $0.5 available."],
+    });
+    expect(evaluateOrders(s, [buy("VTI", "50")], buffered)[0]).toMatchObject({
       verdict: "rejected",
       reasons: ["Not enough cash: $0.5 available after the $10 buffer."],
     });
@@ -213,7 +230,7 @@ describe("cash", () => {
 
   it("composes with other clips", () => {
     const s = snapshot({ cash: "150" });
-    expect(run(s, buy("AAPL", "300", "conviction"))[0]).toMatchObject({
+    expect(evaluateOrders(s, [buy("AAPL", "300", "conviction")], buffered)[0]).toMatchObject({
       verdict: "clipped",
       notional: "140",
       reasons: ["Reduced to keep AAPL within 20% of equity ($200).", "Reduced to the cash available ($140, keeping a $10 buffer)."],
