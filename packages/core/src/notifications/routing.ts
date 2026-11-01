@@ -30,6 +30,12 @@ const ROUTES: Record<AuditKind, Route> = {
   "risk.halted": "urgent",
   "risk.kill_switch_on": "urgent",
   "risk.resumed": "urgent",
+
+  "strategy.activated": "urgent", // the strategy changed: meaningful, autonomous
+  "strategy.rejected": "urgent", // Claude submitted something invalid: the old version stays
+  "thesis.stopped_out": "urgent",
+  "thesis.stale": "urgent", // the research loop may be down
+  "rebalance.planned": "digest",
 };
 
 export function routeFor(kind: string): Route {
@@ -50,6 +56,10 @@ export const SEVERITY: Partial<Record<AuditKind, number>> = {
   "order.unknown": 6,
   "risk.buys_paused": 7,
   "job.failed": 8,
+  "thesis.stopped_out": 7.5,
+  "thesis.stale": 7.6,
+  "strategy.rejected": 7.7,
   "risk.resumed": 9,
+  "strategy.activated": 9.5,
   "broker.trading_allowed": 10,
 };

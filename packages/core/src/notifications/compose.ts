@@ -64,6 +64,27 @@ export function describe(e: NotifiableEvent): Described {
         lines: [`Error: ${str(p.error)}`, ...(folded > 0 ? [`${folded} more failure(s) of this job since the last email.`] : [])],
       };
     }
+    case "strategy.activated":
+      return {
+        headline: `New strategy v${str(p.version)} by ${str(p.authoredBy)}`,
+        lines: [
+          str(p.summary),
+          `${str(p.theses)} conviction ${Number(p.theses) === 1 ? "thesis" : "theses"} (${str(p.convictionPct)}% of the account); systematic: top ${str(p.topN)} of ${str(p.universeSize)} symbols.`,
+          "It takes effect at the next rebalance step.",
+        ],
+      };
+    case "strategy.rejected":
+      return {
+        headline: `Strategy rejected (${str(p.authoredBy)}'s submission)`,
+        lines: [...list(p.errors).map((err) => `• ${err}`), `v${str(p.activeVersion)} stays active.`],
+      };
+    case "thesis.stopped_out":
+      return { headline: `Stop-loss: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
+    case "thesis.stale":
+      return {
+        headline: `Thesis unwound: ${str(e.subject)} (not reviewed)`,
+        lines: [`Thesis ${str(p.thesisId)} was ${str(p.reason)}, so it's sold into the systematic sleeve.`, "If research is running, this means Claude's strategy hasn't been resubmitted in 30 days."],
+      };
     default:
       return { headline: e.kind, lines: [JSON.stringify(p)] };
   }

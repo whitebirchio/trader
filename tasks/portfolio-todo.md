@@ -39,13 +39,13 @@
 
 ### P6: Risk changes
 - [x] (done early, during P3) Rename sleeves to `systematic` / `conviction` (types, rules, reason text, tests, docs); `convictionCapPct: "100"` in `limits.ts`
-- [ ] ADR-013 "Conviction-first portfolio" (supersedes ADR-003's 70/30 default only); capability map objective line; CLAUDE.md wording
+- [ ] ADR-013 "Conviction-first portfolio" (still to write, with P9 docs) (supersedes ADR-003's 70/30 default only); capability map objective line; CLAUDE.md wording
 - **Files:** `src/risk/*`, tests, `docs/decisions/013-*.md`, README index, `CAPABILITY-MAP.md`, `CLAUDE.md` · **Scope:** M (wide but mechanical)
 
 ### P7: Migration + store
-- [ ] Tables `strategies`, `thesis_events` (both append-only), `rebalance_plans`
-- [ ] `submitStrategy(db, doc, actor)` → validate → insert the next version, or reject and audit `strategy.rejected`; `activeStrategy(db)` (falls back to `VERSION_0`)
-- [ ] New audit kinds routed: `strategy.activated`, `strategy.rejected`, `thesis.stopped_out`, `thesis.stale` (urgent), `rebalance.planned` (digest)
+- [x] Tables `strategies`, `thesis_events`, `rebalance_plans` (all three append-only; migrations 0008–0009)
+- [x] `submitStrategy(db, doc, actor)` → validate → insert the next version, or reject and audit `strategy.rejected`; `activeStrategy(db)` (falls back to `VERSION_0`)
+- [x] New audit kinds routed: `strategy.activated`, `strategy.rejected`, `thesis.stopped_out`, `thesis.stale` (urgent), `rebalance.planned` (digest)
 - **Files:** `src/db/schema.ts`, `drizzle/*`, `src/portfolio/store.ts`, `src/audit.ts`, `src/notifications/routing.ts`, tests · **Scope:** M
 
 ### P8: `rebalance` job

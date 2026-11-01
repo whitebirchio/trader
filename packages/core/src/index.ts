@@ -29,3 +29,4 @@ export * from "./portfolio/systematic.js";
 export * from "./portfolio/theses.js";
 export * from "./portfolio/targets.js";
 export * from "./portfolio/planner.js";
+export * from "./portfolio/store.js";
