@@ -2,14 +2,15 @@
   "name": "trader",
   "version": "0.1.0",
   "private": true,
-  "description": "Trader — an autonomous US-equity portfolio: Claude owns the strategy, code owns execution and risk.",
+  "description": "Trader \u2014 an autonomous US-equity portfolio: Claude owns the strategy, code owns execution and risk.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/whitebirchio/trader.git"
   },
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "infra"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",

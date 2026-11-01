@@ -121,3 +121,14 @@ export async function runJob(
     .where(eq(jobRuns.id, run.id));
   return result;
 }
+
+/**
+ * The jobs every 15-minute tick runs, in order: sync before rebalance-type
+ * work, notifications last so they report this tick's events. The engine's
+ * schedule (CDK) and the Lambda handler both use this one list.
+ */
+export const TICK_JOBS = ["heartbeat", "sync-broker", "notify-urgent", "notify-digest"] as const satisfies readonly JobName[];
+
+export function isJobName(name: string): name is JobName {
+  return Object.hasOwn(JOBS, name);
+}
