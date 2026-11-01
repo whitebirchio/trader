@@ -1,6 +1,6 @@
 # Implementation Plan: `agent`
 
-> Implements [SPEC-agent.md](../SPEC-agent.md) (approved 2026-11-01). Tasks are in [agent-todo.md](agent-todo.md). Kept short on purpose: the deadline is Monday's 9:45 ET step.
+> Implements [SPEC-agent.md](../../SPEC-agent.md) (approved 2026-11-01). Tasks are in [agent-todo.md](agent-todo.md). Kept short on purpose: the deadline is Monday's 9:45 ET step.
 
 ## Order
 1. **G1, core tools** (`packages/core/src/agent/`): pure functions over `Db` + `BrokerAdapter`, PGlite-tested. `preview` reuses `runRebalance` with `dryRun` plus a candidate strategy override.
