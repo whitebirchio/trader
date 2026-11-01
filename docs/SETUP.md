@@ -63,6 +63,10 @@ Each environment's Lambda reads only `/trader/<env>/` (SecureStrings, default `a
 |---|---|
 | `/trader/<env>/DATABASE_URL` | `scripts/set-db-secret.sh <env>` |
 | `/trader/<env>/ALPACA_KEY_ID`, `/trader/<env>/ALPACA_SECRET_KEY` | `scripts/set-alpaca-secret.sh <env>` |
+| `/trader/<env>/MCP_SIGNING_KEY`, `MCP_PASSPHRASE`, `MCP_TOKEN` | `scripts/set-mcp-secrets.sh <env>` (values in `.env` as `<ENV>_MCP_*`) |
+| `/trader/<env>/DATABASE_READ_URL`, `DASHBOARD_SESSION_KEY`, `GOOGLE_CLIENT_SECRET` | `scripts/set-dashboard-secrets.sh <env>` |
+
+The dashboard's role reads only its three parameters, by exact name (`ssm:GetParameters`), never the path, so it can't see the Alpaca keys.
 
 ## Database roles
 
@@ -72,6 +76,7 @@ Each branch has two roles (the same pattern as Fred):
 |---|---|---|
 | `neondb_owner` | CI migrations, this laptop | everything |
 | `trader_app` | the engine's `DATABASE_URL` | DML, except only `SELECT, INSERT` on append-only tables; no DDL |
+| `trader_dashboard` | the dashboard's `DATABASE_READ_URL` | `SELECT` only, read-only transactions; created/rotated by `scripts/set-dashboard-secrets.sh <env>` (which proves INSERT/UPDATE/DELETE/CREATE are denied) |
 
 Roles are per-branch. Create a branch's role, or rotate its password, and store the URL in SSM in one step:
 
@@ -155,6 +160,17 @@ Staging queues everything but sends only test emails; its rows show `suppressed`
 **whitebirch.io DNS (moved from Squarespace 2026-10-31).** The nameservers are `edward`/`janet.ns.cloudflare.com`.
 - **DNSSEC: active.** KSK tag `2371`, algorithm 13. The DS is at the registrar. For future changes, Cloudflare signing comes first, then the registrar's DS.
 - **Site: GitHub Pages,** with `A`/`AAAA` records and `www` → `whitebirchio.github.io`, all **DNS-only** (grey cloud), so GitHub manages its own certificate. The `_github-pages-challenge-whitebirchio` TXT is kept. The Mailgun leftovers are deleted.
+
+## Dashboard
+
+Read-only dashboard at **https://trader.whitebirch.io** (staging: **https://trader-staging.whitebirch.io**; SPEC-dashboard). It's a Lambda Web Function (`trader-dashboard-<env>`) behind CloudFront. The function's own endpoint URL refuses everything except that distribution (OAC + resource policy).
+
+- **Sign-in:** Google OAuth client "Trader" (Google Cloud Console). It's a Web application client in Testing mode, with the owner as a test user. Its redirect URIs are `https://trader.whitebirch.io/auth/callback`, `https://trader-staging.whitebirch.io/auth/callback` and `http://localhost:3000/auth/callback`. The client id is in `infra/lib/config.ts` (it's public). The secret is in `.env` (`GOOGLE_CLIENT_SECRET`) and SSM. Only `OWNER_EMAIL`, verified by Google, gets in. Sessions last 30 days. Rotating `DASHBOARD_SESSION_KEY` signs everyone out.
+- **Certificate:** `TraderCerts` holds one ACM certificate for both names, deployed once from the laptop (`npx cdk deploy TraderCerts --exclusively --profile whitebirch`). Its two DNS-validation CNAMEs (`_…​.trader` and `_…​.trader-staging` → `….acm-validations.aws`) are in Cloudflare and must stay there for renewal.
+- **DNS:** `trader` and `trader-staging` are CNAMEs to each stack's CloudFront domain (output `DashboardCname`), DNS-only.
+- **Build:** `npm run build -w trader-dashboard` (webpack; Turbopack can't map core's `.js` imports to `.ts`) produces `apps/dashboard/dist/app`, the CDK asset. CI builds it before synth and deploys.
+- **Local:** `DATABASE_READ_URL=… DASHBOARD_SESSION_KEY=… GOOGLE_CLIENT_SECRET=… TRADING_ENV=staging DASHBOARD_URL=http://localhost:3000 OWNER_EMAIL=… GOOGLE_CLIENT_ID=… DASHBOARD_DEV_EMAIL=<owner> npm run dev -w trader-dashboard`. The `DASHBOARD_DEV_EMAIL` bypass works only under `next dev`.
+- **Logs:** `/aws/lambda/web/trader-dashboard-<env>` (and `.local`). Sign-ins log `signed in` / `sign-in refused` with the reason.
 
 ## Recovery procedures
 

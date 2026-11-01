@@ -17,6 +17,9 @@ writeFileSync(
 const at = endpoint.lastIndexOf(":");
 process.env.HOSTNAME = endpoint.slice(0, at);
 process.env.PORT = endpoint.slice(at + 1);
+// Lambda spins idle environments down with SIGTERM; Next's standalone server
+// doesn't handle it, so exit cleanly instead of reporting a runtime error.
+process.on("SIGTERM", () => process.exit(0));
 await import("./apps/dashboard/server.js");
 `,
 );
