@@ -4,9 +4,8 @@
 #
 #   scripts/set-db-secret.sh staging|production
 #
-# Writes SSM (/trader/<env>/DATABASE_URL, read by the Lambda). Until the
-# Cloudflare Worker is retired, it also updates the Worker secret, because
-# rotating the password would otherwise break it (SPEC-platform-aws cutover).
+# Writes SSM (/trader/<env>/DATABASE_URL), which the Lambda re-reads within
+# 15 minutes (its secrets cache), so a rotation takes effect without a deploy.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,6 +25,3 @@ app_url="$(DATABASE_URL="$owner_url" APP_ROLE_PASSWORD="$password" \
 [ -n "$app_url" ] || { echo "app-role setup produced no URL" >&2; exit 1; }
 
 printf '%s' "$app_url" | scripts/put-ssm-secret.sh "/trader/$env/DATABASE_URL"
-if [ -f apps/engine/wrangler.jsonc ]; then
-  printf '%s' "$app_url" | (cd apps/engine && npx wrangler secret put DATABASE_URL --env "$env")
-fi

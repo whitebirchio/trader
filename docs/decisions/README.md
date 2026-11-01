@@ -4,7 +4,7 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 
 | ADR | Title | Status | Date |
 |---|---|---|---|
-| [001](001-workers-neon-hosting.md) | Host on Cloudflare Workers + Neon Postgres | Accepted | 2026-10-31 |
+| [001](001-workers-neon-hosting.md) | Host on Cloudflare Workers + Neon Postgres | Superseded by 014 | 2026-10-31 |
 | [002](002-hexagonal-core.md) | Hexagonal core with thin adapters | Accepted | 2026-10-31 |
 | [003](003-claude-owns-strategy-code-owns-risk.md) | Claude owns the strategy; code owns execution and risk | Accepted | 2026-10-31 |
 | [004](004-claude-via-scheduled-mcp-routine.md) | Claude runs as a scheduled routine over MCP; no server-side LLM calls | Accepted | 2026-10-31 |
@@ -16,3 +16,4 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 | [010](010-wash-sales-are-a-cost.md) | Wash sales are a cost the strategy weighs, not a rule | Accepted | 2026-10-31 |
 | [011](011-no-broker-order-tools-for-claude.md) | Claude never gets broker order tools | Accepted | 2026-10-31 |
 | [012](012-halts-freeze-owner-resumes.md) | Halts freeze everything; only the owner resumes | Accepted | 2026-10-31 |
+| [014](014-run-on-aws-with-cdk.md) | Run the engine on AWS with CDK; keep Neon and Cloudflare DNS/inbound mail | Accepted | 2026-11-01 |

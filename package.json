@@ -15,10 +15,11 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "dev": "npm run dev -w trader-engine",
-    "deploy:staging": "npm run deploy:staging -w trader-engine",
-    "deploy:production": "npm run deploy:production -w trader-engine",
-    "db:generate": "npm run db:generate -w @trader/core"
+    "deploy:staging": "npm run deploy:staging -w trader-infra",
+    "deploy:production": "npm run deploy:production -w trader-infra",
+    "db:generate": "npm run db:generate -w @trader/core",
+    "synth": "npm run synth -w trader-infra",
+    "invoke": "npm run invoke -w trader-lambda --"
   },
   "engines": {
     "node": ">=22"
