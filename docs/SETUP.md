@@ -113,7 +113,7 @@ The limits are code in `packages/core/src/risk/limits.ts`. Changing one is a PR,
 npm run risk:status -w @trader/core -- --env production                     # kill switch, halt, drawdown, today, verdict
 npm run risk:kill   -w @trader/core -- --env production --reason "…"        # stop all trading now (sells too)
 npm run risk:resume -w @trader/core -- --env production --reason "…"        # clear the kill switch and/or halt
-npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy AAPL=300:satellite   # dry run, records nothing
+npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy AAPL=300:conviction   # dry run, records nothing
 ```
 
 | Stop | Trips when | Blocks | Clears |

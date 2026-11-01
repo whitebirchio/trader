@@ -34,7 +34,7 @@ export interface GateResult {
  * clip and rejection. Approvals are recorded in risk_decisions but not audited.
  *
  * `sleeveOf` attributes current holdings to a sleeve; unattributed holdings
- * count as satellite, the conservative side of the cap.
+ * count as conviction, the conservative side of the cap.
  */
 export async function riskGate(
   db: Db,
@@ -128,7 +128,7 @@ export async function loadSnapshot(
       symbol: p.symbol,
       qty: p.qty,
       marketValue: p.marketValue,
-      sleeve: sleeveOf?.(p.symbol) ?? "satellite",
+      sleeve: sleeveOf?.(p.symbol) ?? "conviction",
     })),
     index,
     broker: {

@@ -24,3 +24,8 @@ export * from "./notifications/routing.js";
 export * from "./notifications/compose.js";
 export * from "./notifications/outbox.js";
 export * from "./notifications/jobs.js";
+export * from "./portfolio/strategy.js";
+export * from "./portfolio/systematic.js";
+export * from "./portfolio/theses.js";
+export * from "./portfolio/targets.js";
+export * from "./portfolio/planner.js";

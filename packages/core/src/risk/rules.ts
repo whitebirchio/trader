@@ -24,7 +24,7 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
     plannedBuys: "0",
     marketValue: new Map(snapshot.holdings.map((h) => [h.symbol, h.marketValue])),
     heldQty: new Map(snapshot.holdings.map((h) => [h.symbol, h.qty])),
-    satellite: snapshot.holdings.filter((h) => h.sleeve === "satellite").reduce((sum, h) => add(sum, h.marketValue), "0"),
+    conviction: snapshot.holdings.filter((h) => h.sleeve === "conviction").reduce((sum, h) => add(sum, h.marketValue), "0"),
   };
 
   return proposals.map((proposal): Decision => {
@@ -84,12 +84,12 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
       if (stopped) return reject(proposal, stopped);
     }
 
-    if (proposal.sleeve === "satellite") {
-      const cap = pctOf(snapshot.equity, limits.satelliteCapPct);
+    if (proposal.sleeve === "conviction") {
+      const cap = pctOf(snapshot.equity, limits.convictionCapPct);
       const stopped = limitTo(
-        sub(cap, state.satellite),
-        `Reduced to keep the satellite sleeve within ${limits.satelliteCapPct}% of equity ($${cap}).`,
-        `The satellite sleeve is already at its ${limits.satelliteCapPct}% limit ($${cap}).`,
+        sub(cap, state.conviction),
+        `Reduced to keep the conviction sleeve within ${limits.convictionCapPct}% of equity ($${cap}).`,
+        `The conviction sleeve is already at its ${limits.convictionCapPct}% limit ($${cap}).`,
       );
       if (stopped) return reject(proposal, stopped);
     }
@@ -112,7 +112,7 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
 
     state.plannedBuys = add(state.plannedBuys, notional);
     state.marketValue.set(symbol, add(state.marketValue.get(symbol) ?? "0", notional));
-    if (proposal.sleeve === "satellite") state.satellite = add(state.satellite, notional);
+    if (proposal.sleeve === "conviction") state.conviction = add(state.conviction, notional);
     state.orders++;
     return { proposal, verdict: reasons.length ? "clipped" : "approved", notional, reasons };
   }

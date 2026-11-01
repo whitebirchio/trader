@@ -15,8 +15,8 @@ export const LIMITS = {
 
   /** Max position, after the trade, for anything not in BROAD_ETFS. */
   positionCapPct: "20",
-  /** Max satellite sleeve exposure after the trade. */
-  satelliteCapPct: "30",
+  /** Max conviction sleeve exposure after the trade. */
+  convictionCapPct: "100",
 
   /** Buy eligibility. */
   minPrice: "5",
@@ -48,7 +48,10 @@ export const LIMITS = {
   ],
 } as const;
 
-export type Limits = typeof LIMITS;
+type Widen<T> = T extends string ? string : T extends number ? number : T extends readonly (infer U)[] ? readonly Widen<U>[] : T;
+
+/** The shape of a limits object: LIMITS itself, or a variant in tests. */
+export type Limits = { readonly [K in keyof typeof LIMITS]: Widen<(typeof LIMITS)[K]> };
 
 /** Short, stable fingerprint of the limits, stored with every decision. */
 export async function limitsVersion(limits: Limits = LIMITS): Promise<string> {

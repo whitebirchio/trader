@@ -38,7 +38,7 @@ beforeEach(async () => {
   await syncBroker(db, broker, "staging", NOW);
 });
 
-const buy = (symbol: string, notional: string, sleeve: "core" | "satellite" = "core"): Proposal => ({
+const buy = (symbol: string, notional: string, sleeve: "systematic" | "conviction" = "systematic"): Proposal => ({
   key: `plan-1:${symbol}:buy`,
   symbol,
   side: "buy",
@@ -52,7 +52,7 @@ describe("riskGate", () => {
     const { gateRunId, decisions } = await riskGate(
       db,
       broker,
-      [buy("VTI", "100"), buy("AAPL", "300", "satellite"), buy("TQQQ", "20", "satellite")],
+      [buy("VTI", "100"), buy("AAPL", "300", "conviction"), buy("TQQQ", "20", "conviction")],
       NOW,
     );
     expect(decisions.map((d) => [d.proposal.symbol, d.verdict, d.notional ?? null])).toEqual([
@@ -97,12 +97,12 @@ describe("riskGate", () => {
     expect(decisions[0]?.reasons[0]).toMatch(/^The kill switch is on \(investigating\)/);
   });
 
-  it("treats holdings without a sleeve as satellite", async () => {
+  it("treats holdings without a sleeve as conviction", async () => {
     broker.fill("o-1", "AAPL", "buy", "1.2", "230");
     broker.positions = [{ symbol: "AAPL", qty: "1.2", avgEntryPrice: "230", marketValue: "276", costBasis: "276", currentPrice: "230" }];
     await syncBroker(db, broker, "staging", NOW);
-    // $276 of unattributed AAPL counts toward the $300 satellite cap.
-    const { decisions } = await riskGate(db, broker, [buy("VTI", "1", "core"), buy("AAPL", "100", "satellite")], NOW);
+    // $276 of unattributed AAPL counts toward the $300 conviction cap.
+    const { decisions } = await riskGate(db, broker, [buy("VTI", "1", "systematic"), buy("AAPL", "100", "conviction")], NOW);
     expect(decisions[1]).toMatchObject({ verdict: "rejected" });
   });
 });
