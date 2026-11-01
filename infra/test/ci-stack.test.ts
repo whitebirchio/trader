@@ -15,7 +15,7 @@ describe("TraderCi", () => {
     template.resourceCountIs("AWS::Lambda::Function", 0);
   });
 
-  it("trusts only this repository's workflows", () => {
+  it("trusts only this repository's workflows, by immutable org and repo id", () => {
     template.hasResourceProperties("AWS::IAM::Role", {
       RoleName: "trader-github-deploy",
       AssumeRolePolicyDocument: {
@@ -24,7 +24,7 @@ describe("TraderCi", () => {
             Action: "sts:AssumeRoleWithWebIdentity",
             Condition: {
               StringEquals: { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-              StringLike: { "token.actions.githubusercontent.com:sub": "repo:whitebirchio/trader:*" },
+              StringLike: { "token.actions.githubusercontent.com:sub": "repo:whitebirchio@104479267/trader@1440835277:*" },
             },
           }),
         ],

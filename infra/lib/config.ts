@@ -4,6 +4,13 @@
  */
 export const REGION = "us-east-1";
 export const GITHUB_REPO = "whitebirchio/trader";
+/**
+ * The repo's OIDC tokens use GitHub's immutable subject format, which embeds
+ * the org and repo IDs (gh api repos/whitebirchio/trader/actions/oidc/customization/sub).
+ * Trusting IDs, not names, means a renamed or re-created "trader" repo can't
+ * inherit deploy rights.
+ */
+export const GITHUB_OIDC_SUBJECT_PREFIX = "repo:whitebirchio@104479267/trader@1440835277";
 export const OWNER_EMAIL = "scott.schmalz@gmail.com";
 export const MAIL_DOMAIN = "whitebirch.io";
 export const NOTIFY_FROM = `trader@${MAIL_DOMAIN}`;

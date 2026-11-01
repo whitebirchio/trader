@@ -1,7 +1,7 @@
 import { Duration, Stack, type StackProps, Tags } from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
 import type { Construct } from "constructs";
-import { CDK_QUALIFIER, GITHUB_REPO } from "./config.js";
+import { CDK_QUALIFIER, GITHUB_OIDC_SUBJECT_PREFIX } from "./config.js";
 
 /**
  * GitHub Actions → AWS without long-lived keys (SPEC-platform-aws). Deployed
@@ -26,7 +26,7 @@ export class CiStack extends Stack {
       maxSessionDuration: Duration.hours(1),
       assumedBy: new iam.WebIdentityPrincipal(provider.oidcProviderArn, {
         StringEquals: { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-        StringLike: { "token.actions.githubusercontent.com:sub": `repo:${GITHUB_REPO}:*` },
+        StringLike: { "token.actions.githubusercontent.com:sub": `${GITHUB_OIDC_SUBJECT_PREFIX}:*` },
       }),
     });
 
