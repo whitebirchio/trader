@@ -1,6 +1,6 @@
 # Spec: `portfolio`
 
-> **Status: Approved** (Scott, 2026-10-31). Module 5 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker` and `risk` (both implemented) and on `notifications` for emails.
+> **Status: Approved** (Scott, 2026-10-31). **Revised 2026-11-01 for the AWS platform** (ADR-014): its own schedule, no CPU constraint. Re-approval requested for that revision only. Module 5 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker` and `risk` (both implemented) and on `notifications` for emails.
 
 ## Objective
 
@@ -57,7 +57,7 @@ interface Thesis {
 
 ## The daily check (`rebalance` job)
 
-It runs on the existing `*/15` cron. On trading days, between 10:30 and 15:30 ET, each tick does at most one step:
+It runs on **its own EventBridge Scheduler schedule**, `trader-rebalance-<env>`: every 15 minutes at :05/:20/:35/:50, so five minutes after each shared tick's `sync-broker` has refreshed the account, on weekdays, 14:00–21:00 UTC. That covers 10:30–15:30 ET in both EST and EDT. The code then gates on the Alpaca calendar (trading days, early closes) and the 10:30–15:30 ET window. It's a separate schedule from the shared tick, so a slow rebalance can never delay `sync-broker` or the notifications, and it can get its own timeout and alarm. Each run does at most one step:
 
 1. **Build targets** (pure, from the active strategy, bars, positions and lots):
    - Thesis states: stop-loss (last close ≤ average cost × (1 − stop%)), staleness, and removal.
@@ -78,6 +78,7 @@ When targets are already met, the step is a quick no-op. The trading window open
 | `risk` | Sleeves renamed `core`/`satellite` → `systematic`/`conviction`; `satelliteCapPct` 30 → `convictionCapPct` **100** | Your decision, 2026-10-31. The 20% per-name cap and every other limit are unchanged. |
 | `docs/decisions` | **ADR-013 "Conviction-first portfolio"**, superseding ADR-003's 70/30 default (ADR-003's authority split stands) | Records the change and why |
 | `CAPABILITY-MAP.md` | Objective line updated to "conviction-first" | Keep the index honest |
+| `infra` | `EngineStack` gains the `trader-rebalance-<env>` schedule (`cron(5/15 14-20 ? * MON-FRI *)` UTC, `{"jobs":["rebalance"]}`) | rebalance runs on its own schedule (ADR-014) |
 | `notifications` | New kinds routed: `strategy.activated`, `thesis.stopped_out`, `thesis.stale` → urgent; `strategy.rejected` → urgent; `rebalance.planned` → digest. The digest gains a "vs VTI" line. | Strategy changes and automatic exits are meaningful autonomous actions |
 
 ## Assumptions (correct any of these)
@@ -90,7 +91,7 @@ When targets are already met, the step is a quick no-op. The trading window open
 
 ## Tech Stack
 
-No new dependencies. **CPU is the constraint:** the Workers free plan allows 10 ms of CPU per invocation, and parsing a year of bars for 100 symbols takes longer than that. See open question 1.
+No new dependencies. It runs in the engine Lambda (ADR-014), with no CPU constraint worth designing around: the Lambda allows minutes per run, and a year of **daily** bars for 100 symbols parses in about 8 ms (measured 2026-10-31). The extra pieces are one Scheduler schedule and a CloudWatch alarm on `rebalance` failures, both in `EngineStack`.
 
 ## Commands
 
@@ -99,7 +100,8 @@ npx vitest run portfolio                                                # target
 npm run strategy:submit -w @trader/core -- --env staging --file strategy.json   # owner submits a version (validated)
 npm run strategy:show   -w @trader/core -- --env staging [--version N]  # the active strategy and thesis states
 npm run rebalance:plan  -w @trader/core -- --env staging                # dry run: today's targets and trades, through risk; places nothing
-npm run rebalance:run   -w @trader/core -- --env staging                # one real step on paper now (no waiting for the cron)
+npm run rebalance:run   -w @trader/core -- --env staging                # one real step on paper now, from the laptop
+npm run invoke -- --env staging --jobs rebalance                        # the same step in the deployed Lambda
 ```
 
 ## Project Structure
@@ -147,6 +149,6 @@ packages/core/src/portfolio/
 
 ## Resolved Questions (2026-10-31, approved as proposed)
 
-1. **Workers Paid ($5/mo).** Recommended and approved with the spec. The Cloudflare account upgrade is yours to make (dashboard → Workers & Pages → Plans) **before this module merges to production**. Staging development doesn't need it until the universe grows past a handful of symbols.
+1. ~~**Workers Paid ($5/mo).**~~ **Superseded 2026-11-01:** the engine moved to AWS (ADR-014), so there's no Workers CPU limit and no Cloudflare upgrade.
 2. **Version 0 = 100% VTI** until Claude's first strategy.
 3. **Stop-losses are required on every thesis, 5–50%.** No default: a thesis without one fails validation.

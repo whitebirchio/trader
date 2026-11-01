@@ -50,9 +50,9 @@
 
 ### P8: `rebalance` job
 - [ ] Window gate (trading day, 10:30–15:30 ET); load the active strategy, bars, positions, lots and closures; thesis states (+ events); targets; plan; `riskGate` (sleeve attribution from the plan); `submitOrder` per approved/clipped; record the plan + audit
-- [ ] Schedule: heartbeat → sync-broker → **rebalance** → notify-urgent → notify-digest
+- [ ] Register `rebalance` in `JOBS` (not in `TICK_JOBS`); `EngineStack` adds the `trader-rebalance-<env>` schedule `cron(5/15 14-20 ? * MON-FRI *)` UTC with `{"jobs":["rebalance"]}`, plus an infra assertion test
 - [ ] Tests (PGlite + fake broker): version 0 from cash in 2 steps then a no-op; a strategy change sells first, then buys; a re-run places nothing; a stop-loss sells + audits; outside the window → skipped
-- **Files:** `src/portfolio/rebalance.ts`, `src/jobs.ts`, `apps/engine/src/index.ts`, tests · **Depends on:** P5–P7 · **Scope:** M
+- **Files:** `src/portfolio/rebalance.ts`, `src/jobs.ts`, `infra/lib/engine-stack.ts`, tests · **Depends on:** P5–P7 · **Scope:** M
 
 ### Checkpoint B
 - [ ] Gate green · `db:generate` clean · staging deploy
@@ -69,7 +69,6 @@
 - [ ] SC-2: version 0 on paper → ≈100% VTI in two `rebalance:run` steps, then a no-op
 - [ ] SC-3: sample conviction strategy on paper → plan → run → fills → `strategy:show` matches
 - [ ] SC-4/5: tests (stop-loss, staleness), plus a suppressed staging email
-- [ ] *(Scott)* Cloudflare Workers Paid
 - [ ] SC-6: PR → **your explicit go-ahead** → production: version 0 converges the live $1k to ≈VTI on the first trading day
 - **Depends on:** P9 · **Scope:** S
 
