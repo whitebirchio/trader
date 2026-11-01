@@ -189,7 +189,20 @@ export class EngineStack extends Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.BREACHING,
     });
-    for (const alarm of [errors, silent]) {
+    // The MCP server is idle between routine runs and chats, so there's no
+    // silence alarm; but a crash (bad deploy, SSM failure) must not show up only
+    // as a missing strategy.activated email after the 8:00 ET run (#13). Tool
+    // failures are reported to Claude in-band and don't count; only throws do.
+    const mcpErrors = new cloudwatch.Alarm(this, "McpErrorsAlarm", {
+      alarmName: `trader-${env}-mcp-errors`,
+      alarmDescription: "The Trader MCP Lambda threw (crash, failed config load, or an unhandled error). Claude's routine and chats can't reach Trader.",
+      metric: mcp.metricErrors({ period: Duration.minutes(15), statistic: "Sum" }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    for (const alarm of [errors, silent, mcpErrors]) {
       alarm.addAlarmAction(notify);
       alarm.addOkAction(notify);
     }
