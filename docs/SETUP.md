@@ -136,7 +136,7 @@ npm run rebalance:plan  -w @trader/core -- --env production --sync              
 npm run rebalance:run   -w @trader/core -- --env staging --sync                  # one real step on PAPER now (refuses production)
 ```
 
-The `rebalance` job runs on `trader-rebalance-<env>`, every 15 min at :05/:20/:35/:50, 10:30–15:30 ET on trading days. Each step does sells only, or buys only, or nothing. It skips while orders are open, and records itself in `rebalance_plans`.
+The `rebalance` job runs on `trader-rebalance-<env>`, every 15 min, 9:45–15:30 ET on trading days. Each step does sells only, or buys only, or nothing. It skips while orders are open, and records itself in `rebalance_plans`.
 
 ## Email
 

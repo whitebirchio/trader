@@ -94,12 +94,22 @@ function prefix(env: TradingEnv): string {
   return env === "staging" ? "[paper] " : "";
 }
 
+/**
+ * Every email ends with when it was written, a definitive timestamp to
+ * cross-check against arrival time. Only staging names its environment;
+ * production is the default (Scott, 2026-11-01).
+ */
+export function footer(env: TradingEnv, at: Date): { text: string; html: string } {
+  const line = `— Trader${env === "staging" ? " (staging)" : ""} · ${formatMarketTime(at)}`;
+  return { text: `\n\n${line}\n`, html: `<p style="color:#666">${escapeHtml(line)}</p>` };
+}
+
 export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 }
 
 /** One email for every urgent event in a tick, most severe first. */
-export function composeUrgent(events: NotifiableEvent[], env: TradingEnv): OutgoingEmail {
+export function composeUrgent(events: NotifiableEvent[], env: TradingEnv, at: Date = new Date()): OutgoingEmail {
   const sorted = [...events].sort(
     (a, b) => (SEVERITY[a.kind as keyof typeof SEVERITY] ?? 99) - (SEVERITY[b.kind as keyof typeof SEVERITY] ?? 99) || a.at.getTime() - b.at.getTime(),
   );
@@ -117,7 +127,8 @@ export function composeUrgent(events: NotifiableEvent[], env: TradingEnv): Outgo
         `<h3>${escapeHtml(d.headline)}</h3><p style="color:#666">${escapeHtml(formatMarketTime(e.at))}</p><ul>${d.lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`,
     )
     .join("");
-  return { subject, text: `${text}\n\n— Trader (${env})\n`, html: `${html}<p style="color:#666">— Trader (${escapeHtml(env)})</p>` };
+  const f = footer(env, at);
+  return { subject, text: `${text}${f.text}`, html: `${html}${f.html}` };
 }
 
 export interface DigestData {
@@ -177,7 +188,7 @@ function guardrailLine(e: NotifiableEvent): string | null {
 }
 
 /** The once-per-trading-day summary. Sent on quiet days too: its arrival means "alive". */
-export function composeDigest(data: DigestData, env: TradingEnv): OutgoingEmail {
+export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new Date()): OutgoingEmail {
   const fills = data.events.filter((e) => e.kind === "order.filled").length;
   const subject = `${prefix(env)}Trader daily: ${signed(data.dailyChangePct)}%, ${fills} ${fills === 1 ? "trade" : "trades"} (${shortDate(data.date)})`;
 
@@ -208,9 +219,12 @@ export function composeDigest(data: DigestData, env: TradingEnv): OutgoingEmail 
 
   const text = sections.map(([h, lines]) => [h, ...lines.map((l) => `  ${l}`)].join("\n")).join("\n\n");
   const html = sections.map(([h, lines]) => `<h3>${escapeHtml(h)}</h3><ul>${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`).join("");
+  const f = footer(env, at);
   return {
     subject,
-    text: `Trader daily summary for ${shortDate(data.date)}\n\n${text}\n\n— Trader (${env})\n`,
-    html: `<h2>Trader daily summary for ${escapeHtml(shortDate(data.date))}</h2>${html}<p style="color:#666">— Trader (${escapeHtml(env)})</p>`,
+    text: `Trader daily summary for ${shortDate(data.date)}
+
+${text}${f.text}`,
+    html: `<h2>Trader daily summary for ${escapeHtml(shortDate(data.date))}</h2>${html}${f.html}`,
   };
 }

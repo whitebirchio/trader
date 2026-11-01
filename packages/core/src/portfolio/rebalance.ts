@@ -18,8 +18,12 @@ import { IDLE_SYMBOL, type DailyClose, rankUniverse, requiredHistory } from "./s
 import { buildTargets } from "./targets.js";
 import { thesisStates } from "./theses.js";
 
-/** The daily check's window, New York time (SPEC-portfolio): an hour after the open, until 30 minutes before the close. */
-export const WINDOW_OPEN = "10:30";
+/**
+ * The daily check's window, New York time (SPEC-portfolio). Opens at 9:45,
+ * 15 minutes after the open, so the 9:30 sync has run (Scott, 2026-11-01;
+ * originally 10:30), and closes 30 minutes before the close.
+ */
+export const WINDOW_OPEN = "09:45";
 export const WINDOW_CLOSE = "15:30";
 const LAST_STEP_BEFORE_CLOSE_MS = 30 * 60_000;
 /** Orders in these states are still in flight: the next step waits for them. */
