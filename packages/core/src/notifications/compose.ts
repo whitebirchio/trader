@@ -129,6 +129,8 @@ export interface DigestData {
   positions: { symbol: string; qty: string; marketValue: string }[];
   events: NotifiableEvent[];
   state: { killSwitch: boolean; halted: boolean; haltReason: string | null };
+  /** Flow-adjusted performance vs VTI since the first snapshot (portfolio/benchmark.ts), once there are two. */
+  benchmark?: { since: string; portfolioPct: string; benchmarkPct: string } | null;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -188,7 +190,17 @@ export function composeDigest(data: DigestData, env: TradingEnv): OutgoingEmail 
       : `Normal: drawdown ${data.drawdownPct}% from peak`;
 
   const sections: [string, string[]][] = [
-    ["Account", [`Equity $${data.equity} (${signed(data.dailyChangePct)}% today, flow-adjusted)`, `Cash $${data.cash}`, `Guardrails: ${status}`]],
+    [
+      "Account",
+      [
+        `Equity $${data.equity} (${signed(data.dailyChangePct)}% today, flow-adjusted)`,
+        ...(data.benchmark
+          ? [`Since ${shortDate(data.benchmark.since)}: ${signed(data.benchmark.portfolioPct)}% vs VTI ${signed(data.benchmark.benchmarkPct)}%`]
+          : []),
+        `Cash $${data.cash}`,
+        `Guardrails: ${status}`,
+      ],
+    ],
     ["Positions", data.positions.length ? data.positions.map((p) => `${p.symbol}: ${p.qty} sh, $${p.marketValue}`) : ["None (all cash)"]],
     ["Trades", trades.length ? trades : ["None today"]],
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],

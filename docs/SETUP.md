@@ -125,6 +125,19 @@ npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy A
 
 These scripts use the owner database URL and the environment's Alpaca keys from `.env`.
 
+## Strategy & rebalancing
+
+The active strategy is the highest version in `strategies`, or version 0 (100% VTI) before any is accepted. Claude submits through `agent` (not yet built); until then you can submit by hand. Every submission is validated, and a rejection is emailed while the old version stays active.
+
+```sh
+npm run strategy:show   -w @trader/core -- --env staging                         # active strategy, thesis states, holdings
+npm run strategy:submit -w @trader/core -- --env staging --file strategy.json    # submit the next version (owner)
+npm run rebalance:plan  -w @trader/core -- --env production --sync               # dry run through risk; records and orders nothing
+npm run rebalance:run   -w @trader/core -- --env staging --sync                  # one real step on PAPER now (refuses production)
+```
+
+The `rebalance` job runs on `trader-rebalance-<env>`, every 15 min at :05/:20/:35/:50, 10:30–15:30 ET on trading days. Each step does sells only, or buys only, or nothing. It skips while orders are open, and records itself in `rebalance_plans`.
+
 ## Email
 
 **Outbound (Trader → you): SES.** Trader sends from `trader@whitebirch.io` through SES, which stays in the **sandbox** on purpose: it can only email verified addresses. IAM also pins the from-address. The `whitebirch.io` domain identity (Easy DKIM) and your Gmail identity are created by `TraderStaging`. The 3 DKIM CNAMEs (`…._domainkey` → `….dkim.amazonses.com`, DNS-only) are in Cloudflare DNS. They were verified 2026-11-01.

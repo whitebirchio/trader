@@ -39,7 +39,7 @@
 
 ### P6: Risk changes
 - [x] (done early, during P3) Rename sleeves to `systematic` / `conviction` (types, rules, reason text, tests, docs); `convictionCapPct: "100"` in `limits.ts`
-- [ ] ADR-013 "Conviction-first portfolio" (still to write, with P9 docs) (supersedes ADR-003's 70/30 default only); capability map objective line; CLAUDE.md wording
+- [x] ADR-013 "Conviction-first portfolio; idle money sits in VTI" (supersedes ADR-003's 70/30 default only); capability map objective line; CLAUDE.md wording
 - **Files:** `src/risk/*`, tests, `docs/decisions/013-*.md`, README index, `CAPABILITY-MAP.md`, `CLAUDE.md` · **Scope:** M (wide but mechanical)
 
 ### P7: Migration + store
@@ -60,9 +60,9 @@
 ## Phase 3: Operate and ship
 
 ### P9: Scripts + digest
-- [ ] `strategy:submit --file`, `strategy:show [--version]`, `rebalance:plan` (dry run), `rebalance:run` (one paper step now)
-- [ ] `benchmark.ts`: index vs VTI total return since the first snapshot; the digest gains "vs VTI"; email text for the new kinds
-- [ ] docs: SETUP "Strategy & rebalancing" section, CLAUDE.md line
+- [x] `strategy:submit --file`, `strategy:show [--version]`, `rebalance:plan` (dry run), `rebalance:run` (one paper step now, staging only), both with `--sync`
+- [x] `benchmark.ts`: index vs VTI total return since the first snapshot; the digest gains "vs VTI"; email text for the new kinds
+- [x] docs: SETUP "Strategy & rebalancing" section, CLAUDE.md line
 - **Depends on:** P8 · **Scope:** M
 
 ### P10: Verify and ship

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Trader is an autonomous US-equity portfolio. **Claude owns the strategy**: a scheduled Claude Code routine researches and publishes versioned strategies (a quant **core** sleeve with Claude-tuned parameters, plus an insight-driven **satellite** sleeve; 70/30 by default) through Trader's MCP server. **Deterministic code owns execution and risk**: it turns the active strategy into orders only inside owner-set guardrails Claude cannot change (ADR-003). Success means the live account beating VTI. The previous attempt lives in `~/src/trader-old`. It is reference only; don't copy its code.
+Trader is an autonomous US-equity portfolio. **Claude owns the strategy**: a scheduled Claude Code routine researches and publishes versioned, **conviction-first** strategies through Trader's MCP server. Research-backed theses (fundamentals, Congress / insider / 13F signals, news) can hold up to 100%, with a quant-ranked **systematic** sleeve for the rest. Idle money sits in VTI, never cash (ADR-013). It's a sandbox of risk capital; Scott's main money is invested elsewhere. **Deterministic code owns execution and risk**: it turns the active strategy into orders only inside owner-set guardrails Claude cannot change (ADR-003). Success means the live account beating VTI. The previous attempt lives in `~/src/trader-old`. It is reference only; don't copy its code.
 
 Modules, their dependencies and build order are in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Each module has a living `SPEC-<module>.md` at the repo root.
 
@@ -24,6 +24,7 @@ npm run synth                             # cdk synth all stacks (CI runs it on 
 npm run invoke -- --env staging --jobs heartbeat,sync-broker   # run the deployed Lambda now; don't wait for the 15-min tick
 npm run broker:sync -w @trader/core -- --env staging --force   # one paper sync now, from the laptop (see docs/SETUP.md)
 npm run notify:run -w @trader/core -- --env staging            # queue urgent emails now
+npm run rebalance:plan -w @trader/core -- --env staging --sync  # dry-run today's rebalance through risk
 ```
 
 Local AWS commands use the SSO profile `whitebirch` (`aws sso login --profile whitebirch` when it expires). **Verify on demand** (`invoke`, `broker:sync --force`, `notify:run`, `risk:check`) rather than waiting for scheduled ticks.
@@ -44,6 +45,7 @@ Everything runs on AWS in `us-east-1`, defined in CDK under `infra/` (ADR-014). 
 - **Broker** (`src/broker/`, SPEC-broker): `BrokerAdapter` port + `AlpacaBroker` (host from `TRADING_ENV` only). `sync-broker` mirrors the account every 15 min during the session + 30 min after the close, rebuilds FIFO lots from fills, and persists `tradingAllowed` on `broker_account`. `submitOrder` is idempotent per intent key; no job calls it until `risk` exists.
 - **Risk** (`src/risk/`, SPEC-risk): `evaluateOrders` is a pure rule pipeline over a `RiskSnapshot`. `riskGate` is the only path to `submitOrder`: it loads the snapshot, evaluates, and persists the snapshot and every decision. Limits are code (`limits.ts`, ask before changing). The kill switch and drawdown halt freeze everything and only the owner resumes them (ADR-012). `sync-broker` runs `checkDrawdown` after each sync.
 - **Notifications** (`src/notifications/`, SPEC-notifications): every `AuditKind` is routed urgent, digest or ignore (`routing.ts`; adding a kind forces a decision). `notify-urgent` emails a tick's urgent events as one message; `notify-digest` sends once per trading day after the close. Both go through an idempotent outbox, and staging suppresses all but test emails.
+- **Portfolio** (`src/portfolio/`, SPEC-portfolio): versioned strategy documents (`strategy.ts`, Zod-validated; version 0 = VTI) → thesis states (stop-loss, 30-day staleness) → systematic ranking → dollar targets (conviction first; over-cap overflow down the ranking, then VTI) → a sells-first plan → `riskGate` → `submitOrder`. The `rebalance` job has its own schedule (:05/:20/:35/:50, 10:30–15:30 ET) and skips while orders are open.
 - **Jobs** run through `runJob` (ADR-007): it claims `(job, scheduled_for)` first, so a redelivered cron is a no-op, and records every outcome in `job_runs`.
 - **Audit log** (ADR-008): every state-changing action appends to `audit_events` with an actor (`system | claude | owner`). The table is append-only (trigger + role grants); correct mistakes by appending.
 - **Config** is Zod-validated at every entry point. Invalid config fails closed: no jobs run, and routes return 503 naming the bad vars (never their values).

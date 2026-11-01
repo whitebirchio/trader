@@ -146,3 +146,11 @@ describe("strategy and thesis emails", () => {
     expect(email.text).toContain("Thesis lmt-congress was not reaffirmed for 31 days (limit 30), so it's sold into the systematic sleeve.");
   });
 });
+
+describe("digest benchmark line", () => {
+  it("shows performance vs VTI once there's a comparison", () => {
+    const email = composeDigest({ ...base, benchmark: { since: "2026-11-02", portfolioPct: "1.24", benchmarkPct: "0.8" } }, "production");
+    expect(email.text).toContain("Since Mon Nov 2: +1.24% vs VTI +0.8%");
+    expect(composeDigest(base, "production").text).not.toContain("vs VTI");
+  });
+});

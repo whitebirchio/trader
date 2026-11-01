@@ -27,7 +27,11 @@
     "risk:check": "tsx scripts/risk-check.ts",
     "notify:test": "tsx scripts/notify-test.ts",
     "notify:preview": "tsx scripts/notify-preview.ts",
-    "notify:run": "tsx scripts/notify-run.ts"
+    "notify:run": "tsx scripts/notify-run.ts",
+    "strategy:submit": "tsx scripts/strategy-submit.ts",
+    "strategy:show": "tsx scripts/strategy-show.ts",
+    "rebalance:plan": "tsx scripts/rebalance.ts --mode plan",
+    "rebalance:run": "tsx scripts/rebalance.ts --mode run"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",
