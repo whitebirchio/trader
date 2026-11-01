@@ -104,3 +104,13 @@ describe("job run timing", () => {
     expect(run?.finishedAt?.getTime()).toBeGreaterThanOrEqual(run?.startedAt.getTime() ?? Infinity);
   });
 });
+
+describe("TICK_JOBS", () => {
+  it("lists only registered jobs, heartbeat first and notifications last", async () => {
+    const { TICK_JOBS, isJobName } = await import("../src/jobs.js");
+    expect(TICK_JOBS.every(isJobName)).toBe(true);
+    expect(TICK_JOBS[0]).toBe("heartbeat");
+    expect(TICK_JOBS.slice(-2)).toEqual(["notify-urgent", "notify-digest"]);
+    expect(isJobName("rm -rf")).toBe(false);
+  });
+});
