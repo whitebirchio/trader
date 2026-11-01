@@ -14,6 +14,7 @@ import type { Decision, Sleeve } from "../risk/types.js";
 import { marketDate, marketTimeToUtc } from "../time.js";
 import { type PlannedTrade, planTrades, washSaleWindow } from "./planner.js";
 import { activeStrategy, stoppedThesisIds } from "./store.js";
+import type { Strategy } from "./strategy.js";
 import { IDLE_SYMBOL, type DailyClose, rankUniverse, requiredHistory } from "./systematic.js";
 import { buildTargets } from "./targets.js";
 import { thesisStates } from "./theses.js";
@@ -45,6 +46,8 @@ export interface RebalanceOptions {
   force?: boolean;
   /** Plan and evaluate through risk without recording, gating or ordering anything. */
   dryRun?: boolean;
+  /** Plan with this (already validated) strategy instead of the active one: preview_strategy. Requires dryRun. */
+  strategyOverride?: Strategy;
   limits?: Limits;
 }
 
@@ -65,16 +68,21 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
     if (now.getTime() < open || now.getTime() > close) return { status: "skipped", reason: "outside the trading window" };
   }
 
+  if (opts.strategyOverride && !opts.dryRun) throw new Error("strategyOverride is preview-only (dryRun)");
+
   const inFlight = await db
     .select({ id: orders.id })
     .from(orders)
     .where(and(inArray(orders.status, OPEN_ORDER_STATES), gte(orders.createdAt, new Date(now.getTime() - 2 * 86_400_000))));
-  if (inFlight.length > 0) return { status: "skipped", reason: `waiting for ${inFlight.length} open order(s) to fill` };
+  // A preview still plans (on current holdings); a real step waits for fills.
+  if (inFlight.length > 0 && !opts.dryRun) return { status: "skipped", reason: `waiting for ${inFlight.length} open order(s) to fill` };
 
   const account = (await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1)))[0];
   if (!account) return { status: "skipped", reason: "the broker has never been synced" };
 
-  const active = await activeStrategy(db, now);
+  const active = opts.strategyOverride
+    ? { version: -1, authoredBy: "claude" as const, createdAt: now, strategy: opts.strategyOverride }
+    : await activeStrategy(db, now);
   const { strategy } = active;
   const activityRows = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
   const lots = buildLots(activityRows.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null })));

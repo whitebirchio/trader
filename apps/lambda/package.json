@@ -4,6 +4,9 @@
   "private": true,
   "description": "Trader engine on AWS Lambda: scheduled jobs + /healthz Function URL. Thin shell over @trader/core.",
   "type": "module",
+  "exports": {
+    "./secrets": "./src/secrets.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -1,0 +1,23 @@
+{
+  "name": "trader-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trader's MCP server on AWS Lambda (SPEC-agent): OAuth + MCP over a Function URL, tools from @trader/core. No order tools.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ssm": "^3.1161.0",
+    "@neondatabase/serverless": "^1.2.0",
+    "@trader/core": "*",
+    "drizzle-orm": "^0.45.4",
+    "trader-lambda": "*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^26.6.6",
+    "vitest": "^4.1.12"
+  }
+}
