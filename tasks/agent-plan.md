@@ -7,7 +7,7 @@
 2. **G2, MCP app** (`apps/mcp`): Fred's stateless auth and protocol, ported (Web `Request`/`Response`), plus a Function URL adapter, the tool registry and the instructions.
 3. **G3, infra**: the `trader-mcp-<env>` function, URL and IAM in `EngineStack`; `scripts/set-mcp-secrets.sh`.
 4. **G4, staging live**: deploy, you connect in claude.ai, preview and submit on paper.
-5. **G5, the routine**: the prompt in `agent/routine-prompt.md`; one run against staging; then production, 8:00 and 12:30 ET.
+5. **G5, the routine**: the prompt in `agent/routine-prompt.md`; one run against staging; then production, 8:00 and 12:00 ET.
 6. **G6, production**: PR → merge → connect → the routine targets production.
 
 ## Key decisions
