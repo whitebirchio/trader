@@ -74,9 +74,13 @@ describe("buildTargets", () => {
   it("sends trend-filtered slots to the defensive holding, or to VTI", () => {
     const r = build({ ranking: ranked(["NVDA", "MSFT"], ["MSFT"]) });
     expect(table(r)).toEqual({ NVDA: "200", VTI: "800" });
+    // SGOV is a cash-equivalent (exempt from the cap), so the defensive slot (MSFT's $500) goes in whole.
+    // NVDA's $300 over the cap is risk-on money: it goes down the ranking, then to VTI, not to the defensive slot.
     const d = build({ ranking: ranked(["NVDA", "MSFT"], ["MSFT"]), params: params({ defensive: "SGOV" }) });
-    // SGOV isn't on the broad-ETF list, so it's capped too and the rest reaches VTI (open question: exempt T-bill ETFs?).
-    expect(table(d)).toEqual({ NVDA: "200", SGOV: "200", VTI: "600" });
+    expect(table(d)).toEqual({ NVDA: "200", SGOV: "500", VTI: "300" });
+    // A defensive symbol that isn't on the owner's list stays capped: labelling something defensive is no exemption.
+    const gold = build({ ranking: ranked(["NVDA", "MSFT"], ["MSFT"]), params: params({ defensive: "GLD" }) });
+    expect(table(gold)).toEqual({ NVDA: "200", GLD: "200", VTI: "600" });
   });
 
   it("version 0: everything in VTI", () => {

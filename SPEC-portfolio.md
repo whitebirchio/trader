@@ -155,3 +155,4 @@ packages/core/src/portfolio/
 3. **Stop-losses are required on every thesis, 5–50%.** No default: a thesis without one fails validation.
 4. **Over-cap systematic targets → option 1b** (Scott, 2026-11-01): cap, then overflow down the ranking, then VTI. See the daily check.
 5. **No cash buffer; idle money sits in VTI** (Scott, 2026-11-01). `risk`'s `cashBufferMin`/`cashBufferPct` are now `0`.
+6. **Cash-equivalent ETFs are exempt from the 20% cap** (Scott, 2026-11-01): SGOV, BIL and SHV are on an owner-set `cashEquivalentEtfs` list, so a defensive slot holds its full share. A `defensive` symbol not on that list stays capped. The role isn't an exemption.

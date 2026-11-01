@@ -1,6 +1,6 @@
 import { add, compare, decimalString, div, mul, round, sub } from "../money.js";
 import { ineligibleReasons } from "./eligibility.js";
-import type { Limits } from "./limits.js";
+import { type Limits, capExempt } from "./limits.js";
 import type { Decision, Proposal, RiskSnapshot } from "./types.js";
 
 /**
@@ -72,8 +72,7 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
       return null;
     };
 
-    const broad = (limits.broadEtfs as readonly string[]).includes(symbol);
-    if (!broad) {
+    if (!capExempt(symbol, limits)) {
       const cap = pctOf(snapshot.equity, limits.positionCapPct);
       const room = sub(cap, state.marketValue.get(symbol) ?? "0");
       const stopped = limitTo(

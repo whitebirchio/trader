@@ -1,5 +1,5 @@
 import { add, compare, div, mul, round, sub } from "../money.js";
-import type { Limits } from "../risk/limits.js";
+import { type Limits, capExempt } from "../risk/limits.js";
 import type { Sleeve } from "../risk/types.js";
 import type { SystematicParams } from "./strategy.js";
 import { IDLE_SYMBOL, type Ranking, selectSystematic } from "./systematic.js";
@@ -65,7 +65,7 @@ export function buildTargets(input: TargetInputs): TargetSet {
   const buffer = compare(limits.cashBufferMin, pctOf(input.equity, limits.cashBufferPct)) >= 0 ? limits.cashBufferMin : pctOf(input.equity, limits.cashBufferPct);
   const investable = compare(input.equity, buffer) > 0 ? sub(input.equity, buffer) : "0";
   const cap = pctOf(input.equity, limits.positionCapPct);
-  const capped = (symbol: string) => !(limits.broadEtfs as readonly string[]).includes(symbol);
+  const capped = (symbol: string) => !capExempt(symbol, limits);
   const notes: string[] = [];
 
   const out = new Map<string, Target>();

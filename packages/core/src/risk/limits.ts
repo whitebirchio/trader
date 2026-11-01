@@ -51,7 +51,20 @@ export const LIMITS = {
     "VXUS", "IXUS", "VEA", "VWO", "IEFA", "IEMG",
     "BND", "AGG", "BNDX", "SCHZ",
   ],
+
+  /**
+   * Treasury-bill funds that behave like cash, also exempt from the position cap,
+   * so a defensive (risk-off) move can go all the way (Scott, 2026-11-01). An
+   * owner list, not "whatever the strategy calls defensive", or any symbol could
+   * escape the cap by being labelled defensive.
+   */
+  cashEquivalentEtfs: ["SGOV", "BIL", "SHV"],
 } as const;
+
+/** Whether `symbol` is exempt from the per-name position cap. */
+export function capExempt(symbol: string, limits: Limits): boolean {
+  return limits.broadEtfs.includes(symbol) || limits.cashEquivalentEtfs.includes(symbol);
+}
 
 type Widen<T> = T extends string ? string : T extends number ? number : T extends readonly (infer U)[] ? readonly Widen<U>[] : T;
 

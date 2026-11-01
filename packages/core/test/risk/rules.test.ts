@@ -140,7 +140,12 @@ describe("buy eligibility", () => {
   });
 });
 
-describe("position cap (20%, broad ETFs exempt)", () => {
+describe("position cap (20%, broad ETFs and cash-equivalents exempt)", () => {
+  it("leaves Treasury-bill funds uncapped", () => {
+    const s = snapshot({ assets: { ...snapshot().assets, SGOV: facts("SGOV", { name: "iShares 0-3 Month Treasury Bond ETF" }) } });
+    expect(run(s, buy("SGOV", "900"))[0]).toMatchObject({ verdict: "approved", notional: "900" });
+  });
+
   it("leaves broad ETFs uncapped", () => {
     expect(run(snapshot(), buy("VTI", "900"))[0]).toMatchObject({ verdict: "approved", notional: "900" });
   });
