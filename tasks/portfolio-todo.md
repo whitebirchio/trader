@@ -6,30 +6,30 @@
 ## Phase 1: Pure core
 
 ### P1: Strategy schema + validation
-- [ ] Zod schema with every bound in the spec (universe 1–100, windows, topN 1–20, weights 0 < w ≤ 20, Σ conviction ≤ 100, stop 5–50 required, ≥ 1 evidence item, no duplicate symbols or ids, `defensive` not in the universe)
-- [ ] `VERSION_0` constant (VTI, topN 1, no filter)
-- [ ] Table tests for every bound; readable error messages (they become `strategy.rejected` email text)
+- [x] Zod schema with every bound in the spec (universe 1–100, windows, topN 1–20, weights 0 < w ≤ 20, Σ conviction ≤ 100, stop 5–50 required, ≥ 1 evidence item, no duplicate symbols or ids, `defensive` not in the universe)
+- [x] `VERSION_0` constant (VTI, topN 1, no filter)
+- [x] Table tests for every bound; readable error messages (they become `strategy.rejected` email text)
 - **Files:** `src/portfolio/strategy.ts`, test · **Scope:** S
 
 ### P2: Systematic ranking + weighting
-- [ ] `rankUniverse(bars, params)`: momentum over the lookback with skip-recent, trend filter, topN, equal / inverse-vol weights summing to 1, failed slots → `defensive` or cash
-- [ ] Missing or short history → excluded (not ranked on partial data)
-- [ ] Tests: hand-computed returns, the 12-1 skip, the filter, weights, `defensive`, ties broken by symbol
+- [x] `rankUniverse(bars, params)`: momentum over the lookback with skip-recent, trend filter, topN, equal / inverse-vol weights summing to 1, failed slots → `defensive` or cash
+- [x] Missing or short history → excluded (not ranked on partial data)
+- [x] Tests: hand-computed returns, the 12-1 skip, the filter, weights, `defensive`, ties broken by symbol
 - **Files:** `src/portfolio/systematic.ts`, test · **Scope:** S
 
 ### P3: Targets
-- [ ] `buildTargets(strategy, thesisStates, ranking, equity, cashBuffer)` → `{symbol, sleeve, weight, dollars}[]`: conviction first (active theses only), the remainder to systematic; `toDollarTargets` in `Big`, cents, sums ≤ investable
-- [ ] Tests: empty conviction → all systematic; 100% conviction → no systematic; stopped/stale theses excluded; exact dollar sums
+- [x] `buildTargets(strategy, thesisStates, ranking, equity, cashBuffer)` → `{symbol, sleeve, weight, dollars}[]`: conviction first (active theses only), the remainder to systematic; `toDollarTargets` in `Big`, cents, sums ≤ investable
+- [x] Tests: empty conviction → all systematic; 100% conviction → no systematic; stopped/stale theses excluded; exact dollar sums
 - **Files:** `src/portfolio/targets.ts`, test · **Depends on:** P1, P2 · **Scope:** S
 
 ### P4: Thesis lifecycle
-- [ ] `thesisStates(history, lots, lastCloses, now)` → active / stopped / stale / closed, with the reason
-- [ ] Tests: stop hit at exactly the threshold; stale at day 30, not 29; reaffirmed resets the clock; stopped stays stopped across versions; removed → closed
+- [x] `thesisStates(history, lots, lastCloses, now)` → active / stopped / stale / closed, with the reason
+- [x] Tests: stop hit at exactly the threshold; stale at day 30, not 29; reaffirmed resets the clock; stopped stays stopped across versions; removed → closed
 - **Files:** `src/portfolio/theses.ts`, test · **Depends on:** P1 · **Scope:** S
 
 ### P5: Planner
-- [ ] `planTrades(targets, holdings, lots, closedLots, now, drift)` → proposals with reasons: exits; drift beyond max(rel × target, min$); **sells-only if any sells are due**; systematic buys of a symbol with a loss sale in the last 30 days skipped and substituted from the ranking; conviction buys never skipped
-- [ ] Tests for each rule, plus "already on target → no proposals"
+- [x] `planTrades({targets, holdings, drift, exitReasons, sleeveOf})`: exits; drift beyond max(rel × target, min$); **sells-only if any sells are due**; buys conviction first, then largest. **Design note:** wash-sale skip+substitute happens at *selection* (`selectSystematic(ranking, params, washSaleWindow(closed, now))`), because only the ranking knows the next rank; conviction buys are never skipped
+- [x] Tests for each rule, plus "already on target → no proposals"
 - **Files:** `src/portfolio/planner.ts`, test · **Depends on:** P3, P4 · **Scope:** M
 
 ### Checkpoint A
@@ -38,7 +38,7 @@
 ## Phase 2: Wiring
 
 ### P6: Risk changes
-- [ ] Rename sleeves to `systematic` / `conviction` (types, rules, reason text, tests, docs); `convictionCapPct: "100"` in `limits.ts`
+- [x] (done early, during P3) Rename sleeves to `systematic` / `conviction` (types, rules, reason text, tests, docs); `convictionCapPct: "100"` in `limits.ts`
 - [ ] ADR-013 "Conviction-first portfolio" (supersedes ADR-003's 70/30 default only); capability map objective line; CLAUDE.md wording
 - **Files:** `src/risk/*`, tests, `docs/decisions/013-*.md`, README index, `CAPABILITY-MAP.md`, `CLAUDE.md` · **Scope:** M (wide but mechanical)
 

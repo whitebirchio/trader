@@ -16,7 +16,7 @@ export function washSaleWindow(closed: ClosedLot[], now: Date): Set<string> {
   return new Set(closed.filter((c) => compare(c.gain, "0") < 0 && c.closedAt.getTime() >= since).map((c) => c.symbol));
 }
 
-export interface Holding {
+export interface PlanHolding {
   symbol: string;
   qty: string;
   marketValue: string;
@@ -37,7 +37,7 @@ export interface Plan {
 export interface PlanInput {
   planId: string;
   targets: Target[];
-  holdings: Holding[];
+  holdings: PlanHolding[];
   drift: { relativePct: string; minTradeUsd: string };
   /** Why a held symbol has no target (e.g. a stopped thesis), for the trade's reason. */
   exitReasons?: Record<string, string>;

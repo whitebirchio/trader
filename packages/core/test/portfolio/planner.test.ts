@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClosedLot } from "../../src/broker/lots.js";
-import { type Holding, planTrades, washSaleWindow } from "../../src/portfolio/planner.js";
+import { type PlanHolding, planTrades, washSaleWindow } from "../../src/portfolio/planner.js";
 import type { Target } from "../../src/portfolio/targets.js";
 
 const drift = { relativePct: "20", minTradeUsd: "5" };
@@ -10,8 +10,8 @@ const t = (symbol: string, dollars: string, sleeve: "conviction" | "systematic" 
   dollars,
   reason: sleeve === "conviction" ? `thesis ${symbol.toLowerCase()}` : `${symbol}: rank 1`,
 });
-const h = (symbol: string, qty: string, marketValue: string, currentPrice: string): Holding => ({ symbol, qty, marketValue, currentPrice });
-const plan = (targets: Target[], holdings: Holding[], extra: Partial<Parameters<typeof planTrades>[0]> = {}) =>
+const h = (symbol: string, qty: string, marketValue: string, currentPrice: string): PlanHolding => ({ symbol, qty, marketValue, currentPrice });
+const plan = (targets: Target[], holdings: PlanHolding[], extra: Partial<Parameters<typeof planTrades>[0]> = {}) =>
   planTrades({ planId: "p1", targets, holdings, drift, ...extra });
 
 describe("planTrades", () => {
