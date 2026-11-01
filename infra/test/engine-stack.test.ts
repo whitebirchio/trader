@@ -1,6 +1,10 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
 import { describe, expect, it } from "vitest";
+import { CertsStack } from "../lib/certs-stack.js";
 import { EngineStack } from "../lib/engine-stack.js";
 
 const env = { account: "111111111111", region: "us-east-1" };
@@ -8,11 +12,15 @@ const env = { account: "111111111111", region: "us-east-1" };
 function synth() {
   // Skip esbuild bundling in unit tests; `cdk synth` and deploys bundle for real.
   const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
-  const staging = new EngineStack(app, "TraderStaging", { env, tradingEnv: "staging", ownsSesIdentities: true });
-  const production = new EngineStack(app, "TraderProduction", { env, tradingEnv: "production", ownsSesIdentities: false });
-  return { staging: Template.fromStack(staging), production: Template.fromStack(production) };
+  const certs = new CertsStack(app, "TraderCerts", { env });
+  const codeDir = mkdtempSync(join(tmpdir(), "dashboard-code-"));
+  writeFileSync(join(codeDir, "index.js"), "// test stand-in for apps/dashboard/dist/app\n");
+  const dashboard = { certificate: certs.dashboardCertificate, codeDir };
+  const staging = new EngineStack(app, "TraderStaging", { env, tradingEnv: "staging", ownsSesIdentities: true, dashboard });
+  const production = new EngineStack(app, "TraderProduction", { env, tradingEnv: "production", ownsSesIdentities: false, dashboard });
+  return { staging: Template.fromStack(staging), production: Template.fromStack(production), certs: Template.fromStack(certs) };
 }
-const { staging, production } = synth();
+const { staging, production, certs } = synth();
 
 type Statement = { Sid?: string; Action: unknown; Resource: unknown; Condition?: unknown };
 const roleStatements = (t: Template): Statement[] =>
@@ -22,7 +30,7 @@ const roleStatements = (t: Template): Statement[] =>
 
 describe("EngineStack", () => {
   it("has the engine and MCP functions, Node 22 arm64, configured by name only", () => {
-    staging.resourceCountIs("AWS::Lambda::Function", 2);
+    staging.resourceCountIs("AWS::Lambda::Function", 3); // engine, MCP, and the dashboard's code-upload handler
     staging.hasResourceProperties("AWS::Lambda::Function", {
       FunctionName: "trader-engine-staging",
       Runtime: "nodejs22.x",
@@ -101,7 +109,7 @@ describe("EngineStack", () => {
       "arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/",
     ]);
     for (const t of [staging, production]) {
-      expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(2);
+      expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(3); // engine, MCP, dashboard
       expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ses:"))).toHaveLength(1);
     }
   });
@@ -139,6 +147,9 @@ describe("EngineStack", () => {
   it("differs between environments only in names, env and paths", () => {
     const normalize = (t: Template) =>
       JSON.stringify(t.toJSON())
+        .replaceAll("trader-staging.whitebirch.io", "trader.whitebirch.io")
+        // BucketDeployment tags its bucket with a hash of the construct path.
+        .replace(/aws-cdk:cr-owned:[0-9a-f]+/g, "aws-cdk:cr-owned:HASH")
         .replaceAll("production", "ENV")
         .replaceAll("staging", "ENV")
         .replaceAll("Production", "Env")
@@ -151,5 +162,75 @@ describe("EngineStack", () => {
       return doc;
     };
     expect(strip(normalize(production))).toEqual(strip(normalize(staging)));
+  });
+
+  describe("dashboard", () => {
+    type WithProps = { Properties: Record<string, unknown> };
+    const one = (t: Template, type: string) => Object.values(t.findResources(type))[0] as WithProps;
+
+    it("is a Web Function with an IamAuth endpoint, capped and throttled", () => {
+      staging.hasResourceProperties("AWS::Lambda::WebFunction", { FunctionName: "trader-dashboard-staging" });
+      staging.hasResourceProperties("AWS::Lambda::WebFunctionEndpoint", {
+        EndpointType: "HomeRegion",
+        AuthType: "IamAuth",
+        ScalingConfig: { MaxEnvironments: 2 },
+        ThrottleConfig: { RateLimit: 100 },
+      });
+      staging.hasResourceProperties("AWS::Lambda::WebFunctionRevision", {
+        BuildConfig: Match.objectLike({ RuntimeConfig: { Runtime: "nodejs24.x" } }),
+        ServiceConfig: Match.objectLike({
+          EnvironmentVariables: Match.objectLike({ TRADING_ENV: "staging", DASHBOARD_URL: "https://trader-staging.whitebirch.io", SECRETS_PATH: "/trader/staging/", NODE_ENV: "production" }),
+        }),
+      });
+      production.hasResourceProperties("AWS::Lambda::WebFunctionRevision", {
+        ServiceConfig: Match.objectLike({ EnvironmentVariables: Match.objectLike({ DASHBOARD_URL: "https://trader.whitebirch.io" }) }),
+      });
+    });
+
+    it("can be invoked only by its own CloudFront distribution", () => {
+      const policy = JSON.stringify(one(staging, "AWS::Lambda::ResourcePolicy").Properties.PolicyDocument);
+      expect(policy).toContain('"Service":"cloudfront.amazonaws.com"');
+      expect(policy).toContain("lambda:InvokeWebFunctionEndpoint");
+      expect(policy).toContain("aws:SourceArn");
+      expect(policy).not.toContain('"Principal":"*"');
+      staging.hasResourceProperties("AWS::CloudFront::OriginAccessControl", {
+        OriginAccessControlConfig: Match.objectLike({ OriginAccessControlOriginType: "lambda", SigningBehavior: "always-amz-auth" }),
+      });
+      const dist = JSON.stringify(one(staging, "AWS::CloudFront::Distribution").Properties);
+      expect(dist).toContain("OriginAccessControlId");
+      expect(dist).toContain('"Aliases":["trader-staging.whitebirch.io"]');
+      expect(dist).toContain('"ViewerProtocolPolicy":"redirect-to-https"');
+      expect(dist).toContain("4135ea2d-6df8-44a3-9df3-4b5a84be39ad"); // CachingDisabled for pages
+    });
+
+    it("reads only its three secrets: never the Alpaca keys, no SES, no path reads", () => {
+      const read = roleStatements(staging).find((s) => s.Sid === "ReadDashboardSecrets");
+      expect(read?.Action).toBe("ssm:GetParameters");
+      expect(JSON.stringify(read?.Resource)).toContain("parameter/trader/staging/DATABASE_READ_URL");
+      expect((read?.Resource as unknown[]).length).toBe(3);
+      expect(JSON.stringify(read?.Resource)).not.toMatch(/ALPACA|MCP_/);
+      const dashboardRole = Object.keys(staging.findResources("AWS::IAM::Role")).find((k) => k.startsWith("DashboardRole"));
+      const policies = JSON.stringify(Object.values(staging.findResources("AWS::IAM::Policy")).filter((p) => JSON.stringify(p).includes(`"${dashboardRole}"`)));
+      expect(policies).not.toContain("ses:");
+      expect(policies).not.toContain("GetParametersByPath");
+    });
+
+    it("keeps code versions the live revision needs, and logs for 30 days", () => {
+      staging.hasResourceProperties("AWS::S3::Bucket", {
+        VersioningConfiguration: { Status: "Enabled" },
+        LifecycleConfiguration: { Rules: [Match.objectLike({ NoncurrentVersionExpiration: { NoncurrentDays: 30 } })] },
+      });
+      for (const g of ["/aws/lambda/web/trader-dashboard-staging", "/aws/lambda/web/trader-dashboard-staging.local"]) {
+        staging.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: g, RetentionInDays: 30 });
+      }
+    });
+
+    it("gets one certificate for both names from TraderCerts", () => {
+      certs.hasResourceProperties("AWS::CertificateManager::Certificate", {
+        DomainName: "trader.whitebirch.io",
+        SubjectAlternativeNames: ["trader-staging.whitebirch.io"],
+        ValidationMethod: "DNS",
+      });
+    });
   });
 });
