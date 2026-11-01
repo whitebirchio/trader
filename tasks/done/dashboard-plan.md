@@ -1,6 +1,6 @@
 # Implementation Plan: `dashboard`
 
-> Implements [SPEC-dashboard.md](../SPEC-dashboard.md) (approved 2026-11-01). Tasks are in [dashboard-todo.md](dashboard-todo.md).
+> Implements [SPEC-dashboard.md](../../SPEC-dashboard.md) (approved 2026-11-01). Tasks are in [dashboard-todo.md](dashboard-todo.md).
 
 ## Order
 1. **D1, spike** (staging only, then thrown away): a minimal Next.js standalone app on a Web Function from CDK, with CloudFront and OAC in front. It answers spec open question 4:

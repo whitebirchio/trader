@@ -1,6 +1,6 @@
 # Tasks: `agent`
 
-> Plan: [agent-plan.md](agent-plan.md) · Spec: [SPEC-agent.md](../SPEC-agent.md) · gate = typecheck + test (+ synth)
+> Plan: [agent-plan.md](agent-plan.md) · Spec: [SPEC-agent.md](../../SPEC-agent.md) · gate = typecheck + test (+ synth)
 
 - [x] G1: core tools: overview, strategy, holdings, activity, prices, eligibility, rules, preview (shared `runRebalance` path), submit; tests
 - [x] G2: `apps/mcp`: auth + protocol (ported from Fred), Function URL adapter, tool registry, instructions; tests including a pinned tool list
