@@ -54,9 +54,9 @@ describe("EngineStack", () => {
     });
   });
 
-  it("runs rebalance on its own schedule, 5 minutes after each tick, weekday market hours", () => {
+  it("runs rebalance on its own schedule, every 15 minutes in weekday market hours", () => {
     const r = named(production, "trader-rebalance-production");
-    expect(r?.Properties.ScheduleExpression).toBe("cron(5/15 14-20 ? * MON-FRI *)");
+    expect(r?.Properties.ScheduleExpression).toBe("cron(0/15 13-20 ? * MON-FRI *)");
     expect(JSON.parse(r?.Properties.Target.Input ?? "{}")).toEqual({ jobs: ["rebalance"], scheduledTime: "<aws.scheduler.scheduled-time>" });
   });
 

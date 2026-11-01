@@ -154,3 +154,14 @@ describe("digest benchmark line", () => {
     expect(composeDigest(base, "production").text).not.toContain("vs VTI");
   });
 });
+
+describe("footer", () => {
+  const at = new Date("2026-11-02T14:45:00Z");
+  it("ends every email with its time; only staging names the environment", () => {
+    const prod = composeUrgent([ev("risk.kill_switch_on", { reason: "x" })], "production", at);
+    expect(prod.text.trimEnd().split("\n").at(-1)).toBe("— Trader · Mon, Nov 2, 9:45 AM ET");
+    const stg = composeDigest(base, "staging", at);
+    expect(stg.text.trimEnd().split("\n").at(-1)).toBe("— Trader (staging) · Mon, Nov 2, 9:45 AM ET");
+    expect(stg.html).toContain("— Trader (staging) · Mon, Nov 2, 9:45 AM ET");
+  });
+});
