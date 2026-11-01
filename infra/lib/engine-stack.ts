@@ -59,12 +59,18 @@ export class EngineStack extends Stack {
         banner: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);" },
     });
 
-    // Secrets: only this environment's SSM path (ADR-005). aws/ssm decrypt is implied for SecureStrings.
+    // Secrets: only this environment's SSM path (ADR-005). The resource is the
+    // path as requested; the SDK sends it with the trailing slash, so grant both
+    // spellings of exactly this path. aws/ssm decrypt is allowed via SSM by the
+    // key's own policy.
     fn.addToRolePolicy(
       new iam.PolicyStatement({
         sid: "ReadOwnSecrets",
         actions: ["ssm:GetParametersByPath"],
-        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/trader/${env}`],
+        resources: [
+          `arn:aws:ssm:${this.region}:${this.account}:parameter/trader/${env}`,
+          `arn:aws:ssm:${this.region}:${this.account}:parameter/trader/${env}/`,
+        ],
       }),
     );
 

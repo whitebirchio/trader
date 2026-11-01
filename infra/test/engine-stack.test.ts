@@ -59,8 +59,15 @@ describe("EngineStack", () => {
 
   it("can read only its own environment's secrets", () => {
     const read = (t: Template) => roleStatements(t).find((s) => s.Sid === "ReadOwnSecrets");
-    expect(read(staging)?.Resource).toBe("arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging");
-    expect(read(production)?.Resource).toBe("arn:aws:ssm:us-east-1:111111111111:parameter/trader/production");
+    // Both spellings of the path: the SDK requests ".../trader/<env>/" (with the slash).
+    expect(read(staging)?.Resource).toEqual([
+      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging",
+      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging/",
+    ]);
+    expect(read(production)?.Resource).toEqual([
+      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/production",
+      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/",
+    ]);
     for (const t of [staging, production]) {
       expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(1);
     }
