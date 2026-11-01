@@ -34,3 +34,4 @@ export * from "./portfolio/store.js";
 export * from "./portfolio/rebalance.js";
 export * from "./portfolio/benchmark.js";
 export * from "./agent/tools.js";
+export * from "./dashboard/views.js";

@@ -4,7 +4,7 @@
 
 - [x] D1: spike (2026-11-01): **Web Functions**; findings in the spec. A minimal Next app on a Web Function plus CloudFront and OAC in staging: start contract, OAC behaviour, cold start, billing. **Decision: Web Functions or the fallback.** Then remove it.
 - [x] D2: `benchmark_closes` (additive migration) + after-close VTI recording + one-time backfill; tests
-- [ ] D3: core read models: `overviewView`, `performanceSeries`, `holdingsView`, `strategyView` + `strategyHistory`, `activityView`; tests
+- [x] D3: core read models: `overviewView`, `performanceSeries`, `holdingsView`, `strategyView` + `strategyHistory`, `activityView`; tests
 - [ ] D4: `db:dashboard-role` (SELECT-only; INSERT check) + `scripts/set-dashboard-secrets.sh`
 - [ ] D5: `apps/dashboard` shell: Next 16 + Tailwind 4, Google OIDC (PKCE/state/nonce, claims, owner allow-list), signed session, middleware, CSP; tests
 - [ ] D6: pages: overview + chart, holdings, strategy + history, activity; staging banner; PWA manifest and icons

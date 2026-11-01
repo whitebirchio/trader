@@ -1,0 +1,191 @@
+import { asc, desc, eq, inArray } from "drizzle-orm";
+import { BENCHMARK } from "../broker/benchmark-closes.js";
+import { buildLots } from "../broker/lots.js";
+import type { Db } from "../db/client.js";
+import { benchmarkCloses, brokerAccount, brokerActivities, equitySnapshots, positions, riskState, strategies } from "../db/schema.js";
+import type { TradingEnv } from "../env.js";
+import { compare, div, mul, sub } from "../money.js";
+import { getActivity, getHoldings, getStrategy } from "../agent/tools.js";
+import { compareToBenchmark } from "../portfolio/benchmark.js";
+import { activeStrategy, stoppedThesisIds } from "../portfolio/store.js";
+import { VERSION_0, validateStrategy } from "../portfolio/strategy.js";
+import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
+import { FLOW_TYPES, buildIndex, flowsByDate } from "../risk/equity-index.js";
+import { currentIndex } from "../risk/gate.js";
+import { marketDate } from "../time.js";
+
+/**
+ * Read models for the dashboard (SPEC-dashboard). Database only: the
+ * dashboard has no broker keys and a SELECT-only role, so nothing here calls
+ * Alpaca or writes. Money stays as decimal strings.
+ */
+
+const DAY_MS = 86_400_000;
+const pct = (num: string, den: string) => div(mul(sub(div(num, den, 12, "half-even"), "1"), "100"), "1", 2, "half-even");
+const rebased = (value: string, base: string) => div(mul(value, "100"), base, 2, "half-even");
+/** Whole days left before a version's theses go stale (0 once they have). */
+const staleInDaysFrom = (createdAt: Date, now: Date) => Math.max(0, Math.ceil((createdAt.getTime() + STALE_AFTER_MS - now.getTime()) / DAY_MS));
+
+export interface PerformancePoint {
+  date: string;
+  /** Flow-adjusted portfolio index, rebased to 100 at the first snapshot. */
+  portfolio: string;
+  /** VTI's adjusted close, rebased to 100 on the same day; null until a close is recorded. */
+  benchmark: string | null;
+}
+
+export interface PerformanceSeries {
+  points: PerformancePoint[];
+  /** Totals over the whole series, the same numbers the digest reports; null with fewer than two snapshots. */
+  totals: { since: string; through: string; portfolioPct: string; benchmarkPct: string } | null;
+}
+
+/** The portfolio's flow-adjusted index against VTI, from the daily snapshots and recorded closes. */
+export async function performanceSeries(db: Db): Promise<PerformanceSeries> {
+  const snaps = await db.select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity }).from(equitySnapshots).orderBy(asc(equitySnapshots.tradingDate));
+  if (snaps.length === 0) return { points: [], totals: null };
+  const flowRows = await db.select().from(brokerActivities).where(inArray(brokerActivities.type, [...FLOW_TYPES]));
+  const index = buildIndex(snaps, flowsByDate(flowRows.map((r) => ({ ...r, side: null }))));
+  const closes = await db
+    .select({ tradingDate: benchmarkCloses.tradingDate, close: benchmarkCloses.close })
+    .from(benchmarkCloses)
+    .where(eq(benchmarkCloses.symbol, BENCHMARK))
+    .orderBy(asc(benchmarkCloses.tradingDate));
+  const closeOn = (date: string) => [...closes].reverse().find((c) => c.tradingDate <= date)?.close ?? null;
+
+  const first = index.points[0]!;
+  const firstClose = closeOn(first.tradingDate);
+  const points = index.points.map((p) => {
+    const close = closeOn(p.tradingDate);
+    return { date: p.tradingDate, portfolio: rebased(p.index, first.index), benchmark: close && firstClose ? rebased(close, firstClose) : null };
+  });
+  // Midday ET keeps marketDate() on the stored trading date.
+  const bars = closes.map((c) => ({ t: new Date(`${c.tradingDate}T17:00:00Z`), c: c.close }));
+  return { points, totals: compareToBenchmark(index.points, bars, marketDate) };
+}
+
+/** The first screen: account, guardrails, strategy and performance. */
+export async function overviewView(db: Db, env: TradingEnv, now: Date) {
+  const [account] = await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1));
+  const [state] = await db.select().from(riskState).where(eq(riskState.id, 1));
+  const live = await currentIndex(db, account?.equity ?? "0", account?.lastEquity ?? null, now);
+  const active = await activeStrategy(db, now);
+  return {
+    environment: env,
+    asOf: now.toISOString(),
+    lastSync: account?.syncedAt?.toISOString() ?? null,
+    account: { equity: account?.equity ?? "0", cash: account?.cash ?? "0", todayPct: live.dailyChangePct, drawdownFromPeakPct: live.drawdownPct },
+    guardrails: {
+      killSwitch: state?.killSwitch ?? false,
+      halted: state?.halted ?? false,
+      haltReason: state?.haltReason ?? null,
+      buysPausedToday: state?.buysPausedOn === marketDate(now),
+      brokerTradingAllowed: account?.tradingAllowed ?? false,
+      brokerBlockedReasons: account?.blockedReasons ?? ["the broker has never been synced"],
+    },
+    strategy: { version: active.version, authoredBy: active.authoredBy, createdAt: active.createdAt.toISOString(), summary: active.strategy.summary },
+    performance: await performanceSeries(db),
+  };
+}
+
+export interface HoldingRow {
+  symbol: string;
+  qty: string;
+  marketValue: string;
+  price: string;
+  averageCost: string;
+  /** % of equity. */
+  weightPct: string;
+  /** Unrealized gain vs average cost, %. */
+  gainPct: string;
+  thesis: null | {
+    id: string;
+    state: "active" | "stopped" | "stale";
+    targetPct: string;
+    stopLossPct: string;
+    /** The close at or below which the thesis is sold; null without open lots. */
+    stopPrice: string | null;
+    /** How far the price is above the stop, %. */
+    toStopPct: string | null;
+    staleInDays: number;
+  };
+}
+
+/** Positions split by sleeve, with weights, gains and each thesis's distance to its stop. */
+export async function holdingsView(db: Db, now: Date) {
+  const [account] = await db.select({ equity: brokerAccount.equity }).from(brokerAccount).where(eq(brokerAccount.id, 1));
+  const equity = account?.equity ?? "0";
+  const held = await db.select().from(positions).orderBy(desc(positions.marketValue));
+  const acts = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
+  const lots = buildLots(acts.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null })));
+  const active = await activeStrategy(db, now);
+  const states = thesisStates({ active, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose: Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice])), now });
+  const bySymbol = new Map(states.map((s) => [s.thesis.symbol, s]));
+  const staleInDays = staleInDaysFrom(active.createdAt, now);
+
+  const rows: HoldingRow[] = held.map((p) => {
+    const t = bySymbol.get(p.symbol);
+    const cost = averageCost(lots.open, p.symbol);
+    const stopPrice = t && cost ? div(mul(cost, sub("1", div(t.thesis.stopLossPct, "100", 12, "half-even"))), "1", 2, "half-even") : null;
+    return {
+      symbol: p.symbol,
+      qty: p.qty,
+      marketValue: p.marketValue,
+      price: p.currentPrice,
+      averageCost: p.avgEntryPrice,
+      weightPct: compare(equity, "0") > 0 ? div(mul(p.marketValue, "100"), equity, 2, "half-even") : "0",
+      gainPct: compare(p.avgEntryPrice, "0") > 0 ? pct(p.currentPrice, p.avgEntryPrice) : "0",
+      thesis: t
+        ? {
+            id: t.thesis.id,
+            state: t.state,
+            targetPct: t.thesis.targetWeightPct,
+            stopLossPct: t.thesis.stopLossPct,
+            stopPrice,
+            toStopPct: stopPrice && compare(stopPrice, "0") > 0 ? pct(p.currentPrice, stopPrice) : null,
+            staleInDays,
+          }
+        : null,
+    };
+  });
+  const { washSaleWindows } = await getHoldings({ db, now });
+  return {
+    equity,
+    conviction: rows.filter((r) => r.thesis),
+    systematic: rows.filter((r) => !r.thesis),
+    washSaleWindows,
+  };
+}
+
+/** The active strategy with thesis states (as Claude sees it), plus how long until it goes stale. */
+export async function strategyView(db: Db, now: Date) {
+  const s = await getStrategy({ db, now });
+  if ("error" in s) throw new Error(s.error); // only for a requested version; never here
+  return { ...s, staleInDays: staleInDaysFrom(new Date(s.createdAt), now) };
+}
+
+/** Every stored version, newest first. Version 0 (VTI) is implicit and listed last. */
+export async function strategyHistory(db: Db) {
+  const rows = await db
+    .select({ version: strategies.version, authoredBy: strategies.authoredBy, createdAt: strategies.createdAt, summary: strategies.summary })
+    .from(strategies)
+    .orderBy(desc(strategies.version));
+  return [
+    ...rows.map((r) => ({ version: r.version, authoredBy: r.authoredBy, createdAt: r.createdAt.toISOString(), summary: r.summary })),
+    { version: 0, authoredBy: "system" as const, createdAt: null, summary: VERSION_0.summary },
+  ];
+}
+
+/** One stored version's document, or null if there's no such version. */
+export async function strategyVersion(db: Db, version: number) {
+  if (version === 0) return { version: 0, authoredBy: "system" as const, createdAt: null, document: VERSION_0 };
+  const [row] = await db.select().from(strategies).where(eq(strategies.version, version));
+  if (!row) return null;
+  const parsed = validateStrategy(row.document);
+  return { version: row.version, authoredBy: row.authoredBy, createdAt: row.createdAt.toISOString(), document: parsed.ok ? parsed.strategy : row.document };
+}
+
+/** The activity timeline: the same feed Claude reads (get_activity), 1–90 days. */
+export function activityView(db: Db, now: Date, days = 14) {
+  return getActivity({ db, now }, days);
+}
