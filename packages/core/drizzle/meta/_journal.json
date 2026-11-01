@@ -71,6 +71,13 @@
       "when": 1793542658688,
       "tag": "0009_portfolio_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793551205262,
+      "tag": "0010_cynical_mystique",
+      "breakpoints": true
     }
   ]
 }

@@ -31,7 +31,8 @@
     "strategy:submit": "tsx scripts/strategy-submit.ts",
     "strategy:show": "tsx scripts/strategy-show.ts",
     "rebalance:plan": "tsx scripts/rebalance.ts --mode plan",
-    "rebalance:run": "tsx scripts/rebalance.ts --mode run"
+    "rebalance:run": "tsx scripts/rebalance.ts --mode run",
+    "db:dashboard-role": "tsx scripts/dashboard-role.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

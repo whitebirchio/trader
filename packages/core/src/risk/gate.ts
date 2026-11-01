@@ -142,7 +142,8 @@ export async function loadSnapshot(
   };
 }
 
-async function currentIndex(db: Db, equity: string, lastEquity: string | null, now: Date): Promise<LiveIndex> {
+/** Today's flow-adjusted change and drawdown, from the snapshots plus live equity. */
+export async function currentIndex(db: Db, equity: string, lastEquity: string | null, now: Date): Promise<LiveIndex> {
   const snaps = await db
     .select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity })
     .from(equitySnapshots)

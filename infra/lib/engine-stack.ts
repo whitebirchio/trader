@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { CfnOutput, Duration, Stack, type StackProps, Tags } from "aws-cdk-lib";
+import type * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cwActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as iam from "aws-cdk-lib/aws-iam";
@@ -12,6 +13,7 @@ import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 import { TICK_JOBS } from "@trader/core";
 import type { Construct } from "constructs";
+import { Dashboard } from "./dashboard.js";
 import { MAIL_DOMAIN, NOTIFY_FROM, OWNER_EMAIL, type TradingEnv, secretsPath } from "./config.js";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
@@ -23,6 +25,8 @@ export interface EngineStackProps extends StackProps {
    * (staging) and the other only references them by name.
    */
   ownsSesIdentities: boolean;
+  /** The dashboard's certificate (TraderCerts) and packaged code directory. */
+  dashboard: { certificate: acm.ICertificate; codeDir: string };
 }
 
 /** One Trader environment on AWS (SPEC-platform-aws): Lambda, its schedule, health URL, email and alarms. */
@@ -158,6 +162,9 @@ export class EngineStack extends Stack {
     mcp.addToRolePolicy(readOwnSecrets());
     const mcpUrl = mcp.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
     new CfnOutput(this, "McpUrl", { value: `${mcpUrl.url}mcp`, description: "Add in Claude as a custom connector" });
+
+    // The read-only dashboard (SPEC-dashboard).
+    new Dashboard(this, "Dashboard", { tradingEnv: env, ...props.dashboard });
 
     // Alarms → your inbox, independent of Trader's own email path.
     const topic = new sns.Topic(this, "Alarms", { topicName: `trader-alarms-${env}` });

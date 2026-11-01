@@ -12,7 +12,7 @@ Trader is an autonomous US-equity portfolio. **Claude owns the strategy**: it re
 | `portfolio` | Versioned strategy model (Claude-authored), quant core engine driven by Claude-tuned parameters, satellite theses with expiry, sleeve targets → rebalance plan → `risk` → `broker`; wash-sale cost awareness; benchmark tracking vs VTI | `broker`, `risk` |
 | `agent` | Remote MCP server (OAuth, ported from Fred) with portfolio-read, research-data, `preview_strategy` and `submit_strategy` tools (no order or control-plane tools: kill/resume stay owner-only), plus the scheduled Claude Code research routine that drives it | `portfolio` |
 | `notifications` | Email for every trade and every meaningful autonomous action, driven from the audit log | `foundation` |
-| `dashboard` | Read-only view: positions, sleeves, equity vs VTI, recent strategy changes. *Not started; the claude.ai connector covers ad-hoc questions for now. Hosting to be re-decided after ADR-014 (Cloudflare Access no longer applies).* | `portfolio` |
+| `dashboard` | Read-only Next.js PWA at trader.whitebirch.io (staging: trader-staging): overview with performance vs VTI, holdings by sleeve, strategy and history, activity. Lambda Web Function behind CloudFront (OAC), Google sign-in for the owner only, SELECT-only DB role, no broker keys | `portfolio` |
 
 **Build order:** `foundation` → `broker`, `risk`, `notifications` → `portfolio` → `agent`, `dashboard`
 
