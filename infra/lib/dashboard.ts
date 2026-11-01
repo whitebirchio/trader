@@ -120,8 +120,27 @@ export class Dashboard extends Construct {
       originAccessControlConfig: { name: `${name}-oac`, originAccessControlOriginType: "lambda", signingBehavior: "always-amz-auth", signingProtocol: "sigv4" },
     });
     const origin = new origins.HttpOrigin(endpoint.attrDomainName, { originId: "web-function", protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY });
+    // OAC signs the origin request with the query string as sent, but Lambda
+    // canonicalizes a literal "+" differently, so the signature fails (403
+    // "not authorized to access this endpoint"). Google's callback always
+    // carries scope=a+b+c. Re-encode "+" as "%20" (the same space) first.
+    const plusAsSpace = new cloudfront.Function(this, "PlusAsSpace", {
+      functionName: `${name}-plus-as-space`,
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+      comment: "Re-encode + as %20 in query strings so OAC signatures verify",
+      code: cloudfront.FunctionCode.fromInline(`function handler(event) {
+  var qs = event.request.querystring;
+  for (var key in qs) {
+    var p = qs[key];
+    if (typeof p.value === "string") p.value = p.value.replace(/\\+/g, "%20");
+    if (p.multiValue) p.multiValue.forEach(function (m) { m.value = m.value.replace(/\\+/g, "%20"); });
+  }
+  return event.request;
+}`),
+    });
     const dynamicPages = {
       origin,
+      functionAssociations: [{ function: plusAsSpace, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,

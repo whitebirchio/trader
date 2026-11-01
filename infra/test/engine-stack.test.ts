@@ -201,6 +201,8 @@ describe("EngineStack", () => {
       expect(dist).toContain('"Aliases":["trader-staging.whitebirch.io"]');
       expect(dist).toContain('"ViewerProtocolPolicy":"redirect-to-https"');
       expect(dist).toContain("4135ea2d-6df8-44a3-9df3-4b5a84be39ad"); // CachingDisabled for pages
+      expect(dist).toContain('"EventType":"viewer-request"'); // + → %20 before OAC signs
+      staging.hasResourceProperties("AWS::CloudFront::Function", { FunctionCode: Match.stringLikeRegexp('replace\\(/\\\\\\+/g, "%20"\\)') });
     });
 
     it("reads only its three secrets: never the Alpaca keys, no SES, no path reads", () => {
