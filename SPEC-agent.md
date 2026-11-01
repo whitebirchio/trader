@@ -1,6 +1,6 @@
 # Spec: `agent`
 
-> **Status: DRAFT — awaiting approval.** Module 6 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `portfolio` (merged #8). Target: live before Monday 2026-11-02's open, so Claude's first strategy can trade at the 9:45 ET step.
+> **Status: Approved** (Scott, 2026-11-01). Module 6 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `portfolio` (merged #8). Target: live before Monday 2026-11-02's open, so Claude's first strategy can trade at the 9:45 ET step.
 
 ## Objective
 
