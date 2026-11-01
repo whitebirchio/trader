@@ -128,9 +128,19 @@ describe("EngineStack", () => {
     staging.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "whitebirch.io" });
   });
 
+  it("alarms when the MCP server throws, to the same topic (#13)", () => {
+    for (const [t, env] of [[staging, "staging"], [production, "production"]] as const) {
+      const [alarm] = Object.values(t.findResources("AWS::CloudWatch::Alarm", { Properties: { AlarmName: `trader-${env}-mcp-errors` } })) as { Properties: Record<string, unknown> }[];
+      expect(alarm?.Properties).toMatchObject({ MetricName: "Errors", Threshold: 1, Period: 900, TreatMissingData: "notBreaching" });
+      expect(JSON.stringify(alarm?.Properties.Dimensions)).toContain("Mcp");
+      expect(JSON.stringify(alarm?.Properties.AlarmActions)).toContain("Alarms");
+      expect(JSON.stringify(alarm?.Properties.OKActions)).toContain("Alarms");
+    }
+  });
+
   it("alarms on errors and on silence, emailing the owner", () => {
     for (const t of [staging, production]) {
-      t.resourceCountIs("AWS::CloudWatch::Alarm", 2);
+      t.resourceCountIs("AWS::CloudWatch::Alarm", 3);
       t.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Errors", Threshold: 1, TreatMissingData: "notBreaching" });
       t.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Invocations", ComparisonOperator: "LessThanThreshold", TreatMissingData: "breaching" });
       t.hasResourceProperties("AWS::SNS::Subscription", { Protocol: "email", Endpoint: "scott.schmalz@gmail.com" });
