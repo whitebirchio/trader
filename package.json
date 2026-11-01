@@ -2,22 +2,24 @@
   "name": "trader",
   "version": "0.1.0",
   "private": true,
-  "description": "Trader — an autonomous US-equity portfolio: Claude owns the strategy, code owns execution and risk.",
+  "description": "Trader \u2014 an autonomous US-equity portfolio: Claude owns the strategy, code owns execution and risk.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/whitebirchio/trader.git"
   },
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "infra"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "dev": "npm run dev -w trader-engine",
-    "deploy:staging": "npm run deploy:staging -w trader-engine",
-    "deploy:production": "npm run deploy:production -w trader-engine",
-    "db:generate": "npm run db:generate -w @trader/core"
+    "deploy:staging": "npm run deploy:staging -w trader-infra",
+    "deploy:production": "npm run deploy:production -w trader-infra",
+    "db:generate": "npm run db:generate -w @trader/core",
+    "synth": "npm run synth -w trader-infra",
+    "invoke": "npm run invoke -w trader-lambda --"
   },
   "engines": {
     "node": ">=22"

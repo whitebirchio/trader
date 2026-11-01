@@ -1,5 +1,7 @@
 # Spec: `foundation`
 
+> **Hosting superseded:** the engine moved from Cloudflare Workers to AWS on 2026-11-01. See [SPEC-platform-aws.md](SPEC-platform-aws.md) and ADR-014. The rest of this spec (repo, core, jobs, audit log, money) still describes the system.
+
 > **Status: Implemented** (2026-10-31). Approved by Scott on 2026-10-31; every success criterion verified on the live environments. Module 1 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on nothing.
 
 ## Objective

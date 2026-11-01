@@ -1,0 +1,7 @@
+{
+  "app": "npx tsx bin/trader.ts",
+  "watch": { "include": ["bin/**", "lib/**"] },
+  "context": {
+    "@aws-cdk/core:target-partitions": ["aws"]
+  }
+}

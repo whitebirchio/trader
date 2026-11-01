@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Create or rotate trader_app on one Neon branch and set that environment's
-# Worker DATABASE_URL secret, without the password ever being printed.
+# Create or rotate trader_app on one Neon branch and store its URL as that
+# environment's DATABASE_URL, without the password ever being printed.
 #
 #   scripts/set-db-secret.sh staging|production
 #
-# Reads the branch's OWNER url from .env (STAGING_MIGRATE_URL /
-# PRODUCTION_MIGRATE_URL). The Worker must already exist (first CI deploy).
+# Writes SSM (/trader/<env>/DATABASE_URL), which the Lambda re-reads within
+# 15 minutes (its secrets cache), so a rotation takes effect without a deploy.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,4 +24,4 @@ app_url="$(DATABASE_URL="$owner_url" APP_ROLE_PASSWORD="$password" \
   npx -w @trader/core tsx scripts/app-role.ts --print-url)"
 [ -n "$app_url" ] || { echo "app-role setup produced no URL" >&2; exit 1; }
 
-printf '%s' "$app_url" | (cd apps/engine && npx wrangler secret put DATABASE_URL --env "$env")
+printf '%s' "$app_url" | scripts/put-ssm-secret.sh "/trader/$env/DATABASE_URL"

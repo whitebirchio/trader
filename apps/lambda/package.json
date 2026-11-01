@@ -1,0 +1,26 @@
+{
+  "name": "trader-lambda",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trader engine on AWS Lambda: scheduled jobs + /healthz Function URL. Thin shell over @trader/core.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "invoke": "tsx scripts/invoke.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1161.0",
+    "@aws-sdk/client-ssm": "^3.1161.0",
+    "@neondatabase/serverless": "^1.2.0",
+    "@trader/core": "*",
+    "drizzle-orm": "^0.45.4"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^26.6.6",
+    "aws-sdk-client-mock": "^4.1.0",
+    "tsx": "^4.23.15",
+    "vitest": "^4.1.12"
+  }
+}

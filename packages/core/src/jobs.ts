@@ -61,13 +61,13 @@ export type JobName = keyof typeof JOBS;
 const MAX_ERROR_LENGTH = 2000;
 
 // started_at defaults to the database's now(), so finished_at must use the same
-// clock: a Worker's Date only advances across I/O, which skews durations.
+// clock: an app server's clock can differ from the database's, which skews durations.
 const dbNow = sql`now()`;
 
 /**
  * The idempotency slot for a cron firing: its scheduled time floored to the
- * minute. Cloudflare passes the trigger time, but anything sub-minute (local
- * `wrangler dev` passes "now", jitter on redelivery) must not open a second slot.
+ * minute. EventBridge Scheduler passes the trigger time, but anything sub-minute (a
+ * a manual `invoke` passes "now", jitter on redelivery) must not open a second slot.
  */
 export function slotFor(scheduledTime: number): Date {
   return new Date(Math.floor(scheduledTime / 60_000) * 60_000);
@@ -120,4 +120,15 @@ export async function runJob(
     .set({ status: result.status, detail: detail ?? null, finishedAt: dbNow })
     .where(eq(jobRuns.id, run.id));
   return result;
+}
+
+/**
+ * The jobs every 15-minute tick runs, in order: sync before rebalance-type
+ * work, notifications last so they report this tick's events. The engine's
+ * schedule (CDK) and the Lambda handler both use this one list.
+ */
+export const TICK_JOBS = ["heartbeat", "sync-broker", "notify-urgent", "notify-digest"] as const satisfies readonly JobName[];
+
+export function isJobName(name: string): name is JobName {
+  return Object.hasOwn(JOBS, name);
 }
