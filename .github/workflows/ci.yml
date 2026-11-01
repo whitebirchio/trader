@@ -1,10 +1,8 @@
 # Build → migrate → deploy, routed by branch (ADR-006):
 # AWS deploys use GitHub OIDC (no stored keys): the trader-github-deploy role
-# can only assume CDK's bootstrap roles (SPEC-platform-aws). During the
-# cutover each environment also still deploys its Cloudflare Worker; those
-# steps go once the Worker is retired.
-#   - any branch other than main → staging (Alpaca paper)
-#   - main                       → production (live money)
+# can only assume CDK's bootstrap roles (SPEC-platform-aws).
+#   - any branch other than main → TraderStaging (Alpaca paper)
+#   - main                       → TraderProduction (live money)
 # Migrations run before the Worker deploys, so new code never meets an old
 # schema. Secrets are repo-level (no GitHub Environments: the org is on the
 # Free plan and the repo is private).
@@ -81,12 +79,6 @@ jobs:
         run: npm run db:migrate -w @trader/core
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_MIGRATE_URL }}
-      - name: Deploy trader-engine (Cloudflare, until cutover)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: apps/engine
-          command: deploy --env production
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}

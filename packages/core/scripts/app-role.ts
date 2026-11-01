@@ -1,17 +1,17 @@
 /**
- * Create (or rotate) the Worker's least-privilege role, `trader_app`, on one
+ * Create (or rotate) the engine's least-privilege role, `trader_app`, on one
  * Neon branch, then prove the privileges by connecting AS that role (ADR-008).
  *
  * Run with the branch's OWNER role. Roles are per-branch in Neon, so run it
- * once per branch. Re-running rotates the password, so re-set the Worker secret
- * from the new URL.
+ * once per branch. Re-running rotates the password, so store the new URL
+ * (scripts/set-db-secret.sh does both).
  *
  * Usage:
  *   DATABASE_URL=<owner url> APP_ROLE_PASSWORD=<alphanumeric> \
  *     npm run db:app-role -w @trader/core [-- --print-url]
  *
  * With --print-url, the app-role connection string is the ONLY thing written
- * to stdout (so it can be piped into `wrangler secret put`); everything else
+ * to stdout (so it can be piped into scripts/put-ssm-secret.sh); everything else
  * goes to stderr.
  *
  * Why SQL rather than the Neon console: console-created roles join
@@ -51,7 +51,7 @@ const statements = [
   `ALTER ROLE ${ROLE} NOCREATEDB NOCREATEROLE NOINHERIT`,
   `DO $$ BEGIN EXECUTE format('GRANT CONNECT ON DATABASE %I TO ${ROLE}', current_database()); END $$`,
   `GRANT USAGE ON SCHEMA public TO ${ROLE}`,
-  // No DDL from the Worker, ever: migrations run from CI or a laptop as owner.
+  // No DDL from the engine, ever: migrations run from CI or a laptop as owner.
   `REVOKE CREATE ON SCHEMA public FROM PUBLIC`,
   `REVOKE CREATE ON SCHEMA public FROM ${ROLE}`,
   `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${ROLE}`,
