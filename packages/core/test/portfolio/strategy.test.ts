@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VERSION_0, validateStrategy } from "../../src/portfolio/strategy.js";
+import { STRATEGY_JSON_SCHEMA, VERSION_0, validateStrategy } from "../../src/portfolio/strategy.js";
 import { strategy, thesis } from "./fixtures.js";
 
 const errorsOf = (doc: unknown) => {
@@ -74,5 +74,14 @@ describe("validateStrategy", () => {
   it("rejects non-objects and money as numbers", () => {
     expect(validateStrategy("nope").ok).toBe(false);
     expect(errorsOf(strategy({ conviction: [thesis({ targetWeightPct: 10 as never })] })).join()).toMatch(/targetWeightPct/);
+  });
+});
+
+describe("STRATEGY_JSON_SCHEMA", () => {
+  it("describes the document for MCP clients, money as decimal strings", () => {
+    expect(STRATEGY_JSON_SCHEMA).toMatchObject({ type: "object", required: ["summary", "conviction", "systematic", "drift"] });
+    expect(STRATEGY_JSON_SCHEMA).not.toHaveProperty("$schema");
+    const thesisProps = (STRATEGY_JSON_SCHEMA as { properties: { conviction: { items: { properties: Record<string, { type: string }> } } } }).properties.conviction.items.properties;
+    expect(thesisProps.targetWeightPct?.type).toBe("string");
   });
 });
