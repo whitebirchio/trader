@@ -67,7 +67,7 @@ The design adds no standing cost. CloudFront and ACM fall under their always-fre
 
 Web Functions bill $0.30 per million requests, active CPU time, and **memory for as long as an execution environment exists**, including idle time until it scales to zero. AWS hasn't said whether the Lambda free tier covers them. The estimate is about $0.001 per visit, or **cents a month** for personal use.
 
-To bound the cost, the endpoint gets `maxEnvironments: 1` and a rate limit of 100 requests per second. Issue #16's cost check covers this too. If "exactly $0" matters more than Web Functions, the fallback is a regular Lambda behind a Function URL (see Open question 4).
+To bound the cost, the endpoint gets `maxEnvironments: 2` (the minimum, per the D1 spike) and a rate limit of 100 requests per second. Issue #16's cost check covers this too. If "exactly $0" matters more than Web Functions, the fallback is a regular Lambda behind a Function URL (see Open question 4).
 
 ## Commands
 
@@ -142,7 +142,7 @@ export default async function HoldingsPage() {
   - The middleware redirects to `/login` without a session.
 - **Infra (CDK assertions):**
   - The Web Function role reads only those three SSM parameters, with no `ALPACA` parameter and no SES.
-  - The endpoint has `maxEnvironments: 1`.
+  - The endpoint has `maxEnvironments: 2` and `IamAuth`, and the resource policy allows only this distribution.
   - CloudFront uses OAC and `CachingDisabled`, and redirects to HTTPS.
   - Staging and production are identical apart from names.
 - **DB role:** a script check that `trader_dashboard` can `SELECT` but `INSERT` fails.
@@ -181,12 +181,30 @@ export default async function HoldingsPage() {
 6. It installs to the iPhone home screen and opens full-screen with an icon.
 7. No new standing-cost resources (checked with the #16 cost review).
 
+## D1 spike findings (2026-11-01)
+
+A throwaway stack, since destroyed, ran Next.js 16 standalone on a Web Function behind CloudFront. **Decision: Web Functions.** The fallback isn't needed.
+
+| Question | Finding |
+|---|---|
+| Start contract | The runtime loads `index.js` from the package root. Our `index.js` copies `AWS_LAMBDA_HTTP_ENDPOINT` (host:port) into `HOSTNAME`/`PORT`, then `import("./server.js")` (Next's ESM standalone server). The package is `.next/standalone` plus `.next/static`, zipped (about 37 MB unzipped for a minimal app). The runtime is `nodejs24.x` (Node 24.22). |
+| Locking down the raw URL | Works. The endpoint uses `AuthType: IamAuth`. CloudFront uses an OAC with origin type `lambda` and signing `always-amz-auth`, and an `AWS::Lambda::ResourcePolicy` lets `cloudfront.amazonaws.com` call `lambda:InvokeWebFunctionEndpoint`, but only from this distribution (`aws:SourceArn`). Direct calls get **403**. |
+| Through CloudFront | GET, **POST (no payload-hash header needed)**, `Set-Cookie`, cookies, static assets and the `Authorization` header all pass through. The `CachingDisabled` and `AllViewerExceptHostHeader` policies are in place. |
+| Host | The app sees the endpoint's domain as `Host`, not the viewer's domain. **Every absolute URL** (OIDC redirect URI, redirects) **comes from config (`DASHBOARD_URL`)**, never from `req.url`. Use relative redirects. |
+| Latency | Cold start 1.4 s; warm about 0.2 s, from the laptop through CloudFront. |
+| Scaling | `ScalingConfig.MaxEnvironments` must be **≥ 2**. |
+| Code | Code comes only from S3: **our own versioned bucket**, whose policy lets `lambda.amazonaws.com` read objects for `web-function/<name>/revision/*`. A `BucketDeployment` uploads it (`extract: false`). Deleting an object version that a revision uses fails that revision permanently, so expire **noncurrent** versions after 30 days and never delete current ones. |
+| Logs | Logs go to `/aws/lambda/web/<name>.local`, which is auto-created with no retention. The stack creates both that group and `/aws/lambda/web/<name>` with 30-day retention. |
+| Gotchas | npm now installs TypeScript 7 (the native port), which Next 16 can't load, so pin `typescript@6.0.3` (as the repo does). The CloudFormation validator warns F3006 "unknown resource type" for the Web Function types; that's a known issue and harmless. |
+| Cert | An ACM certificate with DNS validation blocks its stack until Scott adds the records. So the certificate gets **its own small stack (`TraderCerts`)**, deployed and validated once before the dashboard is wired to the domains. |
+| Free tier | Still unconfirmed. Watch the bill (#16). |
+
 ## Open questions
 
 1. **The Google OAuth client:** you create one in the Google Cloud Console (a Web application client). Its authorized redirect URIs are `https://trader.whitebirch.io/auth/callback` and `https://trader-staging.whitebirch.io/auth/callback`. Put its id and secret in `.env` as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. One client for both environments is fine. OK? I'll write step-by-step instructions in SETUP.md.
 2. **DNS in Cloudflare:** you add the ACM validation CNAMEs (printed as stack outputs, like the DKIM records were), plus `trader` and `trader-staging` CNAMEs pointing at their CloudFront domains, set to DNS only. OK?
 3. **The `benchmark_closes` table and the after-close VTI recording:** a small additive change to the engine, which merges to production like any migration. OK?
-4. **Web Functions unknowns, resolved by a spike before anything else is built:**
+4. ~~**Web Functions unknowns**~~ Resolved by the D1 spike (above): Web Functions it is. Original question:
    - how a revision starts a Next.js standalone server: the start command, and the port it gets via `AWS_LAMBDA_HTTP_ENDPOINT`;
    - whether CloudFront OAC works with a Web Function endpoint from CloudFormation;
    - whether the free tier applies.
