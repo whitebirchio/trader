@@ -40,16 +40,24 @@ describe("EngineStack", () => {
     });
   });
 
+  type Schedule = { Properties: { Name: string; ScheduleExpression: string; Target: { Input: string } } };
+  const schedules = (t: Template) => Object.values(t.findResources("AWS::Scheduler::Schedule")) as Schedule[];
+  const named = (t: Template, name: string) => schedules(t).find((s) => s.Properties.Name === name);
+
   it("ticks every 15 minutes with the full job list and the scheduled time", () => {
-    staging.resourceCountIs("AWS::Scheduler::Schedule", 1);
-    const [schedule] = Object.values(staging.findResources("AWS::Scheduler::Schedule")) as {
-      Properties: { ScheduleExpression: string; Target: { Input: string } };
-    }[];
-    expect(schedule?.Properties.ScheduleExpression).toBe("cron(0/15 * * * ? *)");
-    expect(JSON.parse(schedule?.Properties.Target.Input ?? "{}")).toEqual({
+    staging.resourceCountIs("AWS::Scheduler::Schedule", 2);
+    const tick = named(staging, "trader-tick-staging");
+    expect(tick?.Properties.ScheduleExpression).toBe("cron(0/15 * * * ? *)");
+    expect(JSON.parse(tick?.Properties.Target.Input ?? "{}")).toEqual({
       jobs: ["heartbeat", "sync-broker", "notify-urgent", "notify-digest"],
       scheduledTime: "<aws.scheduler.scheduled-time>",
     });
+  });
+
+  it("runs rebalance on its own schedule, 5 minutes after each tick, weekday market hours", () => {
+    const r = named(production, "trader-rebalance-production");
+    expect(r?.Properties.ScheduleExpression).toBe("cron(5/15 14-20 ? * MON-FRI *)");
+    expect(JSON.parse(r?.Properties.Target.Input ?? "{}")).toEqual({ jobs: ["rebalance"], scheduledTime: "<aws.scheduler.scheduled-time>" });
   });
 
   it("exposes only a public health URL", () => {

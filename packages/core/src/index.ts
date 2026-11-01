@@ -30,3 +30,4 @@ export * from "./portfolio/theses.js";
 export * from "./portfolio/targets.js";
 export * from "./portfolio/planner.js";
 export * from "./portfolio/store.js";
+export * from "./portfolio/rebalance.js";
