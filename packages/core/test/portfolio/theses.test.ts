@@ -33,7 +33,7 @@ describe("thesisStates", () => {
     expect(run({ close: "170" })).toMatchObject({
       state: "stopped",
       newlyStopped: true,
-      reason: "AAPL closed at $170, at or below its 15% stop ($170 vs $200 average cost)",
+      reason: "AAPL closed at $170.00, at or below its 15% stop ($170.00 vs $200.00 average cost)",
     });
   });
 

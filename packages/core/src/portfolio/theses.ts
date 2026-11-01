@@ -1,5 +1,5 @@
 import type { OpenLot } from "../broker/lots.js";
-import { add, compare, div, mul, sub } from "../money.js";
+import { add, compare, div, mul, round, sub } from "../money.js";
 import type { Strategy, Thesis } from "./strategy.js";
 
 /** A thesis not reaffirmed in this long unwinds into the systematic sleeve (SPEC-portfolio). */
@@ -65,10 +65,17 @@ export function thesisStates(input: ThesisInputs): ThesisState[] {
           newlyStopped: true,
           price,
           averageCost: cost,
-          reason: `${thesis.symbol} closed at $${price}, at or below its ${thesis.stopLossPct}% stop ($${stopAt} vs $${cost} average cost)`,
+          reason: `${thesis.symbol} closed at $${cents(price)}, at or below its ${thesis.stopLossPct}% stop ($${cents(stopAt)} vs $${cents(cost)} average cost)`,
         };
       }
     }
     return { state: "active", thesis };
   });
+}
+
+/** Prices in email text: always two decimals ("$49.60", not "$49.6"). Display only. */
+function cents(v: string): string {
+  const r = round(v, 2, "half-even");
+  const [whole, frac = ""] = r.split(".");
+  return `${whole}.${frac.padEnd(2, "0")}`;
 }
