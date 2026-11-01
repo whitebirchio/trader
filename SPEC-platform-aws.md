@@ -1,6 +1,6 @@
 # Spec: move the platform to AWS (`foundation`, revision 2)
 
-> **Status: DRAFT — awaiting approval.** A change to the implemented `foundation` module ([SPEC-foundation.md](SPEC-foundation.md)), plus the hosting parts of `broker`, `risk` and `notifications`. It's done **before `portfolio`**, which then builds on the new platform. Supersedes ADR-001's hosting decision.
+> **Status: DRAFT — open questions resolved 2026-10-31; awaiting approval.** A change to the implemented `foundation` module ([SPEC-foundation.md](SPEC-foundation.md)), plus the hosting parts of `broker`, `risk` and `notifications`. It's done **before `portfolio`**, which then builds on the new platform. Supersedes ADR-001's hosting decision.
 
 ## Objective
 
@@ -133,7 +133,7 @@ npm run invoke -w trader-engine -- --env staging --jobs heartbeat,sync-broker   
 6. The alarms are confirmed. SNS email subscription confirmed; the error alarm fires on a forced failing invocation (staging) and recovers.
 7. AWS Cost Explorer shows about $0 after the first full week. Trader's resources are tagged `app=trader`.
 
-## Open Questions
+## Resolved Questions (2026-10-31)
 
-1. **AWS credentials.** The CLI here has invalid or expired credentials. How do you usually sign in: SSO (`aws sso login --profile …`) or access keys? Which profile should I use? I'll only run read-only commands and `cdk synth`/`diff` myself. You run `cdk bootstrap` and `deploy:ci` (one-time, account-level), and CI does the rest.
-2. **Alarm email:** send to `scott.schmalz@gmail.com` through SNS (separate from Trader's own emails, so it still works if Trader's email path breaks)? Agreed?
+1. **AWS credentials:** a CLI profile **`whitebirch`**, through **IAM Identity Center** (SSO) with an `AdministratorAccess` permission set. That gives short-lived credentials, refreshed with `aws sso login --profile whitebirch`. No root access keys. All commands, scripts and CDK use `--profile whitebirch` locally. CI uses the OIDC role, not this profile.
+2. **Alarm email:** CloudWatch → SNS → `scott.schmalz@gmail.com`, kept separate from Trader's own email path, so alarms still arrive if Trader's email breaks.
