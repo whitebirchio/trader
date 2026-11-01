@@ -24,5 +24,5 @@ export const DASHBOARD_DOMAINS: Record<TradingEnv, string> = {
   staging: `trader-staging.${MAIL_DOMAIN}`,
 };
 /** The Google OAuth client (a public identifier; its secret is in SSM). One client serves both environments. */
-export const GOOGLE_CLIENT_ID = "";
+export const GOOGLE_CLIENT_ID = "944410438267-6jg5ik0qpm9t0q4430ja1kv6l3ncs7g9.apps.googleusercontent.com";
 export const secretsPath = (env: TradingEnv) => `/trader/${env}/`;
