@@ -1,6 +1,6 @@
 # Spec: `portfolio`
 
-> **Status: DRAFT — awaiting approval.** Module 5 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker` and `risk` (both implemented) and on `notifications` for emails.
+> **Status: Approved** (Scott, 2026-10-31). Module 5 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker` and `risk` (both implemented) and on `notifications` for emails.
 
 ## Objective
 
@@ -145,8 +145,8 @@ packages/core/src/portfolio/
 5. A thesis left out of strategies for 30 days unwinds (test with an injected clock).
 6. Production: merged with **version 0 active**. The live account converges from $1k cash to ≈ VTI over the first trading day's steps, through `risk`, with emails for fills in the digest. **This is the first module that places live orders.** You approve the merge knowing that.
 
-## Open Questions
+## Resolved Questions (2026-10-31, approved as proposed)
 
-1. **Workers Paid ($5/mo).** Parsing a year of daily bars for up to 100 symbols needs more than the free plan's 10 ms of CPU per run. Workers Paid allows 30 s, and keeps the total at about $5/mo, well inside your $15 ceiling. Alternatives: cap the universe at about 15 symbols, or cache bars in the database and fetch only new days. That's more code, and still close to the limit. I recommend Paid. OK to upgrade the Cloudflare account?
-2. **Version 0 = 100% VTI until Claude's first strategy?** The alternative is holding cash until then. VTI means you're never behind the benchmark while waiting, and it puts the $1k to work as soon as this merges.
-3. **Stop-loss bounds.** I've required Claude to set one on every thesis, between 5% and 50%. Should I enforce a tighter maximum (e.g. 30%), or a default if one is missing?
+1. **Workers Paid ($5/mo).** Recommended and approved with the spec. The Cloudflare account upgrade is yours to make (dashboard → Workers & Pages → Plans) **before this module merges to production**. Staging development doesn't need it until the universe grows past a handful of symbols.
+2. **Version 0 = 100% VTI** until Claude's first strategy.
+3. **Stop-losses are required on every thesis, 5–50%.** No default: a thesis without one fails validation.
