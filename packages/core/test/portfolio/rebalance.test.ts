@@ -75,9 +75,12 @@ describe("rebalance", () => {
     expect(await kinds()).toContain("rebalance.planned");
   });
 
-  it("only trades inside the window on trading days", async () => {
-    clock = new Date("2026-11-02T15:00:00Z"); // 10:00 ET
+  it("only trades inside the window (9:45–15:30 ET) on trading days", async () => {
+    clock = new Date("2026-11-02T14:44:00Z"); // 9:44 ET
     expect(await step()).toEqual({ status: "skipped", reason: "outside the trading window" });
+    clock = new Date("2026-11-02T14:45:00Z"); // 9:45 ET: the first step of the day
+    await sync();
+    expect(await step()).toMatchObject({ status: "planned", phase: "buy" });
     clock = new Date("2026-11-02T20:35:00Z"); // 15:35 ET
     expect(await step()).toEqual({ status: "skipped", reason: "outside the trading window" });
     clock = new Date("2026-11-01T15:35:00Z"); // Sunday

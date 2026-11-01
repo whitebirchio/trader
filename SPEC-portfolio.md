@@ -10,7 +10,7 @@ This is a **sandbox for an edge**, holding a small fraction of your money (most 
 
 - **Conviction sleeve (up to 100%).** Claude's picks, mostly individual stocks. Each is a *thesis* backed by fundamental analysis and public proxy signals: Congress trade disclosures, insider buys (Form 4), well-known investors' holdings (13F, e.g. Berkshire Hathaway) and news. Each thesis has a target weight, a stop-loss, and a review date.
 - **Systematic sleeve (the remainder).** When Claude has nothing compelling, rules decide: a momentum + trend ranking over a list of stocks and ETFs that Claude chooses, with the top few held and weighted by volatility. Whatever conviction doesn't use goes here, so nothing sits idle as cash.
-- **Daily check, trade on drift.** Once a day (from 10:30 ET), compare holdings with targets, and trade only what drifted past a threshold or changed: a new strategy, a new or closed thesis, a stop-loss hit, a stale thesis.
+- **Daily check, trade on drift.** Once a day (from 9:45 ET), compare holdings with targets, and trade only what drifted past a threshold or changed: a new strategy, a new or closed thesis, a stop-loss hit, a stale thesis.
 - **Benchmarked against VTI.** The flow-adjusted index vs VTI's total return, in the digest and later on the dashboard.
 
 `portfolio` doesn't research anything. Claude does that in `agent`'s scheduled routine and hands `portfolio` a strategy. Until `agent` exists, you can submit a strategy file by hand for testing.
@@ -57,7 +57,7 @@ interface Thesis {
 
 ## The daily check (`rebalance` job)
 
-It runs on **its own EventBridge Scheduler schedule**, `trader-rebalance-<env>`: every 15 minutes at :05/:20/:35/:50, so five minutes after each shared tick's `sync-broker` has refreshed the account, on weekdays, 14:00–21:00 UTC. That covers 10:30–15:30 ET in both EST and EDT. The code then gates on the Alpaca calendar (trading days, early closes) and the 10:30–15:30 ET window. It's a separate schedule from the shared tick, so a slow rebalance can never delay `sync-broker` or the notifications, and it can get its own timeout and alarm. Each run does at most one step:
+It runs on **its own EventBridge Scheduler schedule**, `trader-rebalance-<env>`: every 15 minutes (:00/:15/:30/:45) on weekdays, 13:00–20:59 UTC. The code gates on the Alpaca calendar (trading days, early closes) and on a **9:45–15:30 ET** window. The window opened at 10:30 until Scott moved the first trade to 9:45 on 2026-11-01, so the first step comes 15 minutes after the open, once the 9:30 sync has run. A step plans on the latest sync, which is at most 15 minutes old and inside `risk`'s 20-minute freshness limit. It's a separate schedule from the shared tick, so a slow rebalance can never delay `sync-broker` or the notifications. Each run does at most one step:
 
 1. **Build targets** (pure, from the active strategy, bars, positions and lots):
    - Thesis states: stop-loss (last close ≤ average cost × (1 − stop%)), staleness, and removal.
@@ -70,7 +70,7 @@ It runs on **its own EventBridge Scheduler schedule**, `trader-rebalance-<env>`:
 4. **Gate and submit:** proposals → `riskGate` (with sleeve attribution) → `submitOrder` for the approved and clipped ones. Intent keys are `<planId>:<symbol>:<side>`, so re-running a step can't double an order (ADR-007, SPEC-broker).
 5. **Record:** a `rebalance_plans` row holds the targets, the trades, the skips and the risk decisions. It's audited.
 
-When targets are already met, the step is a quick no-op. The trading window opens an hour after the open (to avoid opening-auction noise) and closes before the last half hour.
+When targets are already met, the step is a quick no-op. The trading window opens at 9:45 ET, 15 minutes after the open (Scott's choice; the original 10:30 avoided more of the opening volatility), and closes before the last half hour.
 
 ## Changes to other modules (part of this module)
 
@@ -79,7 +79,7 @@ When targets are already met, the step is a quick no-op. The trading window open
 | `risk` | Sleeves renamed `core`/`satellite` → `systematic`/`conviction`; `satelliteCapPct` 30 → `convictionCapPct` **100** | Your decision, 2026-10-31. The 20% per-name cap and every other limit are unchanged. |
 | `docs/decisions` | **ADR-013 "Conviction-first portfolio"**, superseding ADR-003's 70/30 default (ADR-003's authority split stands) | Records the change and why |
 | `CAPABILITY-MAP.md` | Objective line updated to "conviction-first" | Keep the index honest |
-| `infra` | `EngineStack` gains the `trader-rebalance-<env>` schedule (`cron(5/15 14-20 ? * MON-FRI *)` UTC, `{"jobs":["rebalance"]}`) | rebalance runs on its own schedule (ADR-014) |
+| `infra` | `EngineStack` gains the `trader-rebalance-<env>` schedule (`cron(0/15 13-20 ? * MON-FRI *)` UTC, `{"jobs":["rebalance"]}`) | rebalance runs on its own schedule (ADR-014) |
 | `notifications` | New kinds routed: `strategy.activated`, `thesis.stopped_out`, `thesis.stale` → urgent; `strategy.rejected` → urgent; `rebalance.planned` → digest. The digest gains a "vs VTI" line. | Strategy changes and automatic exits are meaningful autonomous actions |
 
 ## Assumptions (correct any of these)
