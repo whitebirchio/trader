@@ -1,0 +1,29 @@
+{
+  "name": "trader-infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trader infrastructure (AWS CDK v2): CI role, staging and production engine stacks.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "cdk": "cdk",
+    "synth": "cdk synth --quiet",
+    "diff:staging": "cdk diff TraderStaging",
+    "deploy:ci": "cdk deploy TraderCi",
+    "deploy:staging": "cdk deploy TraderStaging --require-approval never",
+    "deploy:production": "cdk deploy TraderProduction --require-approval never"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "aws-cdk": "^2.1147.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "vitest": "^4.1.12"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.275.0",
+    "constructs": "^10.8.1",
+    "@trader/core": "*"
+  }
+}
