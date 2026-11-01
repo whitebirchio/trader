@@ -2,7 +2,7 @@ import { asc, desc, gte, inArray } from "drizzle-orm";
 import { buildLots } from "../broker/lots.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
-import { auditEvents, brokerActivities, orders, positions, rebalancePlans, riskState } from "../db/schema.js";
+import { auditEvents, brokerAccount, brokerActivities, orders, positions, rebalancePlans, riskState } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import { compare } from "../money.js";
 import { benchmarkSince } from "../portfolio/benchmark.js";
@@ -214,12 +214,22 @@ export async function previewStrategy({ db, broker, env, now }: ToolDeps, docume
   const stopped = await stoppedThesisIds(db);
   const reused = parsed.strategy.conviction.flatMap((t, i) => (stopped.has(t.id) ? [`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`] : []));
   if (reused.length) return { valid: false, errors: reused };
-  const plan = await runRebalance(db, broker, env, now, { force: true, dryRun: true, strategyOverride: parsed.strategy });
+  // Outside the session the mirror is hours old and risk would reject every
+  // trade for staleness alone. Preview on the last-synced data instead and say
+  // so: the real step runs after a fresh sync and re-checks the age.
+  const [account] = await db.select({ syncedAt: brokerAccount.syncedAt }).from(brokerAccount);
+  const ageMin = account?.syncedAt ? Math.floor((now.getTime() - account.syncedAt.getTime()) / 60_000) : null;
+  const stale = ageMin !== null && ageMin > LIMITS.maxDataAgeMinutes;
+  const limits = stale ? { ...LIMITS, maxDataAgeMinutes: Number.MAX_SAFE_INTEGER } : LIMITS;
+  const plan = await runRebalance(db, broker, env, now, { force: true, dryRun: true, strategyOverride: parsed.strategy, limits });
   if (plan.status === "skipped") return { valid: true, nextStep: plan.reason };
   return {
     valid: true,
     nextStep: {
       phase: plan.phase,
+      dataNote: stale
+        ? `Broker data is ${ageMin} minutes old (last sync; the market is closed or between syncs). Prices and risk verdicts use it; the real step re-checks risk on fresh data.`
+        : undefined,
       note: plan.phase === "sell" ? "Sells go first; buys are planned on a later step once the sells fill." : undefined,
       trades: plan.trades.map(({ trade, decision }) => ({
         side: trade.proposal.side,

@@ -118,6 +118,15 @@ describe("preview_strategy", () => {
     expect((await deps.db.select().from(auditEvents)).filter((e) => e.kind.startsWith("strategy."))).toEqual([]);
   });
 
+  it("judges stale broker data (pre-market, weekends) on its merits, and says the real step re-checks", async () => {
+    const draft = strategy({ conviction: [thesis({ targetWeightPct: "20" })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } });
+    const later = { ...deps, now: new Date(NOW.getTime() + 3 * 3_600_000) }; // 3h after the last sync
+    const p = (await previewStrategy(later, draft)) as { nextStep: { trades: { risk: string }[]; dataNote?: string } };
+    expect(p.nextStep.trades.map((t) => t.risk)).toEqual(["approved", "approved"]);
+    expect(p.nextStep.dataNote).toMatch(/180 minutes old.*fresh data/);
+    expect(((await previewStrategy(deps, draft)) as { nextStep: { dataNote?: string } }).nextStep.dataNote).toBeUndefined();
+  });
+
   it("reports validation errors and stopped ids without planning", async () => {
     expect(await previewStrategy(deps, strategy({ conviction: [thesis({ stopLossPct: "60" })] }))).toEqual({
       valid: false,
