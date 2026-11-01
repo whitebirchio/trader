@@ -1,6 +1,6 @@
 # Spec: `portfolio`
 
-> **Status: Approved** (Scott, 2026-10-31). **Revised 2026-11-01 for the AWS platform** (ADR-014): its own schedule, no CPU constraint. Re-approval requested for that revision only. Module 5 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker` and `risk` (both implemented) and on `notifications` for emails.
+> **Status: Approved** (Scott, 2026-10-31). **Revised 2026-11-01 for the AWS platform** (ADR-014): its own schedule, no CPU constraint. Revision approved by Scott, 2026-11-01. Module 5 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker` and `risk` (both implemented) and on `notifications` for emails.
 
 ## Objective
 
