@@ -1,4 +1,5 @@
 import { asc, inArray } from "drizzle-orm";
+import { BENCHMARK } from "../broker/benchmark-closes.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import { brokerActivities, equitySnapshots } from "../db/schema.js";
@@ -7,8 +8,6 @@ import { FLOW_TYPES, type IndexPoint, buildIndex, flowsByDate } from "../risk/eq
 import { marketDate } from "../time.js";
 import type { DailyClose } from "./systematic.js";
 
-/** The benchmark is VTI's total return (adjusted closes), the ETF twin of VTSAX. */
-export const BENCHMARK = "VTI";
 
 export interface BenchmarkComparison {
   since: string;

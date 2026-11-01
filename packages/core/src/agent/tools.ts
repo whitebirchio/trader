@@ -31,6 +31,9 @@ export interface ToolDeps {
   now: Date;
 }
 
+/** What the DB-only tools need; the dashboard calls them too, with no broker. */
+export type DbDeps = Pick<ToolDeps, "db" | "now">;
+
 const MAX_SYMBOLS = 25;
 const MAX_PRICE_DAYS = 730;
 
@@ -82,7 +85,7 @@ export async function getOverview({ db, broker, env, now }: ToolDeps) {
 }
 
 /** The active strategy (or a stored version) with each thesis's live state. */
-export async function getStrategy({ db, now }: ToolDeps, version?: number) {
+export async function getStrategy({ db, now }: DbDeps, version?: number) {
   const active = await activeStrategy(db, now);
   if (version !== undefined && version !== active.version) {
     return { error: `Only the active strategy (v${active.version}) is served; history is in get_activity.` };
@@ -102,7 +105,7 @@ export async function getStrategy({ db, now }: ToolDeps, version?: number) {
 }
 
 /** Positions, lots, wash-sale windows and stopped thesis ids. */
-export async function getHoldings({ db, now }: ToolDeps) {
+export async function getHoldings({ db, now }: DbDeps) {
   const { lots, held } = await holdingsWithLots(db);
   const windowSymbols = washSaleWindow(lots.closed, now);
   const since = now.getTime() - WASH_SALE_DAYS * 86_400_000;
@@ -129,7 +132,7 @@ const ACTIVITY_KINDS = [
 ];
 
 /** What happened recently: rebalance steps with reasons, fills, risk decisions, strategy submissions. */
-export async function getActivity({ db, now }: ToolDeps, days = 14) {
+export async function getActivity({ db, now }: DbDeps, days = 14) {
   const since = new Date(now.getTime() - Math.min(Math.max(days, 1), 90) * 86_400_000);
   const events = await db
     .select()

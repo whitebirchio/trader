@@ -182,6 +182,23 @@ export const positions = pgTable("positions", {
   syncedAt: timestamptz().notNull(),
 });
 
+/**
+ * Daily adjusted closes of the benchmark (VTI), so readers without broker keys
+ * (the dashboard) can chart against it. A cache of market data, not an action:
+ * each after-close sync rewrites the whole window, so dividend adjustments to
+ * past closes land too.
+ */
+export const benchmarkCloses = pgTable(
+  "benchmark_closes",
+  {
+    symbol: text().notNull(),
+    tradingDate: date({ mode: "string" }).notNull(),
+    close: numeric().notNull(),
+    recordedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.tradingDate] })],
+);
+
 /** One row per trading day, written by the first sync after the close. */
 export const equitySnapshots = pgTable("equity_snapshots", {
   tradingDate: date({ mode: "string" }).primaryKey(),
