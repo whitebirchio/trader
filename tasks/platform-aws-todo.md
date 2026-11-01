@@ -25,7 +25,7 @@
 - [ ] SES `EmailIdentity` for `whitebirch.io` (Easy DKIM) and the owner address; DKIM CNAMEs as stack outputs
 - [ ] SNS topic + email subscription; alarms: Lambda Errors ≥ 1 / 15 min; Invocations < 1 / 60 min (missing data = breaching)
 - [ ] Tags `app=trader`, `env=<env>`; assertion tests (one function, one schedule, URL auth, IAM scoping per env, alarms, staging vs production differ only in names, env and paths)
-- **Note:** SES identities are account-level, so both stacks need them. The domain identity lives in staging's stack and production's references it by name, to avoid a duplicate-resource conflict. (Decided while building; recorded here.)
+- **Note:** SES identities are account-level, so both stacks need them. The domain identity lives in staging's stack and production's references it by name, to avoid a duplicate-resource conflict. (Planning decision.)
 - **Scope:** M
 
 ### A4: Scripts + docs
