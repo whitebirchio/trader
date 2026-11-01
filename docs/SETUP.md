@@ -99,7 +99,7 @@ Operator scripts (staging/paper only):
 
 | Command | Does |
 |---|---|
-| `npm run broker:sync -w @trader/core -- --env staging [--force]` | one sync now; `--force` ignores the market-hours gate |
+| `npm run broker:sync -w @trader/core -- --env staging [--force]` | one sync now; `--force` ignores the market-hours gate. `--env production --force` is allowed for the gap before a session (mirror only, never orders) |
 | `npm run broker:smoke -w @trader/core -- --env staging` | $5 VTI buy → fill → lot/position/audit checks (market hours only) |
 | `npm run broker:capture -w @trader/core` | re-record scrubbed test fixtures from the paper account |
 
