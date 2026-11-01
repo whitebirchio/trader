@@ -49,8 +49,8 @@
 - **Files:** `src/db/schema.ts`, `drizzle/*`, `src/portfolio/store.ts`, `src/audit.ts`, `src/notifications/routing.ts`, tests · **Scope:** M
 
 ### P8: `rebalance` job
-- [x] Window gate (trading day, 10:30–15:30 ET); load the active strategy, bars, positions, lots and closures; thesis states (+ events); targets; plan; `riskGate` (sleeve attribution from the plan); `submitOrder` per approved/clipped; record the plan + audit
-- [x] Register `rebalance` in `JOBS` (not in `TICK_JOBS`); `EngineStack` adds the `trader-rebalance-<env>` schedule `cron(5/15 14-20 ? * MON-FRI *)` UTC with `{"jobs":["rebalance"]}`, plus an infra assertion test
+- [x] Window gate (trading day, 9:45–15:30 ET; moved from 10:30 on 2026-11-01); load the active strategy, bars, positions, lots and closures; thesis states (+ events); targets; plan; `riskGate` (sleeve attribution from the plan); `submitOrder` per approved/clipped; record the plan + audit
+- [x] Register `rebalance` in `JOBS` (not in `TICK_JOBS`); `EngineStack` adds the `trader-rebalance-<env>` schedule `cron(0/15 13-20 ? * MON-FRI *)` UTC with `{"jobs":["rebalance"]}`, plus an infra assertion test
 - [x] Plus (decided while building): a step **skips while any of today's orders are still open**, so a step that runs before the previous fills land can't re-buy. Tests (PGlite + fake broker): version 0 from cash in 2 steps then a no-op; a strategy change sells first, then buys; a re-run places nothing; a stop-loss sells + audits; outside the window → skipped
 - **Files:** `src/portfolio/rebalance.ts`, `src/jobs.ts`, `infra/lib/engine-stack.ts`, tests · **Depends on:** P5–P7 · **Scope:** M
 

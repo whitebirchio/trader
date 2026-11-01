@@ -91,7 +91,7 @@ export async function queueUrgent(db: Db, env: TradingEnv, at: Date): Promise<Qu
 
   let queued = false;
   if (send.length > 0) {
-    const result = await enqueue(db, env, { type: "urgent", email: composeUrgent(send, env), eventIds: sendIds }, at);
+    const result = await enqueue(db, env, { type: "urgent", email: composeUrgent(send, env, at), eventIds: sendIds }, at);
     queued = result.status === "queued";
   }
   await foldEvents(db, "urgent", fold, at);
@@ -161,6 +161,7 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
       benchmark,
     },
     env,
+    at,
   );
   const result = await enqueue(db, env, { type: "digest", email, eventIds: events.map((e) => e.id), digestDate: today }, at);
   const delivery = await deliver(db, mailer, at);

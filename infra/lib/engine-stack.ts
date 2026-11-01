@@ -117,13 +117,14 @@ export class EngineStack extends Stack {
       },
     });
 
-    // The daily check (SPEC-portfolio): its own schedule, 5 minutes after each
-    // tick (so sync-broker has just run), weekdays 14:00–21:00 UTC. That covers
-    // 10:30–15:30 ET in EST and EDT; the job gates on the exact window and the
-    // Alpaca calendar itself.
+    // The daily check (SPEC-portfolio): its own schedule, every 15 minutes on
+    // weekdays 13:00–20:59 UTC, which covers 9:45–15:30 ET in both EST and EDT.
+    // The job gates on the exact window and the Alpaca calendar itself. It
+    // runs alongside the tick and plans on the previous tick's sync (≤ 15 min
+    // old, inside risk's 20-minute freshness limit).
     new scheduler.CfnSchedule(this, "Rebalance", {
       name: `trader-rebalance-${env}`,
-      scheduleExpression: "cron(5/15 14-20 ? * MON-FRI *)",
+      scheduleExpression: "cron(0/15 13-20 ? * MON-FRI *)",
       scheduleExpressionTimezone: "UTC",
       flexibleTimeWindow: { mode: "OFF" },
       target: {
