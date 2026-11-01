@@ -38,6 +38,10 @@ export class EngineStack extends Stack {
       retention: logs.RetentionDays.ONE_MONTH,
     });
 
+    const bundling = { format: OutputFormat.ESM, target: "node22", minify: true, sourceMap: true, mainFields: ["module", "main"],
+      // ESM bundles still meet CommonJS deps; give them a require().
+      banner: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);" };
+
     const fn = new NodejsFunction(this, "Engine", {
       functionName: `trader-engine-${env}`,
       entry: `${repoRoot}apps/lambda/src/index.ts`,
@@ -54,16 +58,14 @@ export class EngineStack extends Stack {
         NOTIFY_FROM,
         NOTIFY_TO: OWNER_EMAIL,
       },
-      bundling: { format: OutputFormat.ESM, target: "node22", minify: true, sourceMap: true, mainFields: ["module", "main"],
-        // ESM bundles still meet CommonJS deps; give them a require().
-        banner: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);" },
+      bundling,
     });
 
     // Secrets: only this environment's SSM path (ADR-005). The resource is the
     // path as requested; the SDK sends it with the trailing slash, so grant both
     // spellings of exactly this path. aws/ssm decrypt is allowed via SSM by the
     // key's own policy.
-    fn.addToRolePolicy(
+    const readOwnSecrets = () =>
       new iam.PolicyStatement({
         sid: "ReadOwnSecrets",
         actions: ["ssm:GetParametersByPath"],
@@ -71,8 +73,8 @@ export class EngineStack extends Stack {
           `arn:aws:ssm:${this.region}:${this.account}:parameter/trader/${env}`,
           `arn:aws:ssm:${this.region}:${this.account}:parameter/trader/${env}/`,
         ],
-      }),
-    );
+      });
+    fn.addToRolePolicy(readOwnSecrets());
 
     // Email: only from Trader's address, via this account's identities.
     fn.addToRolePolicy(
@@ -135,6 +137,26 @@ export class EngineStack extends Stack {
     // Public health check only: it reveals liveness, nothing about the account.
     const url = fn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
     new CfnOutput(this, "HealthUrl", { value: `${url.url}healthz` });
+
+    // The MCP server (SPEC-agent): its own function, so a tool bug can't touch
+    // the trading schedule. It reads the same secrets (plus MCP_*), has no SES
+    // permission and no schedule, and is public behind its own OAuth.
+    const mcp = new NodejsFunction(this, "Mcp", {
+      functionName: `trader-mcp-${env}`,
+      entry: `${repoRoot}apps/mcp/src/index.ts`,
+      projectRoot: repoRoot,
+      depsLockFilePath: `${repoRoot}package-lock.json`,
+      runtime: lambda.Runtime.NODEJS_22_X,
+      architecture: lambda.Architecture.ARM_64,
+      memorySize: 512,
+      timeout: Duration.seconds(60),
+      logGroup: new logs.LogGroup(this, "McpLogs", { logGroupName: `/aws/lambda/trader-mcp-${env}`, retention: logs.RetentionDays.ONE_MONTH }),
+      environment: { TRADING_ENV: env, SECRETS_PATH: secretsPath(env) },
+      bundling,
+    });
+    mcp.addToRolePolicy(readOwnSecrets());
+    const mcpUrl = mcp.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
+    new CfnOutput(this, "McpUrl", { value: `${mcpUrl.url}mcp`, description: "Add in Claude as a custom connector" });
 
     // Alarms → your inbox, independent of Trader's own email path.
     const topic = new sns.Topic(this, "Alarms", { topicName: `trader-alarms-${env}` });

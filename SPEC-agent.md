@@ -80,7 +80,7 @@ Claude Code routine (cron) ┴─▶ trader-mcp-<env> Lambda (Function URL)
 
 ```sh
 npx vitest run agent                                        # (in packages/core and apps/mcp) tools, previews, auth, protocol
-scripts/set-mcp-secrets.sh staging|production               # generate signing key + static token, prompt for the passphrase → SSM
+scripts/set-mcp-secrets.sh staging|production [--rotate]    # generate what .env lacks (<ENV>_MCP_*) → SSM; prints names only
 curl -s -H "Authorization: Bearer $TOKEN" -X POST $MCP_URL -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
@@ -119,5 +119,5 @@ agent/routine-prompt.md       → the routine's prompt (checked in)
 
 ## Open Questions
 
-1. **The consent passphrase:** you'll type it once per connector. I'll generate a long random one into SSM and print it **once** for your password manager. Or would you rather choose your own?
+1. **The consent passphrase:** you'll type it once per connector. *Default as built:* `set-mcp-secrets.sh` generates a random one into `.env` (`<ENV>_MCP_PASSPHRASE`, gitignored) and SSM, and never prints it. To choose your own, put it in `.env` first (16+ characters) and rerun.
 2. **The routine's identity:** routines run in your claude.ai account, so I'd create them with the `schedule` tooling here, using your account's connectors. OK to create them once staging is verified?
