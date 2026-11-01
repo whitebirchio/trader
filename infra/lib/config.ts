@@ -3,7 +3,6 @@
  * `/trader/<env>/` and are written by scripts/set-*-secret.sh (SPEC-platform-aws).
  */
 export const REGION = "us-east-1";
-export const GITHUB_REPO = "whitebirchio/trader";
 /**
  * The repo's OIDC tokens use GitHub's immutable subject format, which embeds
  * the org and repo IDs (gh api repos/whitebirchio/trader/actions/oidc/customization/sub).
