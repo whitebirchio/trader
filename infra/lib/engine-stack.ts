@@ -115,6 +115,23 @@ export class EngineStack extends Stack {
       },
     });
 
+    // The daily check (SPEC-portfolio): its own schedule, 5 minutes after each
+    // tick (so sync-broker has just run), weekdays 14:00–21:00 UTC. That covers
+    // 10:30–15:30 ET in EST and EDT; the job gates on the exact window and the
+    // Alpaca calendar itself.
+    new scheduler.CfnSchedule(this, "Rebalance", {
+      name: `trader-rebalance-${env}`,
+      scheduleExpression: "cron(5/15 14-20 ? * MON-FRI *)",
+      scheduleExpressionTimezone: "UTC",
+      flexibleTimeWindow: { mode: "OFF" },
+      target: {
+        arn: fn.functionArn,
+        roleArn: schedulerRole.roleArn,
+        input: JSON.stringify({ jobs: ["rebalance"], scheduledTime: "<aws.scheduler.scheduled-time>" }),
+        retryPolicy: { maximumRetryAttempts: 2, maximumEventAgeInSeconds: 600 },
+      },
+    });
+
     // Public health check only: it reveals liveness, nothing about the account.
     const url = fn.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
     new CfnOutput(this, "HealthUrl", { value: `${url.url}healthz` });

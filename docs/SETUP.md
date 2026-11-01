@@ -113,7 +113,7 @@ The limits are code in `packages/core/src/risk/limits.ts`. Changing one is a PR,
 npm run risk:status -w @trader/core -- --env production                     # kill switch, halt, drawdown, today, verdict
 npm run risk:kill   -w @trader/core -- --env production --reason "…"        # stop all trading now (sells too)
 npm run risk:resume -w @trader/core -- --env production --reason "…"        # clear the kill switch and/or halt
-npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy AAPL=300:satellite   # dry run, records nothing
+npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy AAPL=300:conviction   # dry run, records nothing
 ```
 
 | Stop | Trips when | Blocks | Clears |
@@ -124,6 +124,19 @@ npm run risk:check  -w @trader/core -- --env staging --sync --buy VTI=50 --buy A
 | Broker verdict | `broker_account.trading_allowed` is false | every order | fix the account (see Alpaca above) |
 
 These scripts use the owner database URL and the environment's Alpaca keys from `.env`.
+
+## Strategy & rebalancing
+
+The active strategy is the highest version in `strategies`, or version 0 (100% VTI) before any is accepted. Claude submits through `agent` (not yet built); until then you can submit by hand. Every submission is validated, and a rejection is emailed while the old version stays active.
+
+```sh
+npm run strategy:show   -w @trader/core -- --env staging                         # active strategy, thesis states, holdings
+npm run strategy:submit -w @trader/core -- --env staging --file strategy.json    # submit the next version (owner)
+npm run rebalance:plan  -w @trader/core -- --env production --sync               # dry run through risk; records and orders nothing
+npm run rebalance:run   -w @trader/core -- --env staging --sync                  # one real step on PAPER now (refuses production)
+```
+
+The `rebalance` job runs on `trader-rebalance-<env>`, every 15 min at :05/:20/:35/:50, 10:30–15:30 ET on trading days. Each step does sells only, or buys only, or nothing. It skips while orders are open, and records itself in `rebalance_plans`.
 
 ## Email
 

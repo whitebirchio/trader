@@ -2,7 +2,7 @@
  * Dry run: evaluate proposals against the environment's current state and
  * print the decisions. Records nothing and places nothing.
  *
- *   npm run risk:check -w @trader/core -- --env staging --buy VTI=50 --buy AAPL=300:satellite --sell VTI=0.1 [--sync]
+ *   npm run risk:check -w @trader/core -- --env staging --buy VTI=50 --buy AAPL=300:conviction --sell VTI=0.1 [--sync]
  *
  * --sync runs a broker sync first (ignoring market hours) so the data is fresh.
  */
@@ -24,10 +24,10 @@ const { values } = parseArgs({
 });
 
 function parse(spec: string, side: "buy" | "sell"): Proposal {
-  const m = /^([A-Z][A-Z0-9.]*)=([0-9.]+)(?::(core|satellite))?$/.exec(spec);
-  if (!m) throw new Error(`bad --${side} ${spec} (expected SYMBOL=AMOUNT[:core|satellite])`);
+  const m = /^([A-Z][A-Z0-9.]*)=([0-9.]+)(?::(systematic|conviction))?$/.exec(spec);
+  if (!m) throw new Error(`bad --${side} ${spec} (expected SYMBOL=AMOUNT[:systematic|conviction])`);
   const [, symbol, amount, sleeve] = m as unknown as [string, string, string, Sleeve | undefined];
-  const base = { key: `check:${symbol}:${side}`, symbol, sleeve: sleeve ?? "core" } as const;
+  const base = { key: `check:${symbol}:${side}`, symbol, sleeve: sleeve ?? "systematic" } as const;
   return side === "buy" ? { ...base, side, notional: amount } : { ...base, side, qty: amount };
 }
 

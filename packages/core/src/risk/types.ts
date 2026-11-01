@@ -1,6 +1,6 @@
 import type { OrderSide } from "../broker/port.js";
 
-export type Sleeve = "core" | "satellite";
+export type Sleeve = "systematic" | "conviction";
 
 /**
  * A proposed order from `portfolio`. Buys are sized in dollars and sells in
@@ -16,7 +16,7 @@ export interface Holding {
   symbol: string;
   qty: string;
   marketValue: string;
-  /** Unattributed holdings count as satellite: the conservative side of the cap. */
+  /** Unattributed holdings count as conviction: the conservative side of the cap. */
   sleeve: Sleeve;
 }
 

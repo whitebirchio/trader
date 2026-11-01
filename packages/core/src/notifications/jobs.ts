@@ -1,8 +1,10 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull } from "drizzle-orm";
-import { auditEvents, notificationItems, notifications } from "../db/schema.js";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull } from "drizzle-orm";
+import { auditEvents, brokerActivities, equitySnapshots, notificationItems, notifications } from "../db/schema.js";
+import { BENCHMARK, type BenchmarkComparison, compareToBenchmark } from "../portfolio/benchmark.js";
+import { FLOW_TYPES, buildIndex, flowsByDate } from "../risk/equity-index.js";
 import type { Db } from "../db/client.js";
 import type { TradingEnv } from "../env.js";
-import type { JobFn } from "../jobs.js";
+import type { JobContext, JobFn } from "../jobs.js";
 import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS } from "../risk/limits.js";
 import { marketDate } from "../time.js";
@@ -138,6 +140,7 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
   if (at.getTime() < session.close.getTime() + DIGEST_DELAY_MS) return { status: "skipped", reason: "before digest time" };
 
   const snapshot = await loadSnapshot(db, broker, [], at, LIMITS);
+  const benchmark = await benchmarkLine(db, broker, at);
   const events = (
     await db
       .select()
@@ -156,6 +159,7 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
       positions: snapshot.holdings.map((h) => ({ symbol: h.symbol, qty: h.qty, marketValue: h.marketValue })),
       events: events.map((e) => toNotifiable(e)),
       state: { killSwitch: snapshot.state.killSwitch, halted: snapshot.state.halted, haltReason: snapshot.state.haltReason },
+      benchmark,
     },
     env,
   );
@@ -163,3 +167,22 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
   const delivery = await deliver(db, mailer, at);
   return { status: "succeeded", detail: { date: today, events: events.length, queued: result.status === "queued", ...delivery } };
 };
+
+/** Portfolio vs VTI since the first snapshot. Best effort: a failure here leaves the line out, never the digest. */
+async function benchmarkLine(db: Db, broker: JobContext["broker"], at: Date): Promise<BenchmarkComparison | null> {
+  try {
+    const snaps = await db
+      .select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity })
+      .from(equitySnapshots)
+      .orderBy(asc(equitySnapshots.tradingDate));
+    if (snaps.length < 2) return null;
+    const flowRows = await db.select().from(brokerActivities).where(inArray(brokerActivities.type, [...FLOW_TYPES]));
+    const index = buildIndex(snaps, flowsByDate(flowRows.map((r) => ({ ...r, side: null }))));
+    const since = new Date(`${snaps[0]!.tradingDate}T00:00:00Z`);
+    const bars = await broker.getDailyBars([BENCHMARK], new Date(since.getTime() - 7 * 86_400_000), at);
+    return compareToBenchmark(index.points, bars[BENCHMARK] ?? [], marketDate);
+  } catch (e) {
+    console.error(JSON.stringify({ level: "error", message: "benchmark line skipped", error: e instanceof Error ? e.message : String(e) }));
+    return null;
+  }
+}

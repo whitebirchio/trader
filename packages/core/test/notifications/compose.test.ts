@@ -116,3 +116,41 @@ describe("buys paused wording", () => {
     expect(email.text).toContain("The account is down 5.3% since yesterday's close.");
   });
 });
+
+describe("strategy and thesis emails", () => {
+  it("announces a new strategy", () => {
+    const email = composeUrgent(
+      [ev("strategy.activated", { version: 3, authoredBy: "claude", summary: "Rotate into semis on capex guidance.", theses: 2, convictionPct: "35", topN: 4, universeSize: 40 }, "v3")],
+      "production",
+    );
+    expect(email.subject).toBe("Trader: New strategy v3 by claude");
+    expect(email.text).toContain("2 conviction theses (35% of the account); systematic: top 4 of 40 symbols.");
+  });
+
+  it("explains a rejection and what stays active", () => {
+    const email = composeUrgent([ev("strategy.rejected", { authoredBy: "claude", errors: ["conviction[0].stopLossPct: must be at least 5 and at most 50"], activeVersion: 2 })], "production");
+    expect(email.subject).toBe("Trader: Strategy rejected (claude's submission)");
+    expect(email.text).toContain("• conviction[0].stopLossPct: must be at least 5 and at most 50");
+    expect(email.text).toContain("v2 stays active.");
+  });
+
+  it("reports a stop-loss sale and a stale thesis, the stop first", () => {
+    const email = composeUrgent(
+      [
+        ev("thesis.stale", { thesisId: "lmt-congress", reason: "not reaffirmed for 31 days (limit 30)" }, "LMT"),
+        ev("thesis.stopped_out", { thesisId: "oxy-berkshire", reason: "OXY closed at $48.90, at or below its 20% stop ($49.60 vs $62.00 average cost)" }, "OXY"),
+      ],
+      "production",
+    );
+    expect(email.subject).toBe("Trader: Stop-loss: selling OXY (+1 more)");
+    expect(email.text).toContain("Thesis lmt-congress was not reaffirmed for 31 days (limit 30), so it's sold into the systematic sleeve.");
+  });
+});
+
+describe("digest benchmark line", () => {
+  it("shows performance vs VTI once there's a comparison", () => {
+    const email = composeDigest({ ...base, benchmark: { since: "2026-11-02", portfolioPct: "1.24", benchmarkPct: "0.8" } }, "production");
+    expect(email.text).toContain("Since Mon Nov 2: +1.24% vs VTI +0.8%");
+    expect(composeDigest(base, "production").text).not.toContain("vs VTI");
+  });
+});

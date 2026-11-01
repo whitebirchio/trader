@@ -59,7 +59,7 @@
 
 ### A8: Production + cleanup
 - [x] SSM for production (Scott ran the scripts); PR #6 merged → `TraderProduction` deployed by CI
-- [x] SC-5: health 200 `"env":"production"`; overlap check on the 13:30Z tick (one row per job, all AWS); *(Scott)* `wrangler delete trader-engine --force` (2026-11-01). The production `notify:test` is still to do.
-- [x] Removed `apps/engine/` (Worker, wrangler config and types, the `wrangler` dep), the wrangler CI steps, and the dual-write in `set-db-secret.sh`; *(Scott)* delete the `CLOUDFLARE_API_TOKEN` secret and the Cloudflare API token
+- [x] SC-5: health 200 `"env":"production"`; overlap check on the 13:30Z tick (one row per job, all AWS); *(Scott)* `wrangler delete trader-engine --force` (2026-11-01). Production `notify:test` sent via SES (`sent: 1`) and awaiting Gmail confirmation.
+- [x] Removed `apps/engine/` (Worker, wrangler config and types, the `wrangler` dep), the wrangler CI steps, and the dual-write in `set-db-secret.sh`; *(Scott)* deleted the `CLOUDFLARE_API_TOKEN` secret; the Cloudflare API token itself is still to delete
 - [x] ADR-014 (supersedes ADR-001); ADR README; `CLAUDE.md` (environments, commands, architecture, testing, boundaries); `docs/SETUP.md` rewritten for AWS; supersession notes on SPEC-foundation and SPEC-notifications
 - [ ] SC-7 after a week: Cost Explorer filtered by `app=trader` ≈ $0

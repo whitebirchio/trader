@@ -24,6 +24,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  serial,
   text,
   timestamp,
   unique,
@@ -78,7 +79,15 @@ export const auditEvents = pgTable(
  * trigger in a migration, and scripts/app-role.ts revokes UPDATE/DELETE/TRUNCATE
  * on each from trader_app. Add new append-only tables here.
  */
-export const APPEND_ONLY_TABLES = ["audit_events", "broker_activities", "risk_gate_runs", "risk_decisions"] as const;
+export const APPEND_ONLY_TABLES = [
+  "audit_events",
+  "broker_activities",
+  "risk_gate_runs",
+  "risk_decisions",
+  "strategies",
+  "thesis_events",
+  "rebalance_plans",
+] as const;
 
 // ---------------------------------------------------------------------------
 // broker (SPEC-broker.md). Money and quantities are numeric (ADR-009).
@@ -285,4 +294,51 @@ export const notificationItems = pgTable(
     createdAt: timestamptz().notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.auditEventId, t.type] })],
+);
+
+// ---------------------------------------------------------------------------
+// portfolio (SPEC-portfolio). All insert-only: the record of what was decided.
+// ---------------------------------------------------------------------------
+
+/** Every accepted strategy version. The highest version is active. Version 0 (hold VTI) is implicit. */
+export const strategies = pgTable("strategies", {
+  version: serial().primaryKey(),
+  authoredBy: auditActor().notNull(),
+  createdAt: timestamptz().notNull().defaultNow(),
+  summary: text().notNull(),
+  document: jsonb().$type<Record<string, unknown>>().notNull(),
+});
+
+/** Thesis lifecycle transitions. `stopped` is permanent: re-entry needs a new thesis id. */
+export const thesisEvents = pgTable(
+  "thesis_events",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    thesisId: text().notNull(),
+    symbol: text().notNull(),
+    kind: text().notNull(),
+    strategyVersion: integer().notNull(),
+    price: numeric(),
+    averageCost: numeric(),
+    reason: text().notNull(),
+    at: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [index("thesis_events_thesis_idx").on(t.thesisId, t.kind)],
+);
+
+/** One row per rebalance step: what it targeted, traded and skipped, and the risk run that gated it. */
+export const rebalancePlans = pgTable(
+  "rebalance_plans",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    tradingDate: date({ mode: "string" }).notNull(),
+    strategyVersion: integer().notNull(),
+    phase: text().notNull(),
+    targets: jsonb().$type<unknown[]>().notNull(),
+    trades: jsonb().$type<unknown[]>().notNull(),
+    notes: jsonb().$type<string[]>().notNull(),
+    gateRunId: uuid().references(() => riskGateRuns.id),
+    createdAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [index("rebalance_plans_date_idx").on(t.tradingDate)],
 );

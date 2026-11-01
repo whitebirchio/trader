@@ -2,7 +2,7 @@
 
 > **Status: Approved** (Scott, 2026-10-31). Module ids are stable; each module gets `SPEC-<module-id>.md` alongside this file, specced and built in the order below.
 
-Trader is an autonomous US-equity portfolio. **Claude owns the strategy**: it researches on a schedule and publishes a strategy made of a tuned quant **core** sleeve and an insight-driven **satellite** sleeve, split 70/30 by default (configurable). **Deterministic code owns execution and risk**: it turns the active strategy into orders, but only inside guardrails Claude cannot change. Success means beating VTI (the ETF twin of VTSAX) on the live account.
+Trader is an autonomous US-equity portfolio. **Claude owns the strategy**: it researches on a schedule and publishes a **conviction-first** strategy: research-backed theses (mostly individual stocks, up to 100% of the account), with a quant-ranked **systematic** sleeve holding the rest. Idle money sits in VTI, never cash (ADR-013). **Deterministic code owns execution and risk**: it turns the active strategy into orders, but only inside guardrails Claude cannot change. Success means beating VTI (the ETF twin of VTSAX) on the live account.
 
 | Module id | Responsibility | Depends on |
 |---|---|---|
