@@ -1,6 +1,6 @@
 # Spec: `dashboard`
 
-> **Status: Draft** (2026-11-01). This is module 7 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md), and it depends on `portfolio`. It replaces the old plan for a PWA behind Cloudflare Access, which ADR-014 made moot. Decisions so far (Scott, 2026-11-01):
+> **Status: Approved** (Scott, 2026-11-01; open questions 1–4 accepted as written). This is module 7 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md), and it depends on `portfolio`. It replaces the old plan for a PWA behind Cloudflare Access, which ADR-014 made moot. Decisions so far (Scott, 2026-11-01):
 > - Host on Lambda **Web Functions**.
 > - Sign in with **Google**.
 > - Serve it at **trader.whitebirch.io**.
