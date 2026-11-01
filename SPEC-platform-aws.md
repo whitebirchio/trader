@@ -1,6 +1,6 @@
 # Spec: move the platform to AWS (`foundation`, revision 2)
 
-> **Status: DRAFT — open questions resolved 2026-10-31; awaiting approval.** A change to the implemented `foundation` module ([SPEC-foundation.md](SPEC-foundation.md)), plus the hosting parts of `broker`, `risk` and `notifications`. It's done **before `portfolio`**, which then builds on the new platform. Supersedes ADR-001's hosting decision.
+> **Status: Approved** (Scott, 2026-10-31). A change to the implemented `foundation` module ([SPEC-foundation.md](SPEC-foundation.md)), plus the hosting parts of `broker`, `risk` and `notifications`. It's done **before `portfolio`**, which then builds on the new platform. Supersedes ADR-001's hosting decision.
 
 ## Objective
 
