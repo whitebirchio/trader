@@ -56,12 +56,6 @@ jobs:
         run: npm run db:migrate -w @trader/core
         env:
           DATABASE_URL: ${{ secrets.STAGING_MIGRATE_URL }}
-      - name: Deploy trader-engine-staging (Cloudflare, until cutover)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: apps/engine
-          command: deploy --env staging
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
