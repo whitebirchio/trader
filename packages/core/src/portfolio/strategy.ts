@@ -87,6 +87,16 @@ export const strategySchema = z
   });
 
 export type Strategy = z.infer<typeof strategySchema>;
+
+/**
+ * The document's shape as JSON Schema, for the MCP tools' inputSchema. Bounds
+ * that live in refinements (weights, totals, uniqueness) aren't expressible
+ * here; validateStrategy and get_rules carry them.
+ */
+export const STRATEGY_JSON_SCHEMA: Record<string, unknown> = (() => {
+  const { $schema: _, ...schema } = z.toJSONSchema(strategySchema, { io: "input", unrepresentable: "any" });
+  return schema;
+})();
 export type Thesis = Strategy["conviction"][number];
 export type SystematicParams = Strategy["systematic"];
 

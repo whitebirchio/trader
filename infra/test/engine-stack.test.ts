@@ -21,8 +21,8 @@ const roleStatements = (t: Template): Statement[] =>
   );
 
 describe("EngineStack", () => {
-  it("has one Node 22 arm64 function per environment, configured by name only", () => {
-    staging.resourceCountIs("AWS::Lambda::Function", 1);
+  it("has the engine and MCP functions, Node 22 arm64, configured by name only", () => {
+    staging.resourceCountIs("AWS::Lambda::Function", 2);
     staging.hasResourceProperties("AWS::Lambda::Function", {
       FunctionName: "trader-engine-staging",
       Runtime: "nodejs22.x",
@@ -60,13 +60,37 @@ describe("EngineStack", () => {
     expect(JSON.parse(r?.Properties.Target.Input ?? "{}")).toEqual({ jobs: ["rebalance"], scheduledTime: "<aws.scheduler.scheduled-time>" });
   });
 
-  it("exposes only a public health URL", () => {
-    staging.resourceCountIs("AWS::Lambda::Url", 1);
+  it("exposes the health URL and the MCP URL (which does its own OAuth)", () => {
+    staging.resourceCountIs("AWS::Lambda::Url", 2);
     staging.hasResourceProperties("AWS::Lambda::Url", { AuthType: "NONE" });
+    expect(Object.keys(staging.findOutputs("*"))).toEqual(expect.arrayContaining(["HealthUrl", "McpUrl"]));
+  });
+
+  it("runs MCP as its own function: secrets path only, no SES, no schedule", () => {
+    staging.hasResourceProperties("AWS::Lambda::Function", {
+      FunctionName: "trader-mcp-staging",
+      Runtime: "nodejs22.x",
+      Architectures: ["arm64"],
+      Timeout: 60,
+      Environment: { Variables: { TRADING_ENV: "staging", SECRETS_PATH: "/trader/staging/" } },
+    });
+    staging.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: "/aws/lambda/trader-mcp-staging", RetentionInDays: 30 });
+    const mcpRole = Object.keys(staging.findResources("AWS::IAM::Role")).find((k) => k.startsWith("McpServiceRole"));
+    const mcpPolicies = Object.values(staging.findResources("AWS::IAM::Policy")).filter((p) => JSON.stringify(p).includes(`"${mcpRole}"`));
+    const actions = JSON.stringify(mcpPolicies.map((p) => (p as { Properties: { PolicyDocument: unknown } }).Properties.PolicyDocument));
+    expect(actions).toContain("ssm:GetParametersByPath");
+    expect(actions).not.toContain("ses:");
+    const targets = JSON.stringify(Object.values(staging.findResources("AWS::Scheduler::Schedule")));
+    expect(targets).not.toContain("Mcp");
   });
 
   it("can read only its own environment's secrets", () => {
     const read = (t: Template) => roleStatements(t).find((s) => s.Sid === "ReadOwnSecrets");
+    for (const t of [staging, production]) {
+      const reads = roleStatements(t).filter((s) => s.Sid === "ReadOwnSecrets");
+      expect(reads).toHaveLength(2); // engine + MCP, the same path
+      expect(reads[1]?.Resource).toEqual(reads[0]?.Resource);
+    }
     // Both spellings of the path: the SDK requests ".../trader/<env>/" (with the slash).
     expect(read(staging)?.Resource).toEqual([
       "arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging",
@@ -77,7 +101,8 @@ describe("EngineStack", () => {
       "arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/",
     ]);
     for (const t of [staging, production]) {
-      expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(1);
+      expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(2);
+      expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ses:"))).toHaveLength(1);
     }
   });
 
