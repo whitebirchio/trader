@@ -1,4 +1,8 @@
 # Build → migrate → deploy, routed by branch (ADR-006):
+# AWS deploys use GitHub OIDC (no stored keys): the trader-github-deploy role
+# can only assume CDK's bootstrap roles (SPEC-platform-aws). During the
+# cutover each environment also still deploys its Cloudflare Worker; those
+# steps go once the Worker is retired.
 #   - any branch other than main → staging (Alpaca paper)
 #   - main                       → production (live money)
 # Migrations run before the Worker deploys, so new code never meets an old
@@ -8,6 +12,10 @@
 # Only `push` triggers builds: every PR branch is pushed anyway, and its
 # checks show on the PR, so a pull_request trigger would just run them twice.
 name: CI
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for aws-actions/configure-aws-credentials
 
 on:
   push:
@@ -26,6 +34,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # Infra errors fail every branch, not just deploys (no AWS credentials needed to synth).
+      - run: npm run synth -w trader-infra
 
   deploy-staging:
     needs: build
@@ -46,12 +56,18 @@ jobs:
         run: npm run db:migrate -w @trader/core
         env:
           DATABASE_URL: ${{ secrets.STAGING_MIGRATE_URL }}
-      - name: Deploy trader-engine-staging
+      - name: Deploy trader-engine-staging (Cloudflare, until cutover)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: apps/engine
           command: deploy --env staging
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Deploy TraderStaging (AWS)
+        run: npm run deploy:staging -w trader-infra
 
   deploy-production:
     needs: build
@@ -71,9 +87,15 @@ jobs:
         run: npm run db:migrate -w @trader/core
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_MIGRATE_URL }}
-      - name: Deploy trader-engine
+      - name: Deploy trader-engine (Cloudflare, until cutover)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: apps/engine
           command: deploy --env production
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Deploy TraderProduction (AWS)
+        run: npm run deploy:production -w trader-infra

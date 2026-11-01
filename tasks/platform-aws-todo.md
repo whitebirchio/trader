@@ -40,14 +40,14 @@
 ## Phase 2: Staging
 
 ### A5: One-time setup (Scott, with commands from me)
-- [ ] `npx cdk bootstrap aws://<acct>/us-east-1 --profile whitebirch`
-- [ ] `npm run deploy:ci -w trader-infra -- --profile whitebirch`
+- [x] `npx cdk bootstrap aws://<acct>/us-east-1 --profile whitebirch` (2026-11-01)
+- [x] `npm run deploy:ci -w trader-infra -- --profile whitebirch --require-approval never` (the `!` shell has no TTY for the IAM prompt; the table was reviewed first)
 - [ ] SSM: `scripts/set-db-secret.sh staging`, `scripts/set-alpaca-secret.sh staging`
 - [ ] After the first staging deploy: SES identity email for the Gmail address (click), SNS subscription (click), 3 DKIM CNAMEs added in Cloudflare DNS (DNS-only)
 
 ### A6: CI
-- [ ] `ci.yml`: OIDC credentials, `cdk synth` in `build`, `cdk deploy TraderStaging` on non-`main`, `TraderProduction` on `main`; wrangler deploys kept for now (removed in A8)
-- [ ] GitHub secret or var: `AWS_DEPLOY_ROLE_ARN`
+- [x] `ci.yml`: OIDC credentials, `cdk synth` in `build`, `cdk deploy TraderStaging` on non-`main`, `TraderProduction` on `main`; wrangler deploys kept for now (removed in A8)
+- [x] GitHub **variable** `AWS_DEPLOY_ROLE_ARN` (an ARN, not a secret)
 
 ### A7: Staging cutover
 - [ ] SC-2: `invoke` heartbeat / sync-broker / notify-urgent OK; Function URL `/healthz` 200 `"env":"staging"`
