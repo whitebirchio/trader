@@ -1,0 +1,80 @@
+import { desc, eq } from "drizzle-orm";
+import { recordEvent } from "../audit.js";
+import type { Db } from "../db/client.js";
+import { strategies, thesisEvents } from "../db/schema.js";
+import { add } from "../money.js";
+import { type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
+
+export interface ActiveStrategy {
+  version: number;
+  authoredBy: "claude" | "owner" | "system";
+  createdAt: Date;
+  strategy: Strategy;
+}
+
+/**
+ * The highest stored version, or version 0 (hold VTI) if nothing has been
+ * accepted yet. Stored documents were validated on the way in; they're
+ * re-validated here so a bad row fails closed (falls back to version 0) and is logged.
+ */
+export async function activeStrategy(db: Db, now: Date): Promise<ActiveStrategy> {
+  const [row] = await db.select().from(strategies).orderBy(desc(strategies.version)).limit(1);
+  if (!row) return { version: 0, authoredBy: "system", createdAt: now, strategy: VERSION_0 };
+  const parsed = validateStrategy(row.document);
+  if (!parsed.ok) {
+    console.error(JSON.stringify({ level: "error", message: "stored strategy failed validation; using version 0", version: row.version, errors: parsed.errors }));
+    return { version: 0, authoredBy: "system", createdAt: now, strategy: VERSION_0 };
+  }
+  return { version: row.version, authoredBy: row.authoredBy, createdAt: row.createdAt, strategy: parsed.strategy };
+}
+
+/** Thesis ids that have been stopped out (permanent). */
+export async function stoppedThesisIds(db: Db): Promise<Set<string>> {
+  const rows = await db.select({ id: thesisEvents.thesisId }).from(thesisEvents).where(eq(thesisEvents.kind, "stopped"));
+  return new Set(rows.map((r) => r.id));
+}
+
+export type SubmitStrategyResult = { status: "activated"; version: number } | { status: "rejected"; errors: string[] };
+
+/**
+ * Validate and store a new strategy version (SPEC-portfolio). `actor` is
+ * `claude` (via `agent`'s submit_strategy) or `owner` (strategy:submit).
+ * A rejection is audited (urgent email) and leaves the active version alone.
+ */
+export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner", now: Date): Promise<SubmitStrategyResult> {
+  const parsed = validateStrategy(doc);
+  const errors = parsed.ok ? [] : parsed.errors;
+  if (parsed.ok) {
+    const stopped = await stoppedThesisIds(db);
+    parsed.strategy.conviction.forEach((t, i) => {
+      if (stopped.has(t.id)) errors.push(`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`);
+    });
+  }
+  if (!parsed.ok || errors.length > 0) {
+    const active = await activeStrategy(db, now);
+    await recordEvent(db, { actor, kind: "strategy.rejected", payload: { authoredBy: actor, errors, activeVersion: active.version } });
+    return { status: "rejected", errors };
+  }
+
+  const s = parsed.strategy;
+  const [row] = await db
+    .insert(strategies)
+    .values({ authoredBy: actor, summary: s.summary, document: s as unknown as Record<string, unknown>, createdAt: now })
+    .returning({ version: strategies.version });
+  if (!row) throw new Error("strategies insert returned no row");
+  await recordEvent(db, {
+    actor,
+    kind: "strategy.activated",
+    subject: `v${row.version}`,
+    payload: {
+      version: row.version,
+      authoredBy: actor,
+      summary: s.summary,
+      theses: s.conviction.length,
+      convictionPct: s.conviction.reduce((sum, t) => add(sum, t.targetWeightPct), "0"),
+      topN: s.systematic.topN,
+      universeSize: s.systematic.universe.length,
+    },
+  });
+  return { status: "activated", version: row.version };
+}

@@ -5,6 +5,7 @@ import { syncBroker } from "./broker/sync.js";
 import { checkDrawdown } from "./risk/gate.js";
 import type { Db } from "./db/client.js";
 import { notifyDigest, notifyUrgent } from "./notifications/jobs.js";
+import { rebalanceJob } from "./portfolio/rebalance.js";
 import type { Mailer } from "./notifications/port.js";
 import { jobRuns } from "./db/schema.js";
 import type { TradingEnv } from "./env.js";
@@ -55,6 +56,8 @@ export const JOBS = {
   "sync-broker": syncBrokerJob,
   "notify-urgent": notifyUrgent,
   "notify-digest": notifyDigest,
+  // Not in TICK_JOBS: it has its own schedule, 5 minutes after each tick (SPEC-portfolio).
+  rebalance: rebalanceJob,
 } satisfies Record<string, JobFn>;
 export type JobName = keyof typeof JOBS;
 

@@ -59,8 +59,8 @@
   - [x] *(Scott)* DNSSEC off; *(me)* DS confirmed gone at the `.io` registry
   - [x] *(Scott)* zone added to Cloudflare; *(me)* import checked: GitHub Pages A/AAAA (DNS-only), `www`, the challenge TXT all present. **The import dropped MX/SPF**, so mail was undeliverable until Email Routing was enabled.
   - [x] *(Scott)* Email Routing: Gmail verified, catch-all → Gmail; MX/SPF/DKIM published and visible on 1.1.1.1, 8.8.8.8 and 9.9.9.9
-  - [x] *(Scott)* nameservers switched (done *before* the record check, out of the planned order, without harm); *(me)* site, GitHub challenge and MX checked through Cloudflare's nameservers; *(Scott)* test email to a random @whitebirch.io address arrives
-  - [ ] *(Scott)* DNSSEC re-enabled in Cloudflare and its DS added at the registrar; *(me)* DS confirmed
+  - [x] *(Scott)* nameservers switched (done *before* the record check, out of the planned order, without harm); *(me)* site, GitHub challenge and MX checked through Cloudflare's nameservers; *(Scott)* test email to a random @whitebirch.io address arrives (confirmed 2026-10-31)
+  - [x] *(Scott)* DNSSEC re-enabled in Cloudflare (KSK tag 2371, alg 13) and its DS added at Squarespace; *(me)* DS visible at the `.io` registry (21:46Z) and matching; 1.1.1.1, 8.8.8.8 and 9.9.9.9 validate
 - **Depends on:** — · **Scope:** manual
 
 ### N7: Verify and ship

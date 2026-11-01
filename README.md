@@ -1,6 +1,6 @@
 # Trader
 
-An autonomous US-equity portfolio. A scheduled Claude routine researches the market and publishes a strategy: a quant core sleeve plus a satellite sleeve of higher-conviction ideas. An AWS Lambda executes that strategy through Alpaca, but only inside guardrails that Claude can't change. The bar: beat VTI (≈ VTSAX) with real money.
+An autonomous US-equity portfolio. A scheduled Claude routine researches the market (fundamentals, Congress / insider / 13F signals, news) and publishes a conviction-first strategy, with a quant-ranked systematic sleeve for the rest. An AWS Lambda executes that strategy through Alpaca, but only inside guardrails that Claude can't change. The bar: beat VTI (≈ VTSAX) with real money.
 
 - **Design:** [CAPABILITY-MAP.md](CAPABILITY-MAP.md) (modules and build order), `SPEC-*.md` (per-module specs), [docs/decisions/](docs/decisions/README.md) (why it's built this way)
 - **Working on it:** [CLAUDE.md](CLAUDE.md) (commands, invariants, boundaries)

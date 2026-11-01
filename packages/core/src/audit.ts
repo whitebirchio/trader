@@ -30,6 +30,12 @@ export const AUDIT_KINDS = [
   "risk.halted",
   "risk.kill_switch_on",
   "risk.resumed",
+  // Strategy and theses (SPEC-portfolio).
+  "strategy.activated",
+  "strategy.rejected",
+  "thesis.stopped_out",
+  "thesis.stale",
+  "rebalance.planned",
 ] as const;
 
 export type AuditKind = (typeof AUDIT_KINDS)[number];

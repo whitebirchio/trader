@@ -64,6 +64,27 @@ export function describe(e: NotifiableEvent): Described {
         lines: [`Error: ${str(p.error)}`, ...(folded > 0 ? [`${folded} more failure(s) of this job since the last email.`] : [])],
       };
     }
+    case "strategy.activated":
+      return {
+        headline: `New strategy v${str(p.version)} by ${str(p.authoredBy)}`,
+        lines: [
+          str(p.summary),
+          `${str(p.theses)} conviction ${Number(p.theses) === 1 ? "thesis" : "theses"} (${str(p.convictionPct)}% of the account); systematic: top ${str(p.topN)} of ${str(p.universeSize)} symbols.`,
+          "It takes effect at the next rebalance step.",
+        ],
+      };
+    case "strategy.rejected":
+      return {
+        headline: `Strategy rejected (${str(p.authoredBy)}'s submission)`,
+        lines: [...list(p.errors).map((err) => `• ${err}`), `v${str(p.activeVersion)} stays active.`],
+      };
+    case "thesis.stopped_out":
+      return { headline: `Stop-loss: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
+    case "thesis.stale":
+      return {
+        headline: `Thesis unwound: ${str(e.subject)} (not reviewed)`,
+        lines: [`Thesis ${str(p.thesisId)} was ${str(p.reason)}, so it's sold into the systematic sleeve.`, "If research is running, this means Claude's strategy hasn't been resubmitted in 30 days."],
+      };
     default:
       return { headline: e.kind, lines: [JSON.stringify(p)] };
   }
@@ -108,6 +129,8 @@ export interface DigestData {
   positions: { symbol: string; qty: string; marketValue: string }[];
   events: NotifiableEvent[];
   state: { killSwitch: boolean; halted: boolean; haltReason: string | null };
+  /** Flow-adjusted performance vs VTI since the first snapshot (portfolio/benchmark.ts), once there are two. */
+  benchmark?: { since: string; portfolioPct: string; benchmarkPct: string } | null;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -167,7 +190,17 @@ export function composeDigest(data: DigestData, env: TradingEnv): OutgoingEmail 
       : `Normal: drawdown ${data.drawdownPct}% from peak`;
 
   const sections: [string, string[]][] = [
-    ["Account", [`Equity $${data.equity} (${signed(data.dailyChangePct)}% today, flow-adjusted)`, `Cash $${data.cash}`, `Guardrails: ${status}`]],
+    [
+      "Account",
+      [
+        `Equity $${data.equity} (${signed(data.dailyChangePct)}% today, flow-adjusted)`,
+        ...(data.benchmark
+          ? [`Since ${shortDate(data.benchmark.since)}: ${signed(data.benchmark.portfolioPct)}% vs VTI ${signed(data.benchmark.benchmarkPct)}%`]
+          : []),
+        `Cash $${data.cash}`,
+        `Guardrails: ${status}`,
+      ],
+    ],
     ["Positions", data.positions.length ? data.positions.map((p) => `${p.symbol}: ${p.qty} sh, $${p.marketValue}`) : ["None (all cash)"]],
     ["Trades", trades.length ? trades : ["None today"]],
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],

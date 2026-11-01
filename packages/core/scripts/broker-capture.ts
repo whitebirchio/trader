@@ -50,7 +50,7 @@ const captures: Record<string, string> = {
 
 // Assets the risk eligibility tests are pinned to (SPEC-risk): broad, sector,
 // thematic, single-stock, leveraged, inverse and short-duration Treasury funds.
-const ELIGIBILITY_ASSETS = ["VTI", "QQQ", "AAPL", "XLK", "ARKK", "VGSH", "TQQQ", "SQQQ", "SH", "SPXL", "UVXY", "SOXL"];
+const ELIGIBILITY_ASSETS = ["VTI", "QQQ", "AAPL", "XLK", "ARKK", "VGSH", "SGOV", "BIL", "SHV", "TQQQ", "SQQQ", "SH", "SPXL", "UVXY", "SOXL", "TBF"];
 
 const only = process.argv.slice(2);
 if (only.length === 0 || only.includes("assets")) {

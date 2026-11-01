@@ -27,9 +27,12 @@ describe("schema", () => {
       "notifications",
       "orders",
       "positions",
+      "rebalance_plans",
       "risk_decisions",
       "risk_gate_runs",
       "risk_state",
+      "strategies",
+      "thesis_events",
     ]);
   });
 

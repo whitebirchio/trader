@@ -1,6 +1,6 @@
 import { add, compare, decimalString, div, mul, round, sub } from "../money.js";
 import { ineligibleReasons } from "./eligibility.js";
-import type { Limits } from "./limits.js";
+import { type Limits, capExempt } from "./limits.js";
 import type { Decision, Proposal, RiskSnapshot } from "./types.js";
 
 /**
@@ -24,7 +24,7 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
     plannedBuys: "0",
     marketValue: new Map(snapshot.holdings.map((h) => [h.symbol, h.marketValue])),
     heldQty: new Map(snapshot.holdings.map((h) => [h.symbol, h.qty])),
-    satellite: snapshot.holdings.filter((h) => h.sleeve === "satellite").reduce((sum, h) => add(sum, h.marketValue), "0"),
+    conviction: snapshot.holdings.filter((h) => h.sleeve === "conviction").reduce((sum, h) => add(sum, h.marketValue), "0"),
   };
 
   return proposals.map((proposal): Decision => {
@@ -72,8 +72,7 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
       return null;
     };
 
-    const broad = (limits.broadEtfs as readonly string[]).includes(symbol);
-    if (!broad) {
+    if (!capExempt(symbol, limits)) {
       const cap = pctOf(snapshot.equity, limits.positionCapPct);
       const room = sub(cap, state.marketValue.get(symbol) ?? "0");
       const stopped = limitTo(
@@ -84,21 +83,23 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
       if (stopped) return reject(proposal, stopped);
     }
 
-    if (proposal.sleeve === "satellite") {
-      const cap = pctOf(snapshot.equity, limits.satelliteCapPct);
+    if (proposal.sleeve === "conviction") {
+      const cap = pctOf(snapshot.equity, limits.convictionCapPct);
       const stopped = limitTo(
-        sub(cap, state.satellite),
-        `Reduced to keep the satellite sleeve within ${limits.satelliteCapPct}% of equity ($${cap}).`,
-        `The satellite sleeve is already at its ${limits.satelliteCapPct}% limit ($${cap}).`,
+        sub(cap, state.conviction),
+        `Reduced to keep the conviction sleeve within ${limits.convictionCapPct}% of equity ($${cap}).`,
+        `The conviction sleeve is already at its ${limits.convictionCapPct}% limit ($${cap}).`,
       );
       if (stopped) return reject(proposal, stopped);
     }
 
     const cashRoom = sub(sub(snapshot.cash, buffer), state.plannedBuys);
+    const available = round(maxOf(cashRoom, "0"), 2, "down");
+    const hasBuffer = compare(buffer, "0") > 0;
     const cashStop = limitTo(
       cashRoom,
-      `Reduced to the cash available ($${round(maxOf(cashRoom, "0"), 2, "down")}, keeping a $${buffer} buffer).`,
-      `Not enough cash: $${round(maxOf(cashRoom, "0"), 2, "down")} available after the $${buffer} buffer.`,
+      hasBuffer ? `Reduced to the cash available ($${available}, keeping a $${buffer} buffer).` : `Reduced to the cash available ($${available}).`,
+      hasBuffer ? `Not enough cash: $${available} available after the $${buffer} buffer.` : `Not enough cash: $${available} available.`,
     );
     if (cashStop) return reject(proposal, cashStop);
 
@@ -112,7 +113,7 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
 
     state.plannedBuys = add(state.plannedBuys, notional);
     state.marketValue.set(symbol, add(state.marketValue.get(symbol) ?? "0", notional));
-    if (proposal.sleeve === "satellite") state.satellite = add(state.satellite, notional);
+    if (proposal.sleeve === "conviction") state.conviction = add(state.conviction, notional);
     state.orders++;
     return { proposal, verdict: reasons.length ? "clipped" : "approved", notional, reasons };
   }

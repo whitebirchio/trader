@@ -34,7 +34,7 @@ function healthy(symbol: string): AssetFacts {
 }
 
 describe("leveraged and inverse funds (recorded assets)", () => {
-  it.each(["VTI", "QQQ", "AAPL", "XLK", "ARKK", "VGSH"])("%s is eligible", (symbol) => {
+  it.each(["VTI", "QQQ", "AAPL", "XLK", "ARKK", "VGSH", "SGOV", "BIL", "SHV"])("%s is eligible", (symbol) => {
     expect(ineligibleReasons(symbol, healthy(symbol), LIMITS)).toEqual([]);
   });
 
@@ -45,6 +45,7 @@ describe("leveraged and inverse funds (recorded assets)", () => {
     ["UVXY", "margin requirement 100%"],
     ["SOXL", "margin requirement 75%"],
     ["SH", 'by name ("ProShares Short S&P500")'], // 1× inverse: normal margin, caught by name
+    ["TBF", 'by name ("ProShares Short 20+ Year Treasury ETF")'], // inverse Treasuries: normal margin, caught by name
   ])("%s is rejected (%s)", (symbol, why) => {
     const reasons = ineligibleReasons(symbol, healthy(symbol), LIMITS);
     expect(reasons).toHaveLength(1);

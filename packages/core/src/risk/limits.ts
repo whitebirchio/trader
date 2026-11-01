@@ -15,8 +15,8 @@ export const LIMITS = {
 
   /** Max position, after the trade, for anything not in BROAD_ETFS. */
   positionCapPct: "20",
-  /** Max satellite sleeve exposure after the trade. */
-  satelliteCapPct: "30",
+  /** Max conviction sleeve exposure after the trade. */
+  convictionCapPct: "100",
 
   /** Buy eligibility. */
   minPrice: "5",
@@ -26,9 +26,14 @@ export const LIMITS = {
   /** Alpaca margin requirement at or above this marks a leveraged/volatility product. */
   leveragedMarginPct: "50",
 
-  /** Cash kept back from buys: the larger of a floor and a share of equity. */
-  cashBufferMin: "5",
-  cashBufferPct: "1",
+  /**
+   * Cash kept back from buys: the larger of a floor and a share of equity.
+   * Zero by the owner's choice (2026-11-01): this is risk capital, and idle
+   * money sits in VTI, not cash. Notional market buys can't overspend, and
+   * Alpaca's fees come out of sell proceeds.
+   */
+  cashBufferMin: "0",
+  cashBufferPct: "0",
 
   /** Runaway guard per trading day. */
   maxOrdersPerDay: 40,
@@ -46,9 +51,25 @@ export const LIMITS = {
     "VXUS", "IXUS", "VEA", "VWO", "IEFA", "IEMG",
     "BND", "AGG", "BNDX", "SCHZ",
   ],
+
+  /**
+   * Treasury-bill funds that behave like cash, also exempt from the position cap,
+   * so a defensive (risk-off) move can go all the way (Scott, 2026-11-01). An
+   * owner list, not "whatever the strategy calls defensive", or any symbol could
+   * escape the cap by being labelled defensive.
+   */
+  cashEquivalentEtfs: ["SGOV", "BIL", "SHV"],
 } as const;
 
-export type Limits = typeof LIMITS;
+/** Whether `symbol` is exempt from the per-name position cap. */
+export function capExempt(symbol: string, limits: Limits): boolean {
+  return limits.broadEtfs.includes(symbol) || limits.cashEquivalentEtfs.includes(symbol);
+}
+
+type Widen<T> = T extends string ? string : T extends number ? number : T extends readonly (infer U)[] ? readonly Widen<U>[] : T;
+
+/** The shape of a limits object: LIMITS itself, or a variant in tests. */
+export type Limits = { readonly [K in keyof typeof LIMITS]: Widen<(typeof LIMITS)[K]> };
 
 /** Short, stable fingerprint of the limits, stored with every decision. */
 export async function limitsVersion(limits: Limits = LIMITS): Promise<string> {

@@ -23,14 +23,14 @@ When `risk` is done:
 | **Daily loss pause** | flow-adjusted equity ≤ **−5% vs prior close** | buys | reject buys for the rest of the day; sells still run; clears itself the next trading day |
 | **Broker verdict** | `broker_account.trading_allowed` | every order | reject all |
 | **Fresh data** | last successful broker sync ≤ 20 min old | every order | reject all (fail closed) |
-| **Broad-ETF position** | uncapped | buys | — |
+| **Broad-ETF and cash-equivalent position** | uncapped. Broad: VTI, VOO, … Cash-equivalents: SGOV, BIL, SHV (Treasury bills, added 2026-11-01 so defensive moves can go all the way) | buys | — |
 | **Any other position** (single stocks, narrow/sector/thematic ETFs) | ≤ **20%** of equity after the trade | buys | clip to fit, or reject if the remainder is under $1 |
 | **Satellite sleeve** | ≤ **30%** of equity after the trade | satellite buys | clip / reject |
 | **Leveraged / inverse** | ineligible | buys | reject |
 | **Penny / illiquid** | last close < **$5** or 20-day avg dollar volume < **$10M** | buys | reject |
 | **Non-fractionable / not tradable** | ineligible | buys | reject |
 | **Recent IPO** | < **90 days** of daily bars | buys | reject |
-| **Cash** | total buys ≤ cash − buffer (max of $5 or 1% of equity) | buys | clip the last buys in plan order |
+| **Cash** | total buys ≤ cash − buffer. The buffer is **$0** (Scott, 2026-11-01): idle money sits in VTI, not cash. Notional buys can't overspend, and fees come out of sells. | buys | clip the last buys in plan order |
 | **No shorting** | sell qty ≤ held qty | sells | clip to held qty |
 | **Runaway guard** | ≤ 40 orders per trading day; buy notional ≤ 100% of equity per day | every order | reject the excess |
 

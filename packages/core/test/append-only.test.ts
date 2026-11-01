@@ -12,13 +12,17 @@ beforeEach(async () => {
     INSERT INTO broker_activities (id, type, at, raw) VALUES ('a-1', 'DIV', now(), '{}');
     INSERT INTO risk_gate_runs (id, limits_version, snapshot) VALUES ('00000000-0000-0000-0000-000000000001', 'v', '{}');
     INSERT INTO risk_decisions (gate_run_id, intent_key, symbol, side, sleeve, verdict, reasons, limits_version)
-      VALUES ('00000000-0000-0000-0000-000000000001', 'k', 'VTI', 'buy', 'core', 'approved', '[]', 'v');
+      VALUES ('00000000-0000-0000-0000-000000000001', 'k', 'VTI', 'buy', 'systematic', 'approved', '[]', 'v');
+    INSERT INTO strategies (authored_by, summary, document) VALUES ('owner', 's', '{}');
+    INSERT INTO thesis_events (thesis_id, symbol, kind, strategy_version, reason) VALUES ('t', 'AAPL', 'stopped', 1, 'r');
+    INSERT INTO rebalance_plans (trading_date, strategy_version, phase, targets, trades, notes) VALUES ('2026-11-02', 0, 'none', '[]', '[]', '[]');
   `);
 });
 
 describe.each(APPEND_ONLY_TABLES)("%s is append-only (ADR-008)", (table) => {
   it("rejects UPDATE", async () => {
-    await expect(pglite.exec(`UPDATE ${table} SET id = id`)).rejects.toThrow(/append-only/);
+    const col = table === "strategies" ? "version" : "id";
+    await expect(pglite.exec(`UPDATE ${table} SET ${col} = ${col}`)).rejects.toThrow(/append-only/);
   });
   it("rejects DELETE", async () => {
     await expect(pglite.exec(`DELETE FROM ${table}`)).rejects.toThrow(/append-only/);

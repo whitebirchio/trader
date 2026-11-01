@@ -109,7 +109,8 @@ async function expectDenied(label: string, query: string): Promise<void> {
 await app.query("SELECT count(*) FROM job_runs");
 log("  ✓ can read job_runs");
 for (const t of APPEND_ONLY_TABLES) {
-  await expectDenied(`UPDATE ${t}`, `UPDATE ${t} SET id = id WHERE false`);
+  const col = t === "strategies" ? "version" : "id";
+  await expectDenied(`UPDATE ${t}`, `UPDATE ${t} SET ${col} = ${col} WHERE false`);
   await expectDenied(`DELETE ${t}`, `DELETE FROM ${t} WHERE false`);
 }
 await expectDenied("CREATE TABLE", "CREATE TABLE trader_app_probe (id int)");

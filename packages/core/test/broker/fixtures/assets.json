@@ -136,6 +136,72 @@
   {
     "id": "id-7",
     "class": "us_equity",
+    "exchange": "NYSE",
+    "symbol": "SGOV",
+    "name": "iShares 0-3 Month Treasury Bond ETF",
+    "status": "active",
+    "tradable": true,
+    "marginable": true,
+    "maintenance_margin_requirement": 30,
+    "margin_requirement_long": "30",
+    "margin_requirement_short": "30",
+    "shortable": true,
+    "easy_to_borrow": true,
+    "borrow_status": "easy_to_borrow",
+    "fractionable": true,
+    "attributes": [
+      "fractional_eh_enabled",
+      "has_options",
+      "overnight_tradable"
+    ]
+  },
+  {
+    "id": "id-8",
+    "class": "us_equity",
+    "exchange": "ARCA",
+    "symbol": "BIL",
+    "name": "State Street SPDR Bloomberg 1-3 Month T-Bill ETF",
+    "status": "active",
+    "tradable": true,
+    "marginable": true,
+    "maintenance_margin_requirement": 30,
+    "margin_requirement_long": "30",
+    "margin_requirement_short": "30",
+    "shortable": true,
+    "easy_to_borrow": true,
+    "borrow_status": "easy_to_borrow",
+    "fractionable": true,
+    "attributes": [
+      "fractional_eh_enabled",
+      "has_options",
+      "overnight_tradable"
+    ]
+  },
+  {
+    "id": "id-9",
+    "class": "us_equity",
+    "exchange": "NYSE",
+    "symbol": "SHV",
+    "name": "iShares Trust iShares 0-1 Year Treasury Bond ETF",
+    "status": "active",
+    "tradable": true,
+    "marginable": true,
+    "maintenance_margin_requirement": 30,
+    "margin_requirement_long": "30",
+    "margin_requirement_short": "30",
+    "shortable": true,
+    "easy_to_borrow": true,
+    "borrow_status": "easy_to_borrow",
+    "fractionable": true,
+    "attributes": [
+      "fractional_eh_enabled",
+      "has_options",
+      "overnight_tradable"
+    ]
+  },
+  {
+    "id": "id-10",
+    "class": "us_equity",
     "exchange": "NASDAQ",
     "symbol": "TQQQ",
     "name": "ProShares UltraPro QQQ",
@@ -156,7 +222,7 @@
     ]
   },
   {
-    "id": "id-8",
+    "id": "id-11",
     "class": "us_equity",
     "exchange": "NASDAQ",
     "symbol": "SQQQ",
@@ -178,7 +244,7 @@
     ]
   },
   {
-    "id": "id-9",
+    "id": "id-12",
     "class": "us_equity",
     "exchange": "ARCA",
     "symbol": "SH",
@@ -200,7 +266,7 @@
     ]
   },
   {
-    "id": "id-10",
+    "id": "id-13",
     "class": "us_equity",
     "exchange": "ARCA",
     "symbol": "SPXL",
@@ -222,7 +288,7 @@
     ]
   },
   {
-    "id": "id-11",
+    "id": "id-14",
     "class": "us_equity",
     "exchange": "BATS",
     "symbol": "UVXY",
@@ -245,7 +311,7 @@
     ]
   },
   {
-    "id": "id-12",
+    "id": "id-15",
     "class": "us_equity",
     "exchange": "ARCA",
     "symbol": "SOXL",
@@ -264,6 +330,28 @@
       "fractional_eh_enabled",
       "has_options",
       "options_late_close",
+      "overnight_tradable"
+    ]
+  },
+  {
+    "id": "id-16",
+    "class": "us_equity",
+    "exchange": "ARCA",
+    "symbol": "TBF",
+    "name": "ProShares Short 20+ Year Treasury ETF",
+    "status": "active",
+    "tradable": true,
+    "marginable": true,
+    "maintenance_margin_requirement": 30,
+    "margin_requirement_long": "30",
+    "margin_requirement_short": "30",
+    "shortable": false,
+    "easy_to_borrow": false,
+    "borrow_status": "hard_to_borrow",
+    "fractionable": true,
+    "attributes": [
+      "fractional_eh_enabled",
+      "has_options",
       "overnight_tradable"
     ]
   }
