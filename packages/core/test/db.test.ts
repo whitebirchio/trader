@@ -19,6 +19,7 @@ describe("schema", () => {
     );
     expect(rows.rows.map((r) => r.table_name)).toEqual([
       "audit_events",
+      "benchmark_closes",
       "broker_account",
       "broker_activities",
       "equity_snapshots",

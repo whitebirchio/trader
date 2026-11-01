@@ -6,6 +6,7 @@ import { brokerAccount, brokerActivities, equitySnapshots, orders, positions } f
 import type { TradingEnv } from "../env.js";
 import { compare } from "../money.js";
 import { marketDate } from "../time.js";
+import { recordBenchmarkCloses } from "./benchmark-closes.js";
 import { buildLots, openQtyBySymbol } from "./lots.js";
 import { isOurClientOrderId } from "./orders.js";
 import type { Account, AccountConfig, Activity, BrokerAdapter, BrokerOrder } from "./port.js";
@@ -31,6 +32,8 @@ export type SyncResult =
         ordersChanged: number;
         positions: number;
         snapshot: boolean;
+        /** Benchmark closes written (after the close and forced syncs), or null if skipped. */
+        benchmarkCloses: number | null;
         tradingAllowed: boolean;
         blockedReasons: string[];
       };
@@ -70,6 +73,12 @@ export async function syncBroker(
   }
 
   const snapshot = phase === "after_close" ? await writeSnapshot(db, account, now) : false;
+  // Market data for readers without broker keys. Best effort: a missing
+  // benchmark close never blocks the account verdict.
+  const benchmarkCloses = phase === "open" ? null : await recordBenchmarkCloses(db, broker, now).catch((e: unknown) => {
+    console.error(JSON.stringify({ level: "error", message: "benchmark closes skipped", error: e instanceof Error ? e.message : String(e) }));
+    return null;
+  });
 
   const accountChanged = prior !== undefined && prior.accountNumber !== account.accountNumber;
   const reasons = [
@@ -107,6 +116,7 @@ export async function syncBroker(
       ordersChanged,
       positions: positionCount,
       snapshot,
+      benchmarkCloses,
       tradingAllowed: reasons.length === 0,
       blockedReasons: reasons,
     },
