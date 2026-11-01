@@ -77,8 +77,8 @@ npm run build -w trader-dashboard               # next build (output: standalone
 npm test -w trader-dashboard                    # vitest: auth, session, middleware, view models
 npx vitest run dashboard                        # (in packages/core) the read models
 npm run db:generate -w @trader/core             # after adding benchmark_closes
-npm run db:dashboard-role -w @trader/core -- --env staging|production   # create/rotate trader_dashboard (SELECT-only) → SSM DATABASE_READ_URL; prints nothing secret
-scripts/set-dashboard-secrets.sh staging|production   # session key (generated) + Google client secret (from .env) → SSM
+scripts/set-dashboard-secrets.sh staging|production   # trader_dashboard (SELECT-only, read-only transactions; rotates) → DATABASE_READ_URL, session key (generated into .env), Google client secret (from .env) → SSM; prints names only
+npm run db:dashboard-role -w @trader/core          # the role step alone (DATABASE_URL=owner, DASHBOARD_ROLE_PASSWORD); proves INSERT/UPDATE/DELETE/CREATE are denied
 npm run synth                                   # CDK: the Web Function, its endpoint, CloudFront, the cert
 ```
 
