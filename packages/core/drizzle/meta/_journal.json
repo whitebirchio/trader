@@ -113,6 +113,13 @@
       "when": 1793627685931,
       "tag": "0015_withdrawals_raised_cash",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793636668639,
+      "tag": "0016_dashboard_insert_capital_commands",
+      "breakpoints": true
     }
   ]
 }

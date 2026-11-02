@@ -24,13 +24,35 @@ const EVENT_LABELS: Record<string, string> = {
 const KIND_LABELS: Record<string, string> = { deposit: "Deposit", withdrawal: "Withdrawal", reversal: "Reversal" };
 const amountLabel = (amount: string) => (amount === "all" ? "Everything" : formatUsd(amount));
 
-export default async function MoneyPage() {
+const SENT: Record<string, string> = {
+  request: "Withdrawal requested.",
+  cancel: "Cancel sent.",
+  fund_now: "Fund now sent.",
+};
+
+/** A GET to the confirmation page: nothing changes until you confirm there. */
+function CommandLink({ kind, children }: { kind: "cancel" | "fund_now"; children: React.ReactNode }) {
+  return (
+    <form method="get" action="/money/confirm">
+      <input type="hidden" name="kind" value={kind} />
+      <button type="submit" className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{children}</button>
+    </form>
+  );
+}
+
+export default async function MoneyPage({ searchParams }: { searchParams: Promise<{ sent?: string }> }) {
   const { db } = await signedIn();
+  const sent = SENT[(await searchParams).sent ?? ""];
   const m = await moneyView(db, new Date());
   const w = m.withdrawal;
   const step = w ? STEPS.findIndex(([s]) => s === w.status) : -1;
   return (
     <div className="grid grid-cols-1 gap-4">
+      {sent && (
+        <div role="status" className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
+          <Status level="good">{sent}</Status> The engine picks it up within 15 minutes and emails you; until then it shows as waiting under Recent commands.
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Put in" value={m.summary ? formatUsd(m.summary.contributed) : "—"} detail="Deposits − withdrawals" />
         <StatTile label="Now worth" value={formatUsd(m.equity)} detail={`Cash ${formatUsd(m.cash)}`} />
@@ -40,9 +62,28 @@ export default async function MoneyPage() {
 
       <Card title="Withdrawal">
         {!w && (
-          <p className="text-sm text-[var(--muted)]">
-            No open withdrawal. To take money out, request it with <code>npm run capital:withdraw</code>; the controls arrive here next.
-          </p>
+          <div className="grid gap-3 text-sm">
+            <p className="text-[var(--muted)]">
+              Trader sells what's needed (Claude chooses what), holds the cash until it settles, and emails you when it's ready. You then move it out in Alpaca.
+            </p>
+            <form method="get" action="/money/confirm" className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="kind" value="request" />
+              <label htmlFor="withdraw-amount" className="grid gap-1">
+                <span className="text-xs text-[var(--muted)]">Amount (dollars, or all)</span>
+                <input
+                  id="withdraw-amount"
+                  name="amount"
+                  required
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="500"
+                  pattern="^(\d+(\.\d{1,2})?|[Aa][Ll][Ll])$"
+                  className="w-40 rounded-md border border-[var(--border)] bg-transparent px-2.5 py-1.5"
+                />
+              </label>
+              <button type="submit" className="rounded-md bg-[var(--text)] px-3 py-1.5 font-medium text-[var(--background)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Withdraw…</button>
+            </form>
+          </div>
         )}
         {w && (
           <div className="grid gap-4 text-sm">
@@ -67,6 +108,10 @@ export default async function MoneyPage() {
             {w.status === "ready" && (
               <p className="font-medium">Start a {formatUsd(m.withdrawable ?? w.outstanding)} withdrawal in Alpaca. Trader matches it when it posts and closes the request.</p>
             )}
+            <div className="flex flex-wrap gap-2">
+              {w.status === "planning" && <CommandLink kind="fund_now">Fund now…</CommandLink>}
+              <CommandLink kind="cancel">Cancel withdrawal…</CommandLink>
+            </div>
             {m.timeline.length > 0 && (
               <ul className="grid gap-1">
                 {m.timeline.map((e, i) => (

@@ -9,10 +9,14 @@ export const SESSION_COOKIE = "__Host-trader_session";
 export const OAUTH_COOKIE = "__Host-trader_oauth";
 export const SESSION_TTL_S = 30 * 24 * 60 * 60;
 export const OAUTH_TTL_S = 10 * 60;
+/** A form's anti-forgery token lives this long: long enough to read the confirmation, short enough not to leak usefully. */
+export const CSRF_TTL_S = 30 * 60;
 
 export type Signed =
   | { t: "session"; email: string; exp: number }
-  | { t: "oauth"; state: string; nonce: string; verifier: string; exp: number };
+  | { t: "oauth"; state: string; nonce: string; verifier: string; exp: number }
+  /** A write form's anti-forgery token, bound to the signed-in owner (SPEC-capital). */
+  | { t: "csrf"; email: string; exp: number };
 
 const enc = new TextEncoder();
 export const b64url = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64url");
