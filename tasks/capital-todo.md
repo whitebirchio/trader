@@ -84,7 +84,7 @@
 - **Depends on:** C7 · **Scope:** M
 
 ### C10: Dashboard Money page (read)
-- [ ] `money/page.tsx`: ledger, contributed / value / VTI, request timeline + deadline; nav link
+- [x] `money/page.tsx` over core `moneyView`: put in / now worth / same in VTI / held back; the open request's steps, Claude's deadline and its event timeline; the transfer ledger; recent commands and past withdrawals; nav link; Activity labels for every capital kind. *Builds; not yet viewed in a browser (Checkpoint C on staging).*
 - **Depends on:** C4, C5 · **Scope:** S
 
 ### C11: Dashboard writes

@@ -1,9 +1,23 @@
 import { capitalSummary } from "../capital/shadow.js";
-import { asc, desc, eq } from "drizzle-orm";
+import { capitalOverview } from "../capital/overview.js";
+import { OPEN_STATUSES } from "../capital/withdrawals.js";
+import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
 import { buildLots } from "../broker/lots.js";
 import type { Db } from "../db/client.js";
-import { benchmarkCloses, brokerAccount, brokerActivities, positions, riskState, strategies } from "../db/schema.js";
+import {
+  auditEvents,
+  benchmarkCloses,
+  brokerAccount,
+  brokerActivities,
+  capitalCommandResults,
+  capitalCommands,
+  capitalFlows,
+  positions,
+  riskState,
+  strategies,
+  withdrawals,
+} from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import { compare, div, mul, sub } from "../money.js";
 import { getActivity, getHoldings, getStrategy } from "../agent/tools.js";
@@ -189,4 +203,42 @@ export async function strategyVersion(db: Db, version: number) {
 /** The activity timeline: the same feed Claude reads (get_activity), 1–90 days. */
 export function activityView(db: Db, now: Date, days = 14) {
   return getActivity({ db, now }, days);
+}
+
+/**
+ * The Money page (SPEC-capital): the ledger, the money-weighted comparison,
+ * the open withdrawal with its timeline, and recent commands.
+ */
+export async function moneyView(db: Db, now: Date) {
+  const account = (await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1)))[0];
+  const active = await activeStrategy(db, now);
+  const equity = account?.equity ?? "0";
+  const overview = await capitalOverview(db, { equity, cash: account?.cash ?? "0" }, active.reaffirmedAt);
+  const ledger = await db.select().from(capitalFlows).orderBy(desc(capitalFlows.at)).limit(100);
+  const open = overview?.withdrawal ? (await db.select().from(withdrawals).where(inArray(withdrawals.status, OPEN_STATUSES)).limit(1))[0] : undefined;
+  const timeline = open
+    ? await db.select().from(auditEvents).where(and(eq(auditEvents.subject, open.id), like(auditEvents.kind, "capital.%"))).orderBy(asc(auditEvents.at))
+    : [];
+  const commands = await db
+    .select({ c: capitalCommands, r: capitalCommandResults })
+    .from(capitalCommands)
+    .leftJoin(capitalCommandResults, eq(capitalCommandResults.commandId, capitalCommands.id))
+    .orderBy(desc(capitalCommands.at))
+    .limit(10);
+  const past = await db.select().from(withdrawals).where(inArray(withdrawals.status, ["withdrawn", "cancelled"])).orderBy(desc(withdrawals.requestedAt)).limit(10);
+  return {
+    equity,
+    cash: account?.cash ?? "0",
+    summary: overview?.summary ?? null,
+    withdrawal: overview?.withdrawal ?? null,
+    timeline: timeline.map((e) => ({ at: e.at.toISOString(), kind: e.kind, actor: e.actor, reason: typeof e.payload.reason === "string" ? e.payload.reason : null })),
+    /** What the ready email said to withdraw (a few cents under the request when the sells came in short). */
+    withdrawable: (() => {
+      const ready = [...timeline].reverse().find((e) => e.kind === "capital.withdrawal_ready");
+      return typeof ready?.payload.withdrawable === "string" ? ready.payload.withdrawable : (overview?.withdrawal?.outstanding ?? null);
+    })(),
+    ledger: ledger.map((f) => ({ at: f.at.toISOString(), amount: f.amount, kind: f.kind, status: f.status, approximate: f.timedBy === "booking_date" })),
+    commands: commands.map(({ c, r }) => ({ at: c.at.toISOString(), kind: c.kind, amount: c.amount, requestedBy: c.requestedBy, outcome: r?.outcome ?? "pending", reason: r?.reason ?? null })),
+    past: past.map((w) => ({ requestedAt: w.requestedAt.toISOString(), closedAt: w.closedAt?.toISOString() ?? null, amount: w.amount ?? "all", withdrawn: w.withdrawn, status: w.status })),
+  };
 }

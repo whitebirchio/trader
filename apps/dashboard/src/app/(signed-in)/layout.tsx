@@ -4,6 +4,7 @@ import { signedIn } from "@/lib/auth";
 const NAV = [
   ["/", "Overview"],
   ["/holdings", "Holdings"],
+  ["/money", "Money"],
   ["/strategy", "Strategy"],
   ["/activity", "Activity"],
 ] as const;
