@@ -98,6 +98,9 @@ export async function submitOrder(
           notional: intent.notional ?? null,
           qty: intent.qty ?? null,
           status: "intent",
+          // The caller's clock, not the database's: risk counts today's orders by it.
+          createdAt: now,
+          updatedAt: now,
         })
         .returning()
     )[0];

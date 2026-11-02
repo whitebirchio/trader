@@ -90,6 +90,10 @@ describe("rebalance", () => {
   it("on a strategy change, sells first and buys on the next step", async () => {
     await step();
     await fillAll({ VTI: "300" });
+    // The next trading day: today's $1000 buy already used the daily buy limit (100% of equity).
+    broker.calendar.push({ date: "2026-11-03", open: new Date("2026-11-03T14:30:00Z"), close: new Date("2026-11-03T21:00:00Z") });
+    clock = new Date("2026-11-03T15:35:00Z");
+    await sync();
     await submitStrategy(
       db,
       strategy({ conviction: [thesis({ targetWeightPct: "20" })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } }),
