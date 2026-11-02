@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { recordEvent } from "../../src/audit.js";
 import { syncBroker } from "../../src/broker/sync.js";
+import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
 import { auditEvents, notifications } from "../../src/db/schema.js";
 import type { TradingEnv } from "../../src/env.js";
@@ -115,6 +116,16 @@ describe("notify-digest", () => {
     clock = new Date(clock.getTime() + 15 * 60_000);
     expect(await notifyDigest(ctx())).toEqual({ status: "skipped", reason: "digest already queued today" });
     expect(mailer.sent).toHaveLength(1);
+  });
+
+  it("includes the money-weighted comparison once a transfer is recorded", async () => {
+    await tradingDay();
+    broker.activities.push({ id: "csd-1", type: "CSD", at: new Date("2026-11-02T15:30:00Z"), symbol: null, side: null, qty: null, price: null, netAmount: "1000", orderId: null, raw: { created_at: "2026-11-02T15:30:00Z" } });
+    await syncBroker(db, broker, "staging", new Date("2026-11-02T15:45:00Z"));
+    await recordCapitalFlows(db, new Date("2026-11-02T15:45:00Z"));
+    clock = new Date(CLOSE.getTime() + 30 * 60_000);
+    await notifyDigest(ctx());
+    expect(mailer.sent[0]?.text).toMatch(/Put in \$1000, now \$/);
   });
 
   it("sends on a quiet day too", async () => {

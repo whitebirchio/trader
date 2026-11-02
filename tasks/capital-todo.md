@@ -24,9 +24,9 @@
 - **Depends on:** C2 · **Scope:** M
 
 ### C4: Deposit notice + money-weighted comparison
-- [ ] `capital/shadow.ts` (pure): the same flows into VTI at each flow date's close
-- [ ] Contributed / value / same-flows VTI in `getOverview` and on the dashboard overview
-- [ ] Audit kinds + routing + templates: `capital.deposit_received` (digest), `capital.deposit_reversed` (urgent), `capital.unplanned_outflow` (urgent), `capital.transfer_canceled` (urgent: the index assumes a canceled transfer never moved money, so a wrong guess gets seen)
+- [x] `capital/shadow.ts`: `sameFlowsInBenchmark` (pure; last close on or before each flow's market date) + `capitalSummary(db, equity)` from the ledger and `benchmark_closes` (DB only)
+- [x] Contributed / value / same-flows VTI in `getOverview` (`capital`), the dashboard overview ("Your money" card) and the daily digest
+- [x] Audit kinds + routing + templates, recorded with each new flow in one transaction: `capital.deposit_received` (digest, "Money in and out" section), `capital.transfer_reversed` (urgent; either direction), `capital.transfer_canceled` (urgent), `capital.unplanned_outflow` (urgent). Flows older than 7 days are recorded silently, so the first run's backfill sends nothing
 - **Depends on:** C3 · **Scope:** M
 
 ### Checkpoint A

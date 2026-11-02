@@ -85,9 +85,30 @@ export function describe(e: NotifiableEvent): Described {
         headline: `Thesis unwound: ${str(e.subject)} (not reviewed)`,
         lines: [`Thesis ${str(p.thesisId)} was ${str(p.reason)}, so it's sold into the systematic sleeve.`, "If research is running, this means Claude's strategy hasn't been resubmitted in 30 days."],
       };
+    case "capital.transfer_reversed":
+      return {
+        headline: `Transfer reversed: ${money(p.amount)}`,
+        lines: [`Alpaca reversed an earlier ${str(p.type)} transfer (e.g. a returned instant ACH).`, "It's counted as money out, not as a loss. Check the bank side if you didn't expect it."],
+      };
+    case "capital.transfer_canceled":
+      return {
+        headline: `Transfer canceled: ${money(p.amount)}`,
+        lines: [`Alpaca marked a ${str(p.type)} transfer canceled.`, "Trader leaves it out of performance on the assumption that no money moved. If equity says otherwise, tell Claude."],
+      };
+    case "capital.unplanned_outflow":
+      return {
+        headline: `Money left the account: ${money(sub("0", str(p.amount)))}`,
+        lines: ["There was no withdrawal request for it. It's counted as a withdrawal, not as a loss.", "If you didn't move this money, check the Alpaca account now."],
+      };
     default:
       return { headline: e.kind, lines: [JSON.stringify(p)] };
   }
+}
+
+/** "$500", "-$1000": signed dollars from a decimal string. */
+function money(v: unknown): string {
+  const s = str(v);
+  return s.startsWith("-") ? `-$${s.slice(1)}` : `$${s}`;
 }
 
 function prefix(env: TradingEnv): string {
@@ -142,6 +163,8 @@ export interface DigestData {
   state: { killSwitch: boolean; halted: boolean; haltReason: string | null };
   /** Flow-adjusted performance vs VTI since the first snapshot (portfolio/benchmark.ts), once there are two. */
   benchmark?: { since: string; portfolioPct: string; benchmarkPct: string } | null;
+  /** Money-weighted: net deposits, today's value, and the same deposits held in VTI (SPEC-capital). */
+  capital?: { contributed: string; value: string; sameFlowsInVti: string | null } | null;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -173,6 +196,10 @@ function tradeLine(e: NotifiableEvent): string | null {
   }
 }
 
+function capitalLine(e: NotifiableEvent): string | null {
+  return e.kind === "capital.deposit_received" ? `Received ${money(e.payload.amount)} (invested at the next rebalance step)` : null;
+}
+
 function guardrailLine(e: NotifiableEvent): string | null {
   const p = e.payload;
   switch (e.kind) {
@@ -194,6 +221,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
 
   const trades = data.events.map(tradeLine).filter((l): l is string => l !== null);
   const guardrails = data.events.map(guardrailLine).filter((l): l is string => l !== null);
+  const capital = data.events.map(capitalLine).filter((l): l is string => l !== null);
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
     : data.state.halted
@@ -208,11 +236,15 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
         ...(data.benchmark
           ? [`Since ${shortDate(data.benchmark.since)}: ${signed(data.benchmark.portfolioPct)}% vs VTI ${signed(data.benchmark.benchmarkPct)}%`]
           : []),
+        ...(data.capital
+          ? [`Put in $${data.capital.contributed}, now $${data.capital.value}${data.capital.sameFlowsInVti ? `; the same deposits in VTI: $${data.capital.sameFlowsInVti}` : ""}`]
+          : []),
         `Cash $${data.cash}`,
         `Guardrails: ${status}`,
       ],
     ],
     ["Positions", data.positions.length ? data.positions.map((p) => `${p.symbol}: ${p.qty} sh, $${p.marketValue}`) : ["None (all cash)"]],
+    ...(capital.length ? ([["Money in and out", capital]] as [string, string[]][]) : []),
     ["Trades", trades.length ? trades : ["None today"]],
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
   ];

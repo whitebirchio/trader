@@ -42,7 +42,7 @@ const syncBrokerJob: JobFn = async ({ db, env, broker, now }) => {
   if (result.status === "skipped") return { status: "skipped", reason: result.reason };
   // Transfers reach the ledger before the drawdown check, so a deposit or
   // withdrawal is never measured as a gain or a loss (SPEC-capital).
-  const capital = await recordCapitalFlows(db);
+  const capital = await recordCapitalFlows(db, now());
   // The drawdown check runs on what the sync just wrote. If it fails, the sync
   // still counts: its data is written, and the error is visible in the detail.
   let risk: Record<string, unknown>;

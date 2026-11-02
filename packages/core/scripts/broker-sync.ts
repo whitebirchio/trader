@@ -34,7 +34,7 @@ const pool = new Pool({ connectionString: repo.require(`${prefix}_MIGRATE_URL`) 
 try {
   const db = drizzle(pool, { casing: "snake_case" }) as unknown as Db;
   const result = await syncBroker(db, broker, env, new Date(), { ignoreSession: values.force });
-  const capital = result.status === "synced" ? await recordCapitalFlows(db) : null;
+  const capital = result.status === "synced" ? await recordCapitalFlows(db, new Date()) : null;
   console.log(JSON.stringify({ ...result, capital }, null, 2));
 } finally {
   await pool.end();

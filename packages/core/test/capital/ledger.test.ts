@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Activity } from "../../src/broker/port.js";
 import { recordCapitalFlows, toCapitalFlow } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
-import { brokerActivities, capitalFlows } from "../../src/db/schema.js";
+import { auditEvents, brokerActivities, capitalFlows } from "../../src/db/schema.js";
 import { runJob } from "../../src/jobs.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb, deps } from "../helpers.js";
@@ -46,6 +46,8 @@ describe("toCapitalFlow", () => {
   });
 });
 
+const NOW = new Date("2026-11-03T18:00:00Z");
+
 describe("recordCapitalFlows", () => {
   let db: Db;
   beforeEach(async () => {
@@ -61,8 +63,8 @@ describe("recordCapitalFlows", () => {
     await insertActivity("div", "DIV", "1.20", {}, new Date("2026-06-01T16:00:00Z"));
     await insertActivity("out", "CSW", "-200", {}, new Date("2026-11-03T17:00:00Z"));
 
-    expect(await recordCapitalFlows(db)).toEqual({ added: 2, timedByBookingDate: 1 });
-    expect(await recordCapitalFlows(db)).toEqual({ added: 0, timedByBookingDate: 0 });
+    expect(await recordCapitalFlows(db, NOW)).toEqual({ added: 2, timedByBookingDate: 1 });
+    expect(await recordCapitalFlows(db, NOW)).toEqual({ added: 0, timedByBookingDate: 0 });
 
     const rows = await db.select().from(capitalFlows);
     expect(rows.map((r) => [r.activityId, r.amount, r.kind]).sort()).toEqual([
@@ -73,9 +75,52 @@ describe("recordCapitalFlows", () => {
 
   it("picks up a flow that arrives after earlier ones were recorded", async () => {
     await insertActivity("dep", "CSD", "1000", { created_at: "2026-04-19T19:54:49Z" }, new Date("2026-04-19T19:54:49Z"));
-    await recordCapitalFlows(db);
+    await recordCapitalFlows(db, NOW);
     await insertActivity("dep2", "CSD", "500", { created_at: "2026-11-02T15:00:00Z" }, new Date("2026-11-02T15:00:00Z"));
-    expect(await recordCapitalFlows(db)).toEqual({ added: 1, timedByBookingDate: 0 });
+    expect(await recordCapitalFlows(db, NOW)).toEqual({ added: 1, timedByBookingDate: 0 });
+  });
+});
+
+describe("recordCapitalFlows audit events", () => {
+  let db: Db;
+  beforeEach(async () => {
+    ({ db } = await createTestDb());
+  });
+  const recent = new Date("2026-11-03T15:00:00Z");
+  async function add(id: string, type: string, netAmount: string, raw: Record<string, unknown> = {}, at = recent) {
+    await db.insert(brokerActivities).values({ id, type, at, netAmount, raw: { created_at: at.toISOString(), status: "executed", ...raw } });
+  }
+  const events = async () => (await db.select().from(auditEvents)).map((e) => ({ kind: e.kind, actor: e.actor, subject: e.subject, payload: e.payload }));
+
+  it("announces a deposit, a reversal, an unplanned outflow and a canceled transfer", async () => {
+    await add("dep", "CSD", "1000");
+    await add("ret", "CSD", "-1000");
+    await add("out", "CSW", "-200");
+    await add("can", "CSD", "500", { status: "canceled" });
+    await recordCapitalFlows(db, NOW);
+    expect(await events()).toEqual(
+      expect.arrayContaining([
+        { kind: "capital.deposit_received", actor: "system", subject: "dep", payload: expect.objectContaining({ amount: "1000", type: "CSD" }) },
+        { kind: "capital.transfer_reversed", actor: "system", subject: "ret", payload: expect.objectContaining({ amount: "-1000" }) },
+        { kind: "capital.unplanned_outflow", actor: "system", subject: "out", payload: expect.objectContaining({ amount: "-200" }) },
+        { kind: "capital.transfer_canceled", actor: "system", subject: "can", payload: expect.objectContaining({ amount: "500" }) },
+      ]),
+    );
+    expect(await events()).toHaveLength(4);
+  });
+
+  it("records old history silently (the first run's backfill), announcing only the last 7 days", async () => {
+    await add("april", "CSD", "1000", {}, new Date("2026-04-19T19:54:49Z"));
+    await add("today", "CSD", "50");
+    expect(await recordCapitalFlows(db, NOW)).toMatchObject({ added: 2 });
+    expect((await events()).map((e) => e.subject)).toEqual(["today"]);
+  });
+
+  it("announces each flow once", async () => {
+    await add("dep", "CSD", "1000");
+    await recordCapitalFlows(db, NOW);
+    await recordCapitalFlows(db, NOW);
+    expect(await events()).toHaveLength(1);
   });
 });
 

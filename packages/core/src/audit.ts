@@ -36,6 +36,11 @@ export const AUDIT_KINDS = [
   "thesis.stopped_out",
   "thesis.stale",
   "rebalance.planned",
+  // Money in and out (SPEC-capital).
+  "capital.deposit_received",
+  "capital.transfer_reversed",
+  "capital.transfer_canceled",
+  "capital.unplanned_outflow",
 ] as const;
 
 export type AuditKind = (typeof AUDIT_KINDS)[number];

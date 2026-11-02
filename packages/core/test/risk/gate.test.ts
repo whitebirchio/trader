@@ -139,7 +139,7 @@ describe("checkDrawdown", () => {
     transfer("csw-1", "CSW", "-500", new Date("2026-11-02T14:00:00Z"));
     broker.account = { ...broker.account, equity: "500", cash: "500", lastEquity: "1000" };
     await syncBroker(db, broker, "staging", NOW);
-    await recordCapitalFlows(db);
+    await recordCapitalFlows(db, NOW);
     expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no", buysPaused: false });
   });
 
@@ -151,7 +151,7 @@ describe("checkDrawdown", () => {
     transfer("csd-1", "CSD", "1000", marketTimeToUtc("2026-10-30", "20:00"));
     broker.account = { ...broker.account, equity: "2000", cash: "2000", lastEquity: "1000" };
     await syncBroker(db, broker, "staging", NOW);
-    await recordCapitalFlows(db);
+    await recordCapitalFlows(db, NOW);
     expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no", buysPaused: false });
   });
 
@@ -159,7 +159,7 @@ describe("checkDrawdown", () => {
     await snapshots(["2026-10-30", "1000"]);
     transfer("csd-x", "CSD", "1000", new Date("2026-11-02T14:00:00Z"), "canceled");
     await syncBroker(db, broker, "staging", NOW);
-    await recordCapitalFlows(db);
+    await recordCapitalFlows(db, NOW);
     expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no" });
   });
 

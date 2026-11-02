@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { type AuditKind, recordEvent } from "../audit.js";
 import type { Activity } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import { brokerActivities, capitalFlows } from "../db/schema.js";
@@ -58,11 +59,29 @@ export interface RecordFlowsResult {
   timedByBookingDate: number;
 }
 
+/** Older flows are recorded silently: the first run backfills history without a burst of emails. */
+export const ANNOUNCE_WITHIN_MS = 7 * 86_400_000;
+
+/** The audit event for a newly recorded flow (SPEC-capital). */
+export function flowEventKind(f: Pick<CapitalFlow, "kind" | "status">): AuditKind {
+  if (f.status === "canceled") return "capital.transfer_canceled";
+  switch (f.kind) {
+    case "deposit":
+      return "capital.deposit_received";
+    case "reversal":
+      return "capital.transfer_reversed";
+    case "withdrawal":
+      // Until withdrawal requests exist (C5), every outflow is unplanned.
+      return "capital.unplanned_outflow";
+  }
+}
+
 /**
- * Copy transfer activities that aren't in the ledger yet. Idempotent: it runs
- * after every broker sync, and the first run backfills the whole history.
+ * Copy transfer activities that aren't in the ledger yet, and announce the
+ * recent ones. Idempotent: it runs after every broker sync, and the first
+ * run backfills the whole history.
  */
-export async function recordCapitalFlows(db: Db): Promise<RecordFlowsResult> {
+export async function recordCapitalFlows(db: Db, now: Date): Promise<RecordFlowsResult> {
   const pending = await db
     .select({ activity: brokerActivities })
     .from(brokerActivities)
@@ -70,16 +89,30 @@ export async function recordCapitalFlows(db: Db): Promise<RecordFlowsResult> {
     .where(and(inArray(brokerActivities.type, FLOW_ACTIVITY_TYPES), isNull(capitalFlows.activityId)));
 
   const flows = pending
-    .map(({ activity: r }) =>
-      toCapitalFlow({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null }),
-    )
-    .filter((f): f is CapitalFlow => f !== null);
+    .map(({ activity: r }) => ({
+      flow: toCapitalFlow({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null }),
+      type: r.type,
+    }))
+    .filter((x): x is { flow: CapitalFlow; type: string } => x.flow !== null);
   if (flows.length === 0) return { added: 0, timedByBookingDate: 0 };
 
-  const inserted = await db
-    .insert(capitalFlows)
-    .values(flows)
-    .onConflictDoNothing({ target: capitalFlows.activityId })
-    .returning({ timedBy: capitalFlows.timedBy });
-  return { added: inserted.length, timedByBookingDate: inserted.filter((r) => r.timedBy === "booking_date").length };
+  // The row and its announcement land together, or not at all.
+  return db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(capitalFlows)
+      .values(flows.map((x) => x.flow))
+      .onConflictDoNothing({ target: capitalFlows.activityId })
+      .returning({ activityId: capitalFlows.activityId, timedBy: capitalFlows.timedBy });
+    const insertedIds = new Set(inserted.map((r) => r.activityId));
+    for (const { flow, type } of flows) {
+      if (!insertedIds.has(flow.activityId) || now.getTime() - flow.at.getTime() > ANNOUNCE_WITHIN_MS) continue;
+      await recordEvent(tx as unknown as Db, {
+        actor: "system",
+        kind: flowEventKind(flow),
+        subject: flow.activityId,
+        payload: { amount: flow.amount, type, at: flow.at.toISOString(), timedBy: flow.timedBy, status: flow.status },
+      });
+    }
+    return { added: inserted.length, timedByBookingDate: inserted.filter((r) => r.timedBy === "booking_date").length };
+  });
 }

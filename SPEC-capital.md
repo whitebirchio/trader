@@ -99,7 +99,7 @@ Weights are a share of equity, so a smaller account shrinks every target pro rat
 | `portfolio` | `investable` subtracts the outstanding withdrawal. Fallback strategy builder. Halted withdrawal-only mode. Preview adds realized gain/loss and wash-sale detail per sell. |
 | `agent` | `get_overview` gets a `capital` section (pending withdrawal and deadline, flows since the last strategy, money-weighted vs VTI). The preview additions. A routine-prompt section. **No new write tool.** Claude can't create or cancel withdrawals. |
 | `dashboard` | A **Money** page: the ledger, contributed / value / same-flows VTI, the open request's timeline, and *Withdraw*, *Fund now* and *Cancel*. The first write path (below). |
-| `notifications` | New kinds, routed: `capital.deposit_received` (digest), `capital.deposit_reversed` (urgent), `capital.withdrawal_requested` (urgent), `capital.funding_planned` (urgent, with the reasoning), `capital.withdrawal_ready` (urgent), `capital.withdrawal_completed` (digest), `capital.withdrawal_cancelled` (urgent), `capital.unplanned_outflow` (urgent). The digest lists any open request. |
+| `notifications` | New kinds, routed: `capital.deposit_received` (digest), `capital.transfer_reversed` (urgent, either direction), `capital.transfer_canceled` (urgent), `capital.withdrawal_requested` (urgent), `capital.funding_planned` (urgent, with the reasoning), `capital.withdrawal_ready` (urgent), `capital.withdrawal_completed` (digest), `capital.withdrawal_cancelled` (urgent), `capital.unplanned_outflow` (urgent). The digest lists any open request. |
 
 ### The dashboard's write path
 

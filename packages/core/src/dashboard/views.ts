@@ -1,3 +1,4 @@
+import { capitalSummary } from "../capital/shadow.js";
 import { asc, desc, eq } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
 import { buildLots } from "../broker/lots.js";
@@ -84,6 +85,7 @@ export async function overviewView(db: Db, env: TradingEnv, now: Date) {
     },
     strategy: { version: active.version, authoredBy: active.authoredBy, createdAt: active.createdAt.toISOString(), summary: active.strategy.summary },
     performance: await performanceSeries(db),
+    capital: await capitalSummary(db, account?.equity ?? "0"),
   };
 }
 

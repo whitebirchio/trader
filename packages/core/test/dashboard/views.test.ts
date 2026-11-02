@@ -86,6 +86,7 @@ describe("overviewView", () => {
       guardrails: { killSwitch: false, halted: false, brokerTradingAllowed: true },
       strategy: { version: 1, authoredBy: "claude" },
       performance: { points: [] },
+      capital: null,
     });
     expect(broker.calls).toEqual(calls); // no broker calls
   });
