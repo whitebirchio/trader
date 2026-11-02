@@ -144,7 +144,7 @@ describe("processWithdrawal", () => {
     expect(await processWithdrawal(db, at("2026-11-02", "10:15"), CALENDAR)).toMatchObject({ status: "open", state: "planning", steps: [] });
 
     // Claude's strategy after the request is the funding plan.
-    await db.insert(strategies).values({ authoredBy: "claude", summary: "s", document: {}, createdAt: at("2026-11-02", "12:10") });
+    await db.insert(strategies).values({ authoredBy: "claude", summary: "Funded from VTI; NVDA kept for its insider buying.", document: {}, createdAt: at("2026-11-02", "12:10") });
     expect(await processWithdrawal(db, at("2026-11-02", "12:15"), CALENDAR)).toMatchObject({ state: "funding", steps: ["funding"] });
     expect((await theWithdrawal()).fundedBy).toBe("claude");
 
@@ -169,8 +169,10 @@ describe("processWithdrawal", () => {
       "capital.withdrawal_ready",
       "capital.withdrawal_completed",
     ]);
+    const planned = (await events()).find((e) => e.kind === "capital.funding_planned");
+    expect(planned?.payload).toMatchObject({ version: 1, fundedBy: "claude", summary: "Funded from VTI; NVDA kept for its insider buying." });
     const ready = (await events()).find((e) => e.kind === "capital.withdrawal_ready");
-    expect(ready?.payload).toMatchObject({ amount: "500", outstanding: "500", reason: "$510.00 of settled cash covers $500.00" });
+    expect(ready?.payload).toMatchObject({ amount: "500", outstanding: "500", withdrawable: "500", reason: "$510.00 of settled cash covers $500.00" });
   });
 
   it("waits for open orders before treating everything as sold", async () => {

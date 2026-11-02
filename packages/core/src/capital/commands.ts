@@ -260,6 +260,11 @@ export async function processWithdrawal(db: Db, now: Date, calendar: CalendarDay
     last = advance(w, view, now);
     if (last.status !== "advanced") break;
     const t = last;
+    // The funding plan's own summary: Claude's reasoning, or the fallback's account of what it kept.
+    const planSummary =
+      t.fundingVersion !== undefined
+        ? (await db.select({ summary: strategies.summary }).from(strategies).where(eq(strategies.version, t.fundingVersion)))[0]?.summary
+        : undefined;
     const next = await db.transaction(async (txn) => {
       const tx = txn as unknown as Db;
       const [row] = await tx
@@ -282,6 +287,7 @@ export async function processWithdrawal(db: Db, now: Date, calendar: CalendarDay
             from: w!.status,
             reason: t.reason,
             ...(t.fundingVersion !== undefined ? { version: t.fundingVersion } : {}),
+            ...(planSummary ? { summary: planSummary.slice(0, 2000) } : {}),
             ...(t.fundedBy ? { fundedBy: t.fundedBy } : {}),
             ...(t.to === "settling" && view.unsettled.settledBy ? { settledBy: view.unsettled.settledBy.toISOString() } : {}),
           },

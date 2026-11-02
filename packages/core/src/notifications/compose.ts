@@ -126,7 +126,11 @@ export function describe(e: NotifiableEvent): Described {
     case "capital.funding_planned":
       return {
         headline: `Withdrawal funding planned: ${p.amount === "all" ? "everything" : money(p.amount)}`,
-        lines: [`${str(p.reason)}.`, "The rebalance sells to raise the cash; you'll get an email when it's ready to withdraw."],
+        lines: [
+          `${str(p.reason)}.`,
+          ...(p.summary ? [`Why: ${str(p.summary)}`] : []),
+          "The rebalance sells to raise the cash; you'll get an email when it's ready to withdraw.",
+        ],
       };
     case "capital.withdrawal_ready":
       return {

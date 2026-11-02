@@ -77,10 +77,10 @@
 ## Phase 3: Claude and the dashboard
 
 ### C9: Agent
-- [ ] `getOverview.capital`: open request + deadline, flows since the last strategy, money-weighted vs VTI
-- [ ] `previewStrategy`: post-withdrawal investable; per-sell realized gain/loss, ST/LT, wash-sale windows
-- [ ] `submitStrategy` (claude, after a request) → `planning → funding` + `capital.funding_planned`
-- [ ] Routine prompt withdrawal section; tool-list pin unchanged
+- [x] `getOverview.capital` (`capital/overview.ts`, DB-only so the Money page can reuse it): money-weighted summary, transfers since the theses were last reaffirmed, the open request with `outstanding`, `unfunded`, `investableEquity` and `planBy`
+- [x] `previewStrategy`: post-withdrawal investable (C6) and a `tax` block per sell: realized gain, short- vs long-term (FIFO, `estimateSale`), and the wash-sale window a loss opens
+- [x] Claude's strategy after a request → `planning → funding` on the next tick (process-capital, ≤ 15 min; portfolio can't call capital), and `capital.funding_planned` carries the plan's summary into the email
+- [x] Routine prompt section 3a, MCP instructions item 8, `get_rules.withdrawals`, tool descriptions; tool-list pin unchanged (no new write tool)
 - **Depends on:** C7 · **Scope:** M
 
 ### C10: Dashboard Money page (read)
