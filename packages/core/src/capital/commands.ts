@@ -4,6 +4,7 @@ import { OPEN_ORDER_LOOKBACK_MS, OPEN_ORDER_STATES } from "../broker/orders.js";
 import type { BrokerAdapter, CalendarDay } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import {
+  auditEvents,
   brokerAccount,
   brokerActivities,
   capitalCommandResults,
@@ -345,7 +346,13 @@ export async function processCapital(db: Db, broker: Pick<BrokerAdapter, "getCal
   let fallbackVersion: number | undefined;
   if (withdrawal.status === "open" && withdrawal.last.status === "fallback_due") {
     // The new version is the funding plan: the next pass moves the request to funding.
-    fallbackVersion = await fundWithFallback(db, withdrawal.last.reason, now);
+    // Fund now moved the deadline to the moment Scott asked: say so, rather than blame Claude.
+    const [asked] = await db
+      .select({ id: auditEvents.id })
+      .from(auditEvents)
+      .where(and(eq(auditEvents.kind, "capital.fund_now"), eq(auditEvents.subject, withdrawal.id)))
+      .limit(1);
+    fallbackVersion = await fundWithFallback(db, asked ? "you asked to fund it now" : withdrawal.last.reason, now);
     const next = await processWithdrawal(db, now, calendar);
     withdrawal = next.status === "open" ? { ...next, steps: [...withdrawal.steps, ...next.steps] } : next;
   }

@@ -82,6 +82,7 @@ describe("the fallback funds an open request (process-capital)", () => {
 
     const result = await processCapital(db, broker, at("13:00"));
     expect(result).toMatchObject({ withdrawal: { state: "funding", steps: ["funding"] }, fallbackVersion: 2 });
+    expect((await activeStrategy(db, at("13:00"))).strategy.summary).toMatch(/^Fallback funding for a \$200 withdrawal: Claude didn't plan it by Mon, Nov 2, 1:00 PM ET\./);
     const active = await activeStrategy(db, at("13:00"));
     expect(active).toMatchObject({ version: 2, authoredBy: "system", reaffirmedAt: new Date("2026-10-20T14:00:00Z") });
     expect(active.strategy.conviction[0]?.targetWeightPct).toBe("20"); // $200 of $800: 25%, capped at 20
@@ -95,5 +96,6 @@ describe("the fallback funds an open request (process-capital)", () => {
     await queueCommand(db, { kind: "request", amount: "200", requestedBy: "cli" }, at("10:00"));
     await queueCommand(db, { kind: "fund_now", requestedBy: "cli" }, at("10:01"));
     expect(await processCapital(db, broker, at("10:02"))).toMatchObject({ withdrawal: { state: "funding" }, fallbackVersion: 2 });
+    expect((await activeStrategy(db, at("10:02"))).strategy.summary).toMatch(/^Fallback funding for a \$200 withdrawal: you asked to fund it now\./);
   });
 });
