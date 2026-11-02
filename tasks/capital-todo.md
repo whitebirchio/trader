@@ -63,9 +63,10 @@
 - **Depends on:** C5 · **Scope:** M
 
 ### C8: Halted withdrawal-only mode
-- [ ] Halted + unfunded > 0 → only sells, plan order, `purpose: "withdrawal"`, until cumulative ≥ unfunded
-- [ ] Risk: withdrawal sells pass `drawdownHalt` while cumulative ≤ unfunded; kill switch, fresh-data and broker verdict still reject
-- [ ] Tests: $300 unfunded → ~$300 of sells only; excess rejected; kill switch → nothing
+- [x] Halted + unfunded > 0 → `withdrawalSells`: only the plan's sells, plan order, `purpose: "withdrawal"`, the last sized to the remainder (qty rounded up)
+- [x] Risk: withdrawal sells pass the halt while cumulative < unfunded, clipped to unfunded + $1 (the round-up); kill switch, fresh-data and broker verdict still reject; nothing owed → still rejected
+- [x] Tests: $300 unfunded → $300 of VTI sold, then nothing; excess rejected or clipped; kill switch → nothing
+- [x] Found on the way: sells rounded down left cash a hair short, so a request could sit in `funding` forever. Raising sells now round up, and a request is funded / settled / withdrawn within `CASH_TOLERANCE` ($1, Alpaca's minimum order); the ready email names what's actually withdrawable
 - **Depends on:** C6 · **Scope:** M
 
 ### Checkpoint B

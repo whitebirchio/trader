@@ -28,6 +28,7 @@ import {
   outstanding,
   parseAmount,
   unsettledProceeds,
+  withdrawable,
 } from "./withdrawals.js";
 
 /**
@@ -276,6 +277,7 @@ export async function processWithdrawal(db: Db, now: Date, calendar: CalendarDay
           payload: {
             amount: row.amount ?? "all",
             outstanding: outstanding(row, view.equity),
+            ...(t.to === "ready" ? { withdrawable: withdrawable(row, view) } : {}),
             cash: view.cash,
             from: w!.status,
             reason: t.reason,

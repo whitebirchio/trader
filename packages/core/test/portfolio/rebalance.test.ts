@@ -6,6 +6,7 @@ import { auditEvents, capitalCommands, orders, rebalancePlans, thesisEvents, wit
 import { add, compare, div, mul, sub } from "../../src/money.js";
 import { runRebalance } from "../../src/portfolio/rebalance.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
+import { latchHalt, setKillSwitch } from "../../src/risk/state.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
 import { strategy, thesis } from "./fixtures.js";
@@ -95,7 +96,7 @@ describe("rebalance", () => {
 
     const sells = await step();
     expect(sells).toMatchObject({ status: "planned", phase: "sell", notes: expect.arrayContaining(["$500 held for a withdrawal ($500 still to raise)"]) });
-    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell", qty: "1.666666666" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell", qty: "1.666666667" });
     await fillAll({ VTI: "300" });
 
     // $500 of cash sits there, held for the withdrawal: nothing to buy.
@@ -104,7 +105,37 @@ describe("rebalance", () => {
     // A small withdrawal inside the drift band still gets its cash.
     await db.update(withdrawals).set({ amount: "520" });
     expect(await step()).toMatchObject({ phase: "sell" });
-    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666667" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666666" });
+  });
+
+  describe("while halted (SPEC-capital decision 2)", () => {
+    async function holdVtiWithWithdrawal(amount: string) {
+      await step();
+      await fillAll({ VTI: "300" });
+      const [command] = await db.insert(capitalCommands).values({ kind: "request", amount, requestedBy: "cli" }).returning();
+      await db.insert(withdrawals).values({ status: "funding", amount, commandId: command!.id, requestedAt: clock, deadline: clock, updatedAt: clock });
+      await latchHalt(db, "the account is down 21% from its peak (limit 20%)", {}, clock);
+    }
+
+    it("sells only what the withdrawal needs, and nothing else trades", async () => {
+      await holdVtiWithWithdrawal("300");
+      const result = await step();
+      expect(result).toMatchObject({ status: "planned", phase: "sell", notes: expect.arrayContaining(["trading is halted: selling only the $300 your withdrawal needs"]) });
+      expect(broker.orders.slice(1).map((o) => [o.symbol, o.side, o.qty])).toEqual([["VTI", "sell", "1"]]);
+
+      await fillAll({ VTI: "300" });
+      // Covered: the halt stops everything again (the $300 is reserved, so there's nothing to buy either).
+      expect(await step()).toEqual({ status: "skipped", reason: "on target" });
+      expect(broker.orders).toHaveLength(2);
+    });
+
+    it("sells nothing with the kill switch on", async () => {
+      await holdVtiWithWithdrawal("300");
+      await setKillSwitch(db, { actor: "owner", reason: "testing" }, clock);
+      const result = await step();
+      expect(result).toMatchObject({ status: "planned", phase: "sell" });
+      expect(broker.orders).toHaveLength(1);
+    });
   });
 
   it("on a strategy change, sells first and buys on the next step", async () => {

@@ -100,7 +100,9 @@ export function planTrades(input: PlanInput): Plan {
         reason: h ? `${t.symbol} is $${dollars} under its $${t.dollars} target (${t.reason})` : `new position: ${t.reason}`,
       });
     } else if (h && compare(h.currentPrice, "0") > 0) {
-      const qtyRaw = round(div(gap, h.currentPrice, QTY_DP + 2, "down"), QTY_DP, "down");
+      // Raising cash rounds up, so the proceeds cover the gap rather than fall a fraction short.
+      const mode = raising ? "up" : "down";
+      const qtyRaw = round(div(gap, h.currentPrice, QTY_DP + 2, mode), QTY_DP, mode);
       const qty = compare(qtyRaw, h.qty) > 0 ? h.qty : qtyRaw;
       if (compare(qty, "0") <= 0) continue;
       sells.push({
@@ -114,4 +116,28 @@ export function planTrades(input: PlanInput): Plan {
   if (buys.length === 0) return { phase: "none", trades: [] };
   buys.sort((a, b) => (a.sleeve === b.sleeve ? compare(b.dollars, a.dollars) : a.sleeve === "conviction" ? -1 : 1));
   return { phase: "buy", trades: buys.map(({ proposal, reason }) => ({ proposal, reason })) };
+}
+
+/**
+ * While trading is halted (SPEC-capital decision 2): only the plan's sells,
+ * in plan order, tagged `withdrawal`, until they cover what the withdrawal
+ * still needs. The last is sized to the remainder, its quantity rounded up;
+ * risk checks the total against the database's figure, not this one.
+ */
+export function withdrawalSells(trades: PlannedTrade[], holdings: PlanHolding[], unfunded: string): PlannedTrade[] {
+  const price = new Map(holdings.map((h) => [h.symbol, h.currentPrice]));
+  const out: PlannedTrade[] = [];
+  let needed = unfunded;
+  for (const trade of trades) {
+    const p = trade.proposal;
+    if (compare(needed, "0") <= 0) break;
+    if (p.side !== "sell") continue;
+    const px = price.get(p.symbol);
+    if (!px || compare(px, "0") <= 0) continue;
+    const value = mul(p.qty, px);
+    const qty = compare(value, needed) > 0 ? round(div(needed, px, QTY_DP + 3, "up"), QTY_DP, "up") : p.qty;
+    out.push({ proposal: { ...p, qty, purpose: "withdrawal" }, reason: `${trade.reason}; raising cash for your withdrawal while trading is halted` });
+    needed = sub(needed, mul(qty, px));
+  }
+  return out;
 }

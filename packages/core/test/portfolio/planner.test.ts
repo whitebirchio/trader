@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClosedLot } from "../../src/broker/lots.js";
-import { type PlanHolding, planTrades, washSaleWindow } from "../../src/portfolio/planner.js";
+import { type PlanHolding, planTrades, washSaleWindow, withdrawalSells } from "../../src/portfolio/planner.js";
 import type { Target } from "../../src/portfolio/targets.js";
 
 const drift = { relativePct: "20", minTradeUsd: "5" };
@@ -100,11 +100,29 @@ describe("raising cash for a withdrawal", () => {
     expect(plan([t("VTI", "980")], holdings)).toEqual({ phase: "none", trades: [] });
     const p = plan([t("VTI", "980")], holdings, { raiseCash: true });
     expect(p.phase).toBe("sell");
-    expect(p.trades[0]?.proposal).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666666" });
+    expect(p.trades[0]?.proposal).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666667" });
   });
 
   it("still leaves buys under target to the band, and skips sells under $1", () => {
     const p = plan([t("VTI", "999.50"), t("AAPL", "300")], [h("VTI", "3.333333333", "1000", "300"), h("AAPL", "1", "290", "290")], { raiseCash: true });
     expect(p).toEqual({ phase: "none", trades: [] });
+  });
+});
+
+describe("withdrawalSells (halted: only what the withdrawal needs)", () => {
+  const holdings = [h("VTI", "3", "900", "300"), h("AAPL", "2", "400", "200")];
+  const sells = plan([t("VTI", "500")], holdings).trades;
+
+  it("takes sells in plan order until they cover the amount, sizing the last to the remainder", () => {
+    // The plan sells all of AAPL ($400) and $400 of VTI; $300 is needed.
+    const chosen = withdrawalSells(sells, holdings, "300");
+    expect(chosen.map((x) => [x.proposal.symbol, x.proposal.side === "sell" ? x.proposal.qty : null, x.proposal.purpose])).toEqual([["AAPL", "1.5", "withdrawal"]]);
+    const more = withdrawalSells(sells, holdings, "500");
+    expect(more.map((x) => [x.proposal.symbol, x.proposal.side === "sell" ? x.proposal.qty : null])).toEqual([["AAPL", "2"], ["VTI", "0.333333334"]]);
+  });
+
+  it("ignores buys and returns nothing when nothing is owed", () => {
+    expect(withdrawalSells(plan([t("VTI", "990")], []).trades, [], "300")).toEqual([]);
+    expect(withdrawalSells(sells, holdings, "0")).toEqual([]);
   });
 });

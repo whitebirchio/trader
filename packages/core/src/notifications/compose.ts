@@ -130,7 +130,7 @@ export function describe(e: NotifiableEvent): Described {
       };
     case "capital.withdrawal_ready":
       return {
-        headline: `${money(p.outstanding)} is ready: withdraw it in Alpaca`,
+        headline: `${money(p.withdrawable ?? p.outstanding)} is ready: withdraw it in Alpaca`,
         lines: [`${str(p.reason)}, so it should be withdrawable now.`, "Start the transfer in Alpaca. Trader matches it when it posts and closes the request. If Alpaca won't allow it yet, try again tomorrow."],
       };
     default:

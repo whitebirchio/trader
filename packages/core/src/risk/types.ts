@@ -11,6 +11,12 @@ export type Proposal = {
   key: string;
   symbol: string;
   sleeve: Sleeve;
+  /**
+   * `withdrawal`: a sell raising cash for the owner's withdrawal. The one
+   * thing a drawdown halt lets through, and only up to what the withdrawal
+   * still needs (SPEC-capital decision 2).
+   */
+  purpose?: "withdrawal";
 } & ({ side: Extract<OrderSide, "buy">; notional: string } | { side: Extract<OrderSide, "sell">; qty: string });
 
 export interface Holding {

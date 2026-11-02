@@ -9,12 +9,13 @@ import type { TradingEnv } from "../env.js";
 import type { JobFn } from "../jobs.js";
 import { loadSnapshot, riskGate } from "../risk/gate.js";
 import { loadReserve } from "../risk/reserve.js";
+import { getRiskState } from "../risk/state.js";
 import { LIMITS, type Limits } from "../risk/limits.js";
 import { evaluateOrders } from "../risk/rules.js";
 import type { Decision, Sleeve } from "../risk/types.js";
 import { compare, round } from "../money.js";
 import { marketDate, marketTimeToUtc } from "../time.js";
-import { type PlannedTrade, planTrades, washSaleWindow } from "./planner.js";
+import { type PlannedTrade, planTrades, washSaleWindow, withdrawalSells } from "./planner.js";
 import { activeStrategy, stoppedThesisIds } from "./store.js";
 import type { Strategy } from "./strategy.js";
 import { IDLE_SYMBOL, type DailyClose, rankUniverse, requiredHistory } from "./systematic.js";
@@ -117,15 +118,18 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   const sleeveOf = (symbol: string): Sleeve => (convictionSymbols.has(symbol) ? "conviction" : "systematic");
 
   const planId = opts.dryRun ? "dry-run" : crypto.randomUUID();
-  const plan = planTrades({
-    planId,
-    targets,
-    holdings: held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, currentPrice: p.currentPrice })),
-    drift: strategy.drift,
-    exitReasons,
-    sleeveOf,
-    raiseCash: compare(reserve.unfunded, "0") > 0,
-  });
+  const holdings = held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, currentPrice: p.currentPrice }));
+  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: compare(reserve.unfunded, "0") > 0 });
+
+  // Halted, with a withdrawal to fund: only the sells it needs (SPEC-capital decision 2).
+  // The kill switch is absolute, so it gets the normal path, where risk rejects everything.
+  const guard = await getRiskState(db);
+  if (guard.halted && !guard.killSwitch && compare(reserve.unfunded, "0") > 0) {
+    const trades = withdrawalSells(plan.trades, holdings, reserve.unfunded);
+    if (trades.length === 0) return { status: "skipped", reason: "halted; nothing in the plan raises the withdrawal's cash" };
+    plan = { phase: "sell", trades };
+    notes.push(`trading is halted: selling only the $${round(reserve.unfunded, 2, "up")} your withdrawal needs`);
+  }
 
   if (opts.dryRun) {
     const snapshot = await loadSnapshot(db, broker, plan.trades.map((t) => t.proposal), now, limits, sleeveOf);

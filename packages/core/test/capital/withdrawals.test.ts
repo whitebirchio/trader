@@ -125,6 +125,11 @@ describe("matchOutflows", () => {
     expect(matchOutflows(w, [flow("f1", "-200"), flow("f2", "-300")], "500")).toMatchObject({ status: "complete", withdrawn: "500", flowIds: ["f1", "f2"] });
   });
 
+  it("completes on a transfer within $1 of the amount", () => {
+    expect(matchOutflows(request(), [flow("f1", "-499.40")], "500")).toMatchObject({ status: "complete" });
+    expect(matchOutflows(request(), [flow("f1", "-499")], "500")).toMatchObject({ status: "partial" });
+  });
+
   it("ignores transfers from before the request, and inflows", () => {
     expect(matchOutflows(request(), [flow("old", "-500", "09:59"), flow("in", "500")], "1000")).toEqual({ status: "none" });
   });
@@ -187,6 +192,13 @@ describe("advance", () => {
     const sold = account({ cash: "1000", longMarketValue: "0", unsettled: { amount: "400", settledBy: marketTimeToUtc("2026-11-03", "16:00") } });
     expect(advance(funding, sold, at("12:00"))).toMatchObject({ status: "advanced", to: "settling" });
     expect(advance(request({ amount: null, status: "settling" }), account({ cash: "1000", longMarketValue: "0" }), at("12:00"))).toMatchObject({ status: "advanced", to: "ready" });
+  });
+
+  it("counts cash within $1 of the amount as enough (a sell can't raise less than $1)", () => {
+    const funding = request({ status: "funding" });
+    expect(advance(funding, account({ cash: "499.9999998", longMarketValue: "500" }), at("12:00"))).toMatchObject({ status: "advanced", to: "ready" });
+    expect(advance(request({ status: "ready" }), account({ cash: "499.40" }), at("12:00"))).toMatchObject({ reason: "waiting for you to withdraw $499.40 in Alpaca" });
+    expect(advance(funding, account({ cash: "499", longMarketValue: "500" }), at("12:00"))).toMatchObject({ status: "unchanged" });
   });
 
   it("does nothing with a closed request", () => {

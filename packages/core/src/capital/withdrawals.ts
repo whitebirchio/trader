@@ -51,6 +51,15 @@ export function fundingDeadline(requestedAt: Date, calendar: CalendarDay[]): Dat
   return new Date(requestedAt.getTime() + 86_400_000);
 }
 
+/**
+ * Within this much, a request counts as funded, settled or withdrawn: sells
+ * can't raise less than Alpaca's $1 minimum, and prices move between a plan
+ * and its fill, so cash can land a few cents short for good.
+ */
+export const CASH_TOLERANCE = "1";
+
+const coversWithin = (have: string, need: string) => compare(add(have, CASH_TOLERANCE), need) > 0;
+
 export type ParsedAmount = { ok: true; amount: string | null } | { ok: false; reason: string };
 
 /** A request's amount: whole cents of at least $1, or "all" (null). Anything else is rejected, never guessed. */
@@ -112,15 +121,15 @@ export type OutflowMatch =
 /**
  * Match outgoing transfers to the open request: those since it was made and
  * not matched yet. One that covers what's outstanding completes it; a smaller
- * one leaves the rest open. "All" completes once the account is empty
- * (equity under $1 after the transfer).
+ * one leaves the rest open (within CASH_TOLERANCE either way). "All"
+ * completes once the account is empty (equity under $1 after the transfer).
  */
 export function matchOutflows(w: Pick<Withdrawal, "amount" | "withdrawn" | "flowIds" | "requestedAt">, flows: Outflow[], equityAfter: string): OutflowMatch {
   const seen = new Set(w.flowIds);
   const matched = flows.filter((f) => !seen.has(f.activityId) && f.at >= w.requestedAt && compare(f.amount, "0") < 0);
   if (matched.length === 0) return { status: "none" };
   const withdrawn = matched.reduce((sum, f) => sub(sum, f.amount), w.withdrawn);
-  const done = w.amount === null ? compare(equityAfter, "1") < 0 : compare(withdrawn, w.amount) >= 0;
+  const done = w.amount === null ? compare(equityAfter, CASH_TOLERANCE) < 0 : coversWithin(withdrawn, w.amount);
   return { status: done ? "complete" : "partial", withdrawn, flowIds: [...w.flowIds, ...matched.map((f) => f.activityId)], matched };
 }
 
@@ -134,6 +143,14 @@ export interface AccountView {
   openOrders: number;
   /** The first strategy version stored since the request was made: the plan that funds it. */
   plan: { version: number; authoredBy: AuditActor } | null;
+}
+
+/** What Scott can take out now: what's outstanding, or the settled cash when that's a few cents short (or for "all"). */
+export function withdrawable(w: Pick<Withdrawal, "amount" | "withdrawn">, account: Pick<AccountView, "equity" | "cash" | "unsettled">): string {
+  const out = outstanding(w, account.equity);
+  const settled = round(sub(account.cash, account.unsettled.amount), 2, "down");
+  if (w.amount !== null && compare(settled, out) >= 0) return out;
+  return compare(settled, "0") > 0 ? settled : "0";
 }
 
 export type WithdrawalTransition =
@@ -157,8 +174,8 @@ export function advance(w: Withdrawal, account: AccountView, now: Date): Withdra
   const settled = sub(account.cash, account.unsettled.amount);
   const all = w.amount === null;
   const sold = compare(account.longMarketValue, "0") <= 0 && account.openOrders === 0;
-  const isSettled = all ? sold && compare(account.unsettled.amount, "0") <= 0 : compare(settled, out) >= 0;
-  const isFunded = all ? sold : compare(account.cash, out) >= 0;
+  const isSettled = all ? sold && compare(account.unsettled.amount, "0") <= 0 : coversWithin(settled, out);
+  const isFunded = all ? sold : coversWithin(account.cash, out);
   const settling = account.unsettled.settledBy ? `should settle by ${formatMarketTime(account.unsettled.settledBy)}` : "settling";
 
   switch (w.status) {
@@ -188,7 +205,7 @@ export function advance(w: Withdrawal, account: AccountView, now: Date): Withdra
       if (isSettled) return { status: "advanced", to: "ready", reason: all ? "the proceeds have settled" : `${usd(settled)} of settled cash covers ${usd(out)}` };
       return { status: "unchanged", reason: settling };
     case "ready":
-      return { status: "unchanged", reason: `waiting for you to withdraw ${usd(all ? settled : out)} in Alpaca` };
+      return { status: "unchanged", reason: `waiting for you to withdraw ${usd(withdrawable(w, account))} in Alpaca` };
     case "withdrawn":
     case "cancelled":
       return { status: "unchanged", reason: `the request is ${w.status}` };

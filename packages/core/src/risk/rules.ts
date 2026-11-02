@@ -11,12 +11,17 @@ import type { Decision, Proposal, RiskSnapshot } from "./types.js";
  * Proposals are evaluated in the order given, each consuming cash and cap
  * room, so `portfolio` decides which buys get priority. Account-wide stops
  * (kill switch, halt, broker verdict, stale data) reject everything,
- * sells included (Option A, SPEC-risk resolved question 1). Eligibility and
- * caps apply to buys only, so exits are never blocked by them.
+ * sells included (Option A, SPEC-risk resolved question 1), with one owner
+ * exception: the halt lets withdrawal sells through up to the unfunded
+ * amount (ADR-015). Eligibility and caps apply to buys only, so exits are
+ * never blocked by them.
  */
 export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], limits: Limits): Decision[] {
   const stop = accountStop(snapshot, limits);
   if (stop) return proposals.map((proposal) => ({ proposal, verdict: "rejected", reasons: [stop] }));
+  // The drawdown halt's one exception: the owner's withdrawal, bounded by what it still needs.
+  const halted = snapshot.state.halted ? haltMessage(snapshot) : null;
+  let withdrawalSold = "0";
 
   const buffer = maxOf(limits.cashBufferMin, pctOf(snapshot.equity, limits.cashBufferPct));
   const state = {
@@ -31,8 +36,39 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
     if (state.orders >= limits.maxOrdersPerDay) {
       return reject(proposal, `The daily limit of ${limits.maxOrdersPerDay} orders has been reached.`);
     }
+    if (halted) {
+      if (proposal.side !== "sell" || proposal.purpose !== "withdrawal") return reject(proposal, halted);
+      return evaluateWithdrawalSell(proposal, halted);
+    }
     return proposal.side === "sell" ? evaluateSell(proposal) : evaluateBuy(proposal);
   });
+
+  /**
+   * While halted: a withdrawal sell is allowed while the sells so far don't
+   * cover the unfunded amount, and is clipped to it (plus $1, so the last
+   * sell's quantity can round up). The halt can't be bypassed by the tag:
+   * the amount comes from the database, not the proposal.
+   */
+  function evaluateWithdrawalSell(proposal: Extract<Proposal, { side: "sell" }>, halted: string): Decision {
+    const needed = snapshot.withdrawal.unfunded;
+    if (compare(needed, "0") <= 0) return reject(proposal, `${halted} No withdrawal needs cash.`);
+    if (compare(withdrawalSold, needed) >= 0) return reject(proposal, `Earlier sells already cover the $${needed} your withdrawal needs. ${halted}`);
+    const holding = snapshot.holdings.find((h) => h.symbol === proposal.symbol);
+    if (!holding || compare(holding.qty, "0") <= 0 || !isPositive(proposal.qty)) return evaluateSell(proposal);
+    const price = div(holding.marketValue, holding.qty, 6, "half-even");
+    const room = sub(add(needed, limits.minOrderNotional), withdrawalSold);
+    let { qty } = proposal;
+    const reasons: string[] = [];
+    if (compare(mul(qty, price), room) > 0) {
+      qty = round(div(room, price, 12, "down"), 9, "down");
+      reasons.push(`Reduced to the $${sub(needed, withdrawalSold)} your withdrawal still needs (trading is otherwise halted).`);
+    }
+    const decision = evaluateSell({ ...proposal, qty });
+    if (decision.verdict === "rejected") return decision;
+    withdrawalSold = add(withdrawalSold, mul(decision.qty ?? qty, price));
+    const all = [...reasons, ...decision.reasons];
+    return { ...decision, verdict: all.length ? "clipped" : "approved", reasons: all };
+  }
 
   function evaluateSell(proposal: Extract<Proposal, { side: "sell" }>): Decision {
     if (!isPositive(proposal.qty)) return reject(proposal, `Invalid sell quantity "${proposal.qty}".`);
@@ -124,13 +160,18 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
   }
 }
 
-/** Account-wide stops, in precedence order. Each blocks every order, sells included. */
+function haltMessage(s: RiskSnapshot): string {
+  return `Trading is halted: ${s.state.haltReason ?? "drawdown limit reached"}. Only the owner can resume it (risk:resume).`;
+}
+
+/**
+ * Account-wide stops, in precedence order. Each blocks every order, sells
+ * included. The drawdown halt is applied by the caller, after these, since
+ * it lets a bounded withdrawal through and these don't.
+ */
 function accountStop(s: RiskSnapshot, limits: Limits): string | null {
   if (s.state.killSwitch) {
     return `The kill switch is on${s.state.killReason ? ` (${s.state.killReason})` : ""}. Only the owner can turn it off (risk:resume).`;
-  }
-  if (s.state.halted) {
-    return `Trading is halted: ${s.state.haltReason ?? "drawdown limit reached"}. Only the owner can resume it (risk:resume).`;
   }
   if (!s.broker.tradingAllowed) {
     const why = s.broker.blockedReasons.length ? s.broker.blockedReasons.join("; ") : "no verdict recorded";
