@@ -54,11 +54,11 @@ describe("performanceSeries", () => {
     ]);
     const index = buildIndex(
       [
-        { tradingDate: "2026-10-28", equity: "1000" },
-        { tradingDate: "2026-10-29", equity: "1020" },
-        { tradingDate: "2026-10-30", equity: "1010" },
+        { tradingDate: "2026-10-28", equity: "1000", recordedAt: new Date("2026-10-28T20:15:00Z") },
+        { tradingDate: "2026-10-29", equity: "1020", recordedAt: new Date("2026-10-29T20:15:00Z") },
+        { tradingDate: "2026-10-30", equity: "1010", recordedAt: new Date("2026-10-30T20:15:00Z") },
       ],
-      new Map(),
+      [],
     );
     const bars = [
       { t: new Date("2026-10-28T17:00:00Z"), c: "300" },

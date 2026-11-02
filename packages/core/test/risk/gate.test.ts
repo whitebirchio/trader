@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
+import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
 import { auditEvents, brokerAccount, equitySnapshots, jobRuns, riskDecisions, riskGateRuns } from "../../src/db/schema.js";
 import { runJob } from "../../src/jobs.js";
@@ -10,6 +11,7 @@ import type { Proposal } from "../../src/risk/types.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { FakeMailer } from "../notifications/fake-mailer.js";
 import { createTestDb } from "../helpers.js";
+import { marketTimeToUtc } from "../../src/time.js";
 
 let db: Db;
 let broker: FakeBroker;
@@ -109,7 +111,13 @@ describe("riskGate", () => {
 
 describe("checkDrawdown", () => {
   async function snapshots(...rows: [string, string][]) {
-    await db.insert(equitySnapshots).values(rows.map(([tradingDate, equity]) => ({ tradingDate, equity, cash: equity, longMarketValue: "0" })));
+    await db.insert(equitySnapshots).values(
+      rows.map(([tradingDate, equity]) => ({ tradingDate, equity, cash: equity, longMarketValue: "0", recordedAt: marketTimeToUtc(tradingDate, "16:15") })),
+    );
+  }
+
+  function transfer(id: string, type: string, netAmount: string, at: Date, status = "executed") {
+    broker.activities.push({ id, type, at, symbol: null, side: null, qty: null, price: null, netAmount, orderId: null, raw: { created_at: at.toISOString(), status } });
   }
 
   it("latches the halt at 20% below peak, once, and recovery doesn't clear it", async () => {
@@ -128,21 +136,31 @@ describe("checkDrawdown", () => {
 
   it("doesn't count a deposit as a gain or a withdrawal as a loss", async () => {
     await snapshots(["2026-10-30", "1000"]);
-    broker.activities.push({
-      id: "csw-1",
-      type: "CSW",
-      at: new Date("2026-11-02T14:00:00Z"),
-      symbol: null,
-      side: null,
-      qty: null,
-      price: null,
-      netAmount: "-500",
-      orderId: null,
-      raw: {},
-    });
+    transfer("csw-1", "CSW", "-500", new Date("2026-11-02T14:00:00Z"));
     broker.account = { ...broker.account, equity: "500", cash: "500", lastEquity: "1000" };
     await syncBroker(db, broker, "staging", NOW);
+    await recordCapitalFlows(db);
     expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no", buysPaused: false });
+  });
+
+  it("doesn't halt after a deposit as large as the account that lands after a snapshot (the false-halt bug)", async () => {
+    // Friday 20:00 ET, after Friday's 16:15 snapshot. Matching flows by date
+    // subtracted it from Friday's step, whose equity never held it: index 0,
+    // a 100% "drawdown" and a latched halt.
+    await snapshots(["2026-10-29", "1000"], ["2026-10-30", "1000"]);
+    transfer("csd-1", "CSD", "1000", marketTimeToUtc("2026-10-30", "20:00"));
+    broker.account = { ...broker.account, equity: "2000", cash: "2000", lastEquity: "1000" };
+    await syncBroker(db, broker, "staging", NOW);
+    await recordCapitalFlows(db);
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no", buysPaused: false });
+  });
+
+  it("leaves a canceled transfer out of the measures", async () => {
+    await snapshots(["2026-10-30", "1000"]);
+    transfer("csd-x", "CSD", "1000", new Date("2026-11-02T14:00:00Z"), "canceled");
+    await syncBroker(db, broker, "staging", NOW);
+    await recordCapitalFlows(db);
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no" });
   });
 
   it("announces a daily-loss pause once and its recovery once", async () => {

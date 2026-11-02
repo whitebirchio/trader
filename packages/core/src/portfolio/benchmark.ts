@@ -1,10 +1,9 @@
-import { asc, inArray } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
-import { brokerActivities, equitySnapshots } from "../db/schema.js";
 import { div, mul, sub } from "../money.js";
-import { FLOW_TYPES, type IndexPoint, buildIndex, flowsByDate } from "../risk/equity-index.js";
+import { type IndexPoint, buildIndex } from "../risk/equity-index.js";
+import { loadIndexInputs } from "../risk/gate.js";
 import { marketDate } from "../time.js";
 import type { DailyClose } from "./systematic.js";
 
@@ -38,13 +37,9 @@ export function compareToBenchmark(points: IndexPoint[], benchmark: DailyClose[]
 /** Portfolio vs VTI since the first snapshot, loaded from the DB and the broker. Best effort: null on any failure. */
 export async function benchmarkSince(db: Db, broker: BrokerAdapter, at: Date): Promise<BenchmarkComparison | null> {
   try {
-    const snaps = await db
-      .select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity })
-      .from(equitySnapshots)
-      .orderBy(asc(equitySnapshots.tradingDate));
+    const { snapshots: snaps, flows } = await loadIndexInputs(db);
     if (snaps.length < 2) return null;
-    const flowRows = await db.select().from(brokerActivities).where(inArray(brokerActivities.type, [...FLOW_TYPES]));
-    const index = buildIndex(snaps, flowsByDate(flowRows.map((r) => ({ ...r, side: null }))));
+    const index = buildIndex(snaps, flows);
     const since = new Date(`${snaps[0]!.tradingDate}T00:00:00Z`);
     const bars = await broker.getDailyBars([BENCHMARK], new Date(since.getTime() - 7 * 86_400_000), at);
     return compareToBenchmark(index.points, bars[BENCHMARK] ?? [], marketDate);

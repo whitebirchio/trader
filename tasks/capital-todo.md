@@ -18,15 +18,15 @@
 - **Files:** `src/db/schema.ts`, `drizzle/*`, `src/capital/ledger.ts`, `src/broker/sync.ts`, tests · **Depends on:** C1 · **Scope:** M
 
 ### C3: Index by instant
-- [ ] `buildIndex` / `liveIndex` take snapshots with `recordedAt` and flows `{ at, amount }`; a flow counts at the first snapshot recorded after it
-- [ ] `risk/gate.ts`, `portfolio/benchmark.ts` and `dashboard/views.ts` read `capital_flows`; remove `flowsByDate` / `FLOW_TYPES`
-- [ ] Tests: a 100% deposit and a 40% withdrawal, same-day / overnight / weekend → index 1, drawdown 0, daily change 0; `checkDrawdown` doesn't halt (PGlite); existing latch tests pass
+- [x] `buildIndex` / `liveIndex` take snapshots with `recordedAt` and flows `{ at, amount }`; a flow counts at the first snapshot recorded after it. Live flows count only up to when the equity was read (`broker_account.synced_at`); daily change is measured against the latest snapshot before today; `canceled` transfers are left out
+- [x] `risk/gate.ts` (`loadIndexInputs`, `currentIndex(db, account, now)`), `portfolio/benchmark.ts` and `dashboard/views.ts` read `capital_flows`; `flowsByDate` / `FLOW_TYPES` removed
+- [x] Tests: a 100% deposit and a 40% withdrawal, same-day / overnight / weekend → index 1, drawdown 0, daily change 0; `checkDrawdown` doesn't halt after a 100% deposit that lands after a snapshot (fails on the old code); canceled ignored; existing latch tests pass
 - **Depends on:** C2 · **Scope:** M
 
 ### C4: Deposit notice + money-weighted comparison
 - [ ] `capital/shadow.ts` (pure): the same flows into VTI at each flow date's close
 - [ ] Contributed / value / same-flows VTI in `getOverview` and on the dashboard overview
-- [ ] Audit kinds + routing + templates: `capital.deposit_received` (digest), `capital.deposit_reversed` (urgent), `capital.unplanned_outflow` (urgent)
+- [ ] Audit kinds + routing + templates: `capital.deposit_received` (digest), `capital.deposit_reversed` (urgent), `capital.unplanned_outflow` (urgent), `capital.transfer_canceled` (urgent: the index assumes a canceled transfer never moved money, so a wrong guess gets seen)
 - **Depends on:** C3 · **Scope:** M
 
 ### Checkpoint A

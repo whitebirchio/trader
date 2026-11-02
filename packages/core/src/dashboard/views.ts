@@ -1,8 +1,8 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
 import { buildLots } from "../broker/lots.js";
 import type { Db } from "../db/client.js";
-import { benchmarkCloses, brokerAccount, brokerActivities, equitySnapshots, positions, riskState, strategies } from "../db/schema.js";
+import { benchmarkCloses, brokerAccount, brokerActivities, positions, riskState, strategies } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import { compare, div, mul, sub } from "../money.js";
 import { getActivity, getHoldings, getStrategy } from "../agent/tools.js";
@@ -10,8 +10,8 @@ import { compareToBenchmark } from "../portfolio/benchmark.js";
 import { activeStrategy, stoppedThesisIds } from "../portfolio/store.js";
 import { VERSION_0, validateStrategy } from "../portfolio/strategy.js";
 import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
-import { FLOW_TYPES, buildIndex, flowsByDate } from "../risk/equity-index.js";
-import { currentIndex } from "../risk/gate.js";
+import { buildIndex } from "../risk/equity-index.js";
+import { currentIndex, loadIndexInputs } from "../risk/gate.js";
 import { marketDate } from "../time.js";
 
 /**
@@ -42,10 +42,9 @@ export interface PerformanceSeries {
 
 /** The portfolio's flow-adjusted index against VTI, from the daily snapshots and recorded closes. */
 export async function performanceSeries(db: Db): Promise<PerformanceSeries> {
-  const snaps = await db.select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity }).from(equitySnapshots).orderBy(asc(equitySnapshots.tradingDate));
+  const { snapshots: snaps, flows } = await loadIndexInputs(db);
   if (snaps.length === 0) return { points: [], totals: null };
-  const flowRows = await db.select().from(brokerActivities).where(inArray(brokerActivities.type, [...FLOW_TYPES]));
-  const index = buildIndex(snaps, flowsByDate(flowRows.map((r) => ({ ...r, side: null }))));
+  const index = buildIndex(snaps, flows);
   const closes = await db
     .select({ tradingDate: benchmarkCloses.tradingDate, close: benchmarkCloses.close })
     .from(benchmarkCloses)
@@ -68,7 +67,7 @@ export async function performanceSeries(db: Db): Promise<PerformanceSeries> {
 export async function overviewView(db: Db, env: TradingEnv, now: Date) {
   const [account] = await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1));
   const [state] = await db.select().from(riskState).where(eq(riskState.id, 1));
-  const live = await currentIndex(db, account?.equity ?? "0", account?.lastEquity ?? null, now);
+  const live = await currentIndex(db, account, now);
   const active = await activeStrategy(db, now);
   return {
     environment: env,
