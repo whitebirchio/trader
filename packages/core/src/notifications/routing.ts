@@ -68,12 +68,16 @@ export const SEVERITY: Partial<Record<AuditKind, number>> = {
   "broker.config_unsafe": 3,
   "broker.reconcile_mismatch": 4,
   "order.external": 5,
+  "capital.unplanned_outflow": 5.2, // money left that nobody asked for
+  "capital.transfer_reversed": 5.4,
+  "capital.command_rejected": 5.6,
   "order.unknown": 6,
   "risk.buys_paused": 7,
   "job.failed": 8,
   "thesis.stopped_out": 7.5,
   "thesis.stale": 7.6,
   "strategy.rejected": 7.7,
+  "capital.withdrawal_ready": 7.8, // your turn: withdraw it in Alpaca
   "risk.resumed": 9,
   "strategy.activated": 9.5,
   "broker.trading_allowed": 10,

@@ -95,7 +95,9 @@
 - **Depends on:** C10 · **Scope:** M
 
 ### C12: Notifications
-- [ ] Templates: `funding_planned` (summary + sells), `ready`, `completed`, `cancelled`; digest lists the open request; `notify:preview` fixtures
+- [x] Templates for every capital kind (most landed with C5/C9): `funding_planned` carries the plan's summary (the sells themselves are the rebalance's, in the digest's Trades), `ready` names the withdrawable amount, `completed` / `partial` / `settling` in the digest, `cancelled` and `command_rejected` urgent; severities so an unplanned outflow or a ready withdrawal leads its email
+- [x] The digest lists the open request every day until it closes (stage, Claude's deadline, what's still to raise, what's held back)
+- [x] `notify:preview --sample withdrawal` prints the whole sequence with made-up numbers, no database
 - **Depends on:** C5, C9 · **Scope:** S
 
 ### Checkpoint C

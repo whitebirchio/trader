@@ -214,6 +214,13 @@ describe("capital emails", () => {
     expect(email.text).toContain("$510.00 of settled cash covers $500.00, so it should be withdrawable now.");
   });
 
+  it("lists the open withdrawal in the digest every day until it closes", () => {
+    const planning = composeDigest({ ...base, withdrawal: { status: "planning", amount: "500", outstanding: "500", unfunded: "500", planBy: "2026-11-02T18:00:00.000Z" } }, "production");
+    expect(planning.text).toContain("Money in and out\n  Open withdrawal of $500: waiting for Claude's funding plan (by Mon, Nov 2, 1:00 PM ET); $500 still to raise. $500 is held back from investing.");
+    const ready = composeDigest({ ...base, withdrawal: { status: "ready", amount: "all", outstanding: "998.20", unfunded: "0", planBy: null } }, "production");
+    expect(ready.text).toContain("Open withdrawal of everything: ready: withdraw it in Alpaca. $998.20 is held back from investing.");
+  });
+
   it("lists withdrawal progress in the digest", () => {
     const email = composeDigest(
       {

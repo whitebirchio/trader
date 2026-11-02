@@ -1,5 +1,5 @@
 import type { TradingEnv } from "../env.js";
-import { compare, sub } from "../money.js";
+import { compare, round, sub } from "../money.js";
 import { formatMarketTime } from "../time.js";
 import type { OutgoingEmail } from "./port.js";
 import { SEVERITY } from "./routing.js";
@@ -208,6 +208,23 @@ export interface DigestData {
   benchmark?: { since: string; portfolioPct: string; benchmarkPct: string } | null;
   /** Money-weighted: net deposits, today's value, and the same deposits held in VTI (SPEC-capital). */
   capital?: { contributed: string; value: string; sameFlowsInVti: string | null } | null;
+  /** The open withdrawal request, listed every day until it closes (SPEC-capital). */
+  withdrawal?: { status: string; amount: string; outstanding: string; unfunded: string; planBy: string | null } | null;
+}
+
+const WITHDRAWAL_STAGE: Record<string, string> = {
+  planning: "waiting for Claude's funding plan",
+  funding: "selling to raise the cash",
+  settling: "cash raised, settling",
+  ready: "ready: withdraw it in Alpaca",
+};
+
+/** The open request's one-line status for the digest. */
+export function withdrawalLine(w: NonNullable<DigestData["withdrawal"]>): string {
+  const what = w.amount === "all" ? "everything" : money(w.amount);
+  const stage = w.status === "planning" && w.planBy ? `${WITHDRAWAL_STAGE.planning} (by ${when(w.planBy)})` : (WITHDRAWAL_STAGE[w.status] ?? w.status);
+  const raise = compare(w.unfunded, "0") > 0 && w.status !== "ready" ? `; ${money(round(w.unfunded, 2, "up"))} still to raise` : "";
+  return `Open withdrawal of ${what}: ${stage}${raise}. ${money(w.outstanding)} is held back from investing.`;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -276,7 +293,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
 
   const trades = data.events.map(tradeLine).filter((l): l is string => l !== null);
   const guardrails = data.events.map(guardrailLine).filter((l): l is string => l !== null);
-  const capital = data.events.map(capitalLine).filter((l): l is string => l !== null);
+  const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
     : data.state.halted
