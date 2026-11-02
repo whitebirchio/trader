@@ -13,7 +13,7 @@ import {
 } from "../../src/agent/tools.js";
 import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
-import { auditEvents, orders, rebalancePlans, thesisEvents } from "../../src/db/schema.js";
+import { auditEvents, capitalCommands, orders, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { WINDOW_CLOSE, WINDOW_OPEN } from "../../src/portfolio/rebalance.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
@@ -101,6 +101,37 @@ describe("read tools", () => {
     expect(r.risk.positionCapPct).toBe("20");
     expect(r.risk.capExempt.cashEquivalents).toContain("SGOV");
     expect(r.allocation.join(" ")).toContain("never cash");
+  });
+});
+
+describe("a withdrawal in Claude's view (SPEC-capital)", () => {
+  beforeEach(async () => {
+    // $1000 of VTI bought in June 2025 at $250: a long-term gain at $300.
+    broker.account = { ...broker.account, cash: "0", equity: "1000", longMarketValue: "1000" };
+    broker.positions = [{ symbol: "VTI", qty: "3.333333333", avgEntryPrice: "250", marketValue: "1000", costBasis: "833.33", currentPrice: "300" }];
+    broker.fill("o-1", "VTI", "buy", "3.333333333", "250", new Date("2025-06-02T15:00:00Z"));
+    await syncBroker(deps.db, broker, "staging", NOW);
+    const [command] = await deps.db.insert(capitalCommands).values({ kind: "request", amount: "500", requestedBy: "cli" }).returning();
+    await deps.db.insert(withdrawals).values({ status: "planning", amount: "500", commandId: command!.id, requestedAt: NOW, deadline: new Date("2026-11-02T18:00:00Z"), updatedAt: NOW });
+  });
+
+  it("get_overview shows the open request and Claude's window", async () => {
+    const o = await getOverview(deps);
+    expect(o.capital).toMatchObject({
+      summary: null,
+      withdrawal: { status: "planning", amount: "500", outstanding: "500", unfunded: "500", investableEquity: "500", planBy: "2026-11-02T18:00:00.000Z" },
+      sinceLastStrategy: { net: "0", transfers: [] },
+    });
+  });
+
+  it("preview_strategy plans for the smaller account and prices each sell's taxes", async () => {
+    const draft = strategy({ conviction: [], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } });
+    const p = (await previewStrategy(deps, draft)) as { nextStep: { phase: string; trades: Record<string, unknown>[]; notes: string[] } };
+    expect(p.nextStep.phase).toBe("sell");
+    expect(p.nextStep.notes).toContain("$500 held for a withdrawal ($500 still to raise)");
+    expect(p.nextStep.trades).toMatchObject([
+      { side: "sell", symbol: "VTI", size: "1.666666667 shares", tax: { realizedGain: "83.33", longTermGain: "83.33", shortTermGain: "0", washSale: null } },
+    ]);
   });
 });
 

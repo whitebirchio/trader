@@ -31,10 +31,13 @@ const evidence = z.object({
   asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD").optional(),
 });
 
+/** The most one thesis may target, % of investable equity. */
+export const MAX_THESIS_WEIGHT_PCT = "20";
+
 const thesis = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/, "must be a lowercase slug like aapl-services-2026q4"),
   symbol,
-  targetWeightPct: decimalIn("0", "20", { exclusiveMin: true }),
+  targetWeightPct: decimalIn("0", MAX_THESIS_WEIGHT_PCT, { exclusiveMin: true }),
   thesis: z.string().trim().min(20, "needs at least a sentence of reasoning").max(5000),
   evidence: z.array(evidence).min(1, "needs at least one piece of evidence").max(20),
   stopLossPct: decimalIn("5", "50"),

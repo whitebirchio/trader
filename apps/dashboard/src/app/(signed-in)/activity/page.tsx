@@ -24,6 +24,19 @@ const LABELS: Record<string, string> = {
   "strategy.rejected": "Strategy rejected",
   "thesis.stopped_out": "Thesis stopped out",
   "thesis.stale": "Thesis went stale",
+  "capital.deposit_received": "Deposit received",
+  "capital.transfer_reversed": "Transfer reversed",
+  "capital.transfer_canceled": "Transfer canceled",
+  "capital.unplanned_outflow": "Money out without a request",
+  "capital.withdrawal_requested": "Withdrawal requested",
+  "capital.fund_now": "Withdrawal: fund now",
+  "capital.withdrawal_cancelled": "Withdrawal cancelled",
+  "capital.command_rejected": "Withdrawal command rejected",
+  "capital.funding_planned": "Withdrawal funding planned",
+  "capital.withdrawal_settling": "Withdrawal cash raised",
+  "capital.withdrawal_ready": "Withdrawal ready",
+  "capital.withdrawal_partial": "Part of a withdrawal taken",
+  "capital.withdrawal_completed": "Withdrawal complete",
 };
 
 type Trade = { proposal?: { side?: string; symbol?: string; notional?: string | null; qty?: string | null; sleeve?: string }; reason?: string };

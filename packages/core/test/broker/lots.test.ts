@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLots } from "../../src/broker/lots.js";
+import { buildLots, estimateSale, isLongTerm } from "../../src/broker/lots.js";
 import { add } from "../../src/money.js";
 import type { Activity } from "../../src/broker/port.js";
 
@@ -139,5 +139,28 @@ describe("openQtyBySymbol", () => {
       fill("SPY", "buy", "1", "700", "2026-01-06T15:00:00Z"),
     ]);
     expect(Object.fromEntries(openQtyBySymbol(open))).toEqual({ VTI: "0.3", SPY: "1" });
+  });
+});
+
+describe("estimateSale", () => {
+  const lot = (qty: string, costBasis: string, openedAt: string, id: string) => ({ symbol: "AAPL", qty, costBasis, openedAt: new Date(openedAt), activityId: id });
+  const open = [lot("2", "300", "2025-06-01T15:00:00Z", "a"), lot("2", "500", "2026-10-01T15:00:00Z", "b")];
+  const now = new Date("2026-11-02T15:00:00Z");
+
+  it("sells the oldest lots first and splits long- from short-term", () => {
+    // 2 sh at $150 (held > 1 year) + 1 sh at $250 (weeks), sold at $200.
+    expect(estimateSale(open, "AAPL", "3", "200", now)).toEqual({
+      proceeds: "600",
+      costBasis: "550",
+      gain: "50",
+      longTermGain: "100",
+      shortTermGain: "-50",
+      latestLotOpenedAt: new Date("2026-10-01T15:00:00Z"),
+    });
+  });
+
+  it("is long-term only after the anniversary", () => {
+    expect(isLongTerm(new Date("2025-11-02T15:00:00Z"), new Date("2026-11-02T15:00:00Z"))).toBe(false);
+    expect(isLongTerm(new Date("2025-11-02T15:00:00Z"), new Date("2026-11-03T15:00:00Z"))).toBe(true);
   });
 });

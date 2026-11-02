@@ -1,11 +1,11 @@
-import { capitalSummary } from "../capital/shadow.js";
 import { asc, desc, gte, inArray } from "drizzle-orm";
-import { buildLots } from "../broker/lots.js";
+import { buildLots, estimateSale } from "../broker/lots.js";
+import { capitalOverview } from "../capital/overview.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import { auditEvents, brokerAccount, brokerActivities, orders, positions, rebalancePlans, riskState } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
-import { compare } from "../money.js";
+import { compare, round, sub } from "../money.js";
 import { benchmarkSince } from "../portfolio/benchmark.js";
 import { WASH_SALE_DAYS, washSaleWindow } from "../portfolio/planner.js";
 import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.js";
@@ -60,8 +60,11 @@ export async function getOverview({ db, broker, env, now }: ToolDeps) {
     market: session ? { tradingDay: true, open: session.open.toISOString(), close: session.close.toISOString(), rebalanceWindowEt: `${WINDOW_OPEN}–${WINDOW_CLOSE}` } : { tradingDay: false },
     account: { equity: snapshot.equity, cash: snapshot.cash, todayPct: snapshot.index.dailyChangePct, drawdownFromPeakPct: snapshot.index.drawdownPct },
     vsBenchmark: await benchmarkSince(db, broker, now),
-    /** Money-weighted: net deposits, value now, the same deposits in VTI (SPEC-capital). Null before any transfer. */
-    capital: await capitalSummary(db, snapshot.equity),
+    /**
+     * Money in and out (SPEC-capital): the money-weighted comparison, transfers since the theses were
+     * last reaffirmed, and any open withdrawal (plan its funding by `planBy`). Null before any transfer.
+     */
+    capital: await capitalOverview(db, snapshot, active.reaffirmedAt),
     guardrails: {
       killSwitch: snapshot.state.killSwitch,
       halted: snapshot.state.halted,
@@ -95,7 +98,7 @@ export async function getStrategy({ db, now }: DbDeps, version?: number) {
   }
   const { lots, held } = await holdingsWithLots(db);
   const states = thesisStates({ active, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose: Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice])), now });
-  const daysSince = Math.floor((now.getTime() - active.createdAt.getTime()) / 86_400_000);
+  const daysSince = Math.floor((now.getTime() - active.reaffirmedAt.getTime()) / 86_400_000);
   return {
     version: active.version,
     authoredBy: active.authoredBy,
@@ -209,6 +212,12 @@ export function getRules() {
       dailyLossPausePct: LIMITS.dailyLossPausePct,
       note: "Limits are owner-set; strategies can't change them. A halt or kill switch blocks every order until the owner resumes.",
     },
+    withdrawals: [
+      "The owner can request a withdrawal (dashboard or CLI). While it's open, its outstanding amount is held back: targets are built on equity minus it, and buys can't use it.",
+      "Your next strategy after the request is its funding plan: shrink or drop what you'd rather sell, keep what you'd rather hold. preview_strategy shows each sell's realized gain and wash-sale effect.",
+      "If you don't submit by get_overview's capital.withdrawal.planBy (your run + 60 minutes), a fallback version keeps every thesis's dollars and sells VTI and the systematic sleeve. It doesn't reaffirm your theses.",
+      "While trading is halted, the owner's withdrawal is the one thing that sells, and only what it needs.",
+    ],
     execution: `Rebalance steps every 15 minutes, ${WINDOW_OPEN}–${WINDOW_CLOSE} ET on trading days: sells first, then buys on a later step; nothing while orders are open. A submitted strategy takes effect at the next step.`,
   };
 }
@@ -229,6 +238,8 @@ export async function previewStrategy({ db, broker, env, now }: ToolDeps, docume
   const limits = stale ? { ...LIMITS, maxDataAgeMinutes: Number.MAX_SAFE_INTEGER } : LIMITS;
   const plan = await runRebalance(db, broker, env, now, { force: true, dryRun: true, strategyOverride: parsed.strategy, limits });
   if (plan.status === "skipped") return { valid: true, nextStep: plan.reason };
+  const { lots, held } = await holdingsWithLots(db);
+  const price = new Map(held.map((p) => [p.symbol, p.currentPrice]));
   return {
     valid: true,
     nextStep: {
@@ -245,9 +256,29 @@ export async function previewStrategy({ db, broker, env, now }: ToolDeps, docume
         why: trade.reason,
         risk: decision?.verdict ?? "unknown",
         riskReasons: decision?.reasons ?? [],
+        ...(trade.proposal.side === "sell" ? { tax: saleTax(lots.open, trade.proposal.symbol, decision?.qty ?? trade.proposal.qty, price.get(trade.proposal.symbol), now) } : {}),
       })),
       notes: plan.notes,
     },
+  };
+}
+
+/**
+ * The tax view of a planned sell (SPEC-capital): what it would realize,
+ * first-in first-out, split short- and long-term, and the wash-sale window a
+ * loss opens (ADR-010). An estimate at the last price, not a 1099.
+ */
+function saleTax(open: Parameters<typeof estimateSale>[0], symbol: string, qty: string, lastPrice: string | undefined, now: Date) {
+  if (!lastPrice) return null;
+  const e = estimateSale(open, symbol, qty, lastPrice, now);
+  const r = (v: string) => round(v, 2, "half-even");
+  const loss = compare(e.gain, "0") < 0;
+  const until = marketDate(new Date(now.getTime() + WASH_SALE_DAYS * 86_400_000));
+  return {
+    realizedGain: r(e.gain),
+    shortTermGain: r(e.shortTermGain),
+    longTermGain: r(e.longTermGain),
+    washSale: loss ? `Realizes a $${r(sub("0", e.gain))} loss: buying ${symbol} back before ${until} (or having bought it in the 30 days before) can disallow it.` : null,
   };
 }
 

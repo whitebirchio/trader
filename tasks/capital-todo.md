@@ -30,40 +30,43 @@
 - **Depends on:** C3 · **Scope:** M
 
 ### Checkpoint A
-- [ ] Gate green · `db:generate` clean · staging deploy
-- [ ] Paper `JNLC` in → `broker:sync --force`, `risk:status`, `notify:run`: ledger row, email, drawdown ~0, `rebalance:plan` invests it
-- [ ] PR 1 → merge → `capital:status --env production` shows the April $1,000 deposit
+- [x] Gate green · `db:generate` clean · staging deploy
+- [x] Paper `JNLC` in → `broker:sync --force`, `risk:status`: the backfilled $100k journal recorded silently (older than 7 days), drawdown 0, `get_overview.capital` live. *A fresh paper deposit needs funds added by hand in Alpaca's paper dashboard; covered by tests.*
+- [x] PR 1 (#20) → merge → production migrated and deployed; a forced sync recorded the April $1,000 deposit silently; `get_overview.capital` = contributed $1000, value $1000, same flows in VTI $1065.74; drawdown 0, no halt
 
 ## Phase 2: Withdrawals in the engine (PR 2)
 
 ### C5: Requests, commands, job, CLI
-- [ ] Migration: `withdrawals`, `capital_commands` (append-only)
-- [ ] `capital/withdrawals.ts`: pure `advance()` (status unions) + persistence
-- [ ] `capital/commands.ts`: validate (one open; ≤ equity; `all`) → transition → owner audit
-- [ ] Settlement from sell fills, T+1 trading day (Alpaca calendar)
-- [ ] `process-capital` in `TICK_JOBS` after `sync-broker`
-- [ ] Outflow matching: full → withdrawn; partial → remainder stays `ready`; none open → unplanned
-- [ ] CLI: `capital:withdraw`, `capital:cancel`, `capital:fund-now`, `capital:status`
-- [ ] Audit kinds + routing: requested, ready, completed, cancelled
+- [x] Migration: `withdrawals` (one open: a partial unique index), `capital_commands` + `capital_command_results` (append-only)
+- [x] `capital/withdrawals.ts`: pure `advance()` (status unions) + persistence in `capital/commands.ts`
+- [x] `capital/commands.ts`: validate (one open; ≤ equity; `all`) → transition → owner audit; a rejected command is recorded and emailed
+- [x] Settlement from sell fills, T+1 trading day (Alpaca calendar; the next trading day's close)
+- [x] `process-capital` in `TICK_JOBS` after `sync-broker` (skips without a broker call when idle)
+- [x] Outflow matching: full → withdrawn; partial → remainder stays open; none open → unplanned (the ledger stays quiet for outflows during an open request)
+- [x] CLI: `capital:withdraw`, `capital:cancel`, `capital:fund-now` (queue, then process at once), `capital:status`
+- [x] Audit kinds + routing + email copy: requested, fund_now, cancelled, command_rejected, funding_planned, settling, ready, partial, completed
+- *Pulled forward from C7:* `ROUTINE_CRON_UTC` (pinned to SPEC-agent's cron) and `fundingDeadline`; `fund_now` sets the deadline to now. `all` skips planning (nothing is investable whatever the plan).
 - **Depends on:** C2 · **Scope:** L (split C5a pure / C5b wiring if needed)
 
 ### C6: Reserved cash
-- [ ] `runRebalance`: investable = equity − outstanding
-- [ ] `RiskSnapshot.withdrawal { outstanding, unfunded }`; rule: buys ≤ cash − buffer − outstanding
-- [ ] Tests: $500 reserved on $1,000 VTI → sells ~$500, no buys; a buy into the reserve is rejected
+- [x] `runRebalance`: investable = equity − outstanding (so `preview_strategy` previews against it too)
+- [x] `RiskSnapshot.withdrawal { outstanding, unfunded }` (`risk/reserve.ts`, below portfolio and capital); rule: buys ≤ cash − buffer − outstanding
+- [x] While unfunded > 0 the planner sells anything over target back to it, ignoring the drift band (down to $1), so a small withdrawal can't stall inside the band
+- [x] Tests: $500 reserved on $1,000 VTI → sells ~$500, then on target with $500 idle; a $20 top-up sells inside the band; a buy into the reserve is clipped or rejected
 - **Depends on:** C5 · **Scope:** S
 
 ### C7: Fallback strategy, staleness fix, deadline
-- [ ] `capital/funding.ts` (pure): keep thesis dollars, re-weight, cap, pro-rata trim if needed → `system` version through `submitStrategy`
-- [ ] `thesisStates`: staleness from the latest `claude`-authored version listing the thesis
-- [ ] `ROUTINE_SLOTS_ET` constant (pinned by a test); deadline = next slot + 60 min; deadline or `fund_now` → fallback
-- [ ] Tests: dollars kept, caps, theses > remainder, system version doesn't reset staleness, deadline over a weekend or holiday
+- [x] `capital/funding.ts`: `fallbackStrategy` (pure) keeps thesis dollars (planned dollars for one not bought yet), re-weights, caps at 20%, trims pro rata if needed, drops stopped theses → a `system` version through `submitStrategy` (the active document resubmitted unchanged if that were ever rejected)
+- [x] Staleness from `ActiveStrategy.reaffirmedAt`: the latest version Claude *or the owner* wrote (a system version only copies the theses it replaces); used by the rebalance, `get_strategy` and the dashboard
+- [x] Deadline (done in C5) or `fund_now` → `processCapital` runs the fallback, then the request moves to funding on the same tick
+- [x] Tests: dollars kept, caps, theses > remainder, stopped dropped, a system version doesn't reset staleness, deadline and fund_now end to end
 - **Depends on:** C5 · **Scope:** M
 
 ### C8: Halted withdrawal-only mode
-- [ ] Halted + unfunded > 0 → only sells, plan order, `purpose: "withdrawal"`, until cumulative ≥ unfunded
-- [ ] Risk: withdrawal sells pass `drawdownHalt` while cumulative ≤ unfunded; kill switch, fresh-data and broker verdict still reject
-- [ ] Tests: $300 unfunded → ~$300 of sells only; excess rejected; kill switch → nothing
+- [x] Halted + unfunded > 0 → `withdrawalSells`: only the plan's sells, plan order, `purpose: "withdrawal"`, the last sized to the remainder (qty rounded up)
+- [x] Risk: withdrawal sells pass the halt while cumulative < unfunded, clipped to unfunded + $1 (the round-up); kill switch, fresh-data and broker verdict still reject; nothing owed → still rejected
+- [x] Tests: $300 unfunded → $300 of VTI sold, then nothing; excess rejected or clipped; kill switch → nothing
+- [x] Found on the way: sells rounded down left cash a hair short, so a request could sit in `funding` forever. Raising sells now round up, and a request is funded / settled / withdrawn within `CASH_TOLERANCE` ($1, Alpaca's minimum order); the ready email names what's actually withdrawable
 - **Depends on:** C6 · **Scope:** M
 
 ### Checkpoint B
@@ -74,14 +77,14 @@
 ## Phase 3: Claude and the dashboard
 
 ### C9: Agent
-- [ ] `getOverview.capital`: open request + deadline, flows since the last strategy, money-weighted vs VTI
-- [ ] `previewStrategy`: post-withdrawal investable; per-sell realized gain/loss, ST/LT, wash-sale windows
-- [ ] `submitStrategy` (claude, after a request) → `planning → funding` + `capital.funding_planned`
-- [ ] Routine prompt withdrawal section; tool-list pin unchanged
+- [x] `getOverview.capital` (`capital/overview.ts`, DB-only so the Money page can reuse it): money-weighted summary, transfers since the theses were last reaffirmed, the open request with `outstanding`, `unfunded`, `investableEquity` and `planBy`
+- [x] `previewStrategy`: post-withdrawal investable (C6) and a `tax` block per sell: realized gain, short- vs long-term (FIFO, `estimateSale`), and the wash-sale window a loss opens
+- [x] Claude's strategy after a request → `planning → funding` on the next tick (process-capital, ≤ 15 min; portfolio can't call capital), and `capital.funding_planned` carries the plan's summary into the email
+- [x] Routine prompt section 3a, MCP instructions item 8, `get_rules.withdrawals`, tool descriptions; tool-list pin unchanged (no new write tool)
 - **Depends on:** C7 · **Scope:** M
 
 ### C10: Dashboard Money page (read)
-- [ ] `money/page.tsx`: ledger, contributed / value / VTI, request timeline + deadline; nav link
+- [x] `money/page.tsx` over core `moneyView`: put in / now worth / same in VTI / held back; the open request's steps, Claude's deadline and its event timeline; the transfer ledger; recent commands and past withdrawals; nav link; Activity labels for every capital kind. *Builds; not yet viewed in a browser (Checkpoint C on staging).*
 - **Depends on:** C4, C5 · **Scope:** S
 
 ### C11: Dashboard writes
@@ -92,7 +95,9 @@
 - **Depends on:** C10 · **Scope:** M
 
 ### C12: Notifications
-- [ ] Templates: `funding_planned` (summary + sells), `ready`, `completed`, `cancelled`; digest lists the open request; `notify:preview` fixtures
+- [x] Templates for every capital kind (most landed with C5/C9): `funding_planned` carries the plan's summary (the sells themselves are the rebalance's, in the digest's Trades), `ready` names the withdrawable amount, `completed` / `partial` / `settling` in the digest, `cancelled` and `command_rejected` urgent; severities so an unplanned outflow or a ready withdrawal leads its email
+- [x] The digest lists the open request every day until it closes (stage, Claude's deadline, what's still to raise, what's held back)
+- [x] `notify:preview --sample withdrawal` prints the whole sequence with made-up numbers, no database
 - **Depends on:** C5, C9 · **Scope:** S
 
 ### Checkpoint C

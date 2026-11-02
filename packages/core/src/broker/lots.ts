@@ -116,3 +116,45 @@ export function openQtyBySymbol(lots: OpenLot[]): Map<string, string> {
   for (const lot of lots) totals.set(lot.symbol, add(totals.get(lot.symbol) ?? "0", lot.qty));
   return totals;
 }
+
+/** What selling `qty` now would realize, first-in first-out: the tax view of a planned sell. */
+export interface SaleEstimate {
+  proceeds: string;
+  costBasis: string;
+  gain: string;
+  /** Lots held a year or less. */
+  shortTermGain: string;
+  /** Lots held more than a year. */
+  longTermGain: string;
+  /** The newest lot sold, for wash-sale checks. */
+  latestLotOpenedAt: Date | null;
+}
+
+/** More than one year, by calendar date: the IRS long-term holding period. */
+export function isLongTerm(openedAt: Date, soldAt: Date): boolean {
+  const anniversary = new Date(openedAt);
+  anniversary.setUTCFullYear(anniversary.getUTCFullYear() + 1);
+  return soldAt > anniversary;
+}
+
+/** Pure: the FIFO lots a sell of `qty` at `price` would close. Shares beyond the known lots have no basis and aren't counted. */
+export function estimateSale(open: OpenLot[], symbol: string, qty: string, price: string, at: Date): SaleEstimate {
+  const queue = open.filter((l) => l.symbol === symbol).sort((a, b) => a.openedAt.getTime() - b.openedAt.getTime() || a.activityId.localeCompare(b.activityId));
+  let remaining = qty;
+  const out: SaleEstimate = { proceeds: "0", costBasis: "0", gain: "0", shortTermGain: "0", longTermGain: "0", latestLotOpenedAt: null };
+  for (const lot of queue) {
+    if (compare(remaining, "0") <= 0) break;
+    const take = compare(remaining, lot.qty) < 0 ? remaining : lot.qty;
+    const basis = compare(take, lot.qty) === 0 ? lot.costBasis : div(mul(lot.costBasis, take), lot.qty, BASIS_DP, "half-even");
+    const proceeds = mul(take, price);
+    const gain = sub(proceeds, basis);
+    out.proceeds = add(out.proceeds, proceeds);
+    out.costBasis = add(out.costBasis, basis);
+    out.gain = add(out.gain, gain);
+    if (isLongTerm(lot.openedAt, at)) out.longTermGain = add(out.longTermGain, gain);
+    else out.shortTermGain = add(out.shortTermGain, gain);
+    out.latestLotOpenedAt = lot.openedAt;
+    remaining = sub(remaining, take);
+  }
+  return out;
+}

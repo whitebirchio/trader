@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { syncBroker } from "../../src/broker/sync.js";
 import type { Db } from "../../src/db/client.js";
 import { benchmarkCloses, equitySnapshots } from "../../src/db/schema.js";
-import { activityView, holdingsView, overviewView, performanceSeries, strategyHistory, strategyVersion, strategyView } from "../../src/dashboard/views.js";
+import { activityView, holdingsView, moneyView, overviewView, performanceSeries, strategyHistory, strategyVersion, strategyView } from "../../src/dashboard/views.js";
 import { compareToBenchmark } from "../../src/portfolio/benchmark.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
 import { buildIndex } from "../../src/risk/equity-index.js";
@@ -132,5 +132,34 @@ describe("activityView", () => {
     await seedHoldings();
     const a = await activityView(db, NOW, 7);
     expect(a.events.map((e) => e.kind)).toContain("strategy.activated");
+  });
+});
+
+describe("moneyView", () => {
+  it("is empty before any transfer or request", async () => {
+    await seedHoldings();
+    expect(await moneyView(db, NOW)).toMatchObject({ summary: null, withdrawal: null, ledger: [], timeline: [], commands: [], past: [] });
+  });
+
+  it("shows the ledger, the open request with its timeline, and the commands", async () => {
+    await seedHoldings();
+    const { processCommands, queueCommand } = await import("../../src/capital/commands.js");
+    const { recordCapitalFlows } = await import("../../src/capital/ledger.js");
+    broker.activities.push({ id: "csd", type: "CSD", at: new Date("2026-10-27T15:00:00Z"), symbol: null, side: null, qty: null, price: null, netAmount: "1000", orderId: null, raw: { created_at: "2026-10-27T15:00:00Z", status: "executed" } });
+    await syncBroker(db, broker, "staging", NOW);
+    await recordCapitalFlows(db, NOW);
+    await queueCommand(db, { kind: "request", amount: "300", requestedBy: "dashboard:scott" }, NOW);
+    await queueCommand(db, { kind: "request", amount: "all", requestedBy: "cli" }, new Date(NOW.getTime() + 1000));
+    await processCommands(db, new Date(NOW.getTime() + 2000), broker.calendar);
+
+    const m = await moneyView(db, NOW);
+    expect(m.summary).toMatchObject({ contributed: "1000", value: "980" });
+    expect(m.ledger).toEqual([{ at: "2026-10-27T15:00:00.000Z", amount: "1000", kind: "deposit", status: "executed", approximate: false }]);
+    expect(m.withdrawal).toMatchObject({ status: "planning", amount: "300", outstanding: "300" });
+    expect(m.timeline.map((e) => [e.kind, e.actor])).toEqual([["capital.withdrawal_requested", "owner"]]);
+    expect(m.commands.map((c) => [c.kind, c.amount, c.outcome])).toEqual([
+      ["request", "all", "rejected"],
+      ["request", "300", "accepted"],
+    ]);
   });
 });

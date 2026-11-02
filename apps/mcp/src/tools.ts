@@ -73,7 +73,7 @@ export const TOOLS: Tool[] = [
     name: "get_overview",
     title: "Portfolio overview",
     description:
-      "Start here. Equity, cash, today's change and drawdown, performance vs VTI (time-weighted, plus money-weighted: net deposits, value, and the same deposits held in VTI), guardrail state (kill switch, halt, buys paused, broker verdict), whether the market is open today and the rebalance window, the active strategy version, and holdings with their sleeve and thesis state.",
+      "Start here. Equity, cash, today's change and drawdown, performance vs VTI (time-weighted, plus money-weighted: net deposits, value, and the same deposits held in VTI), transfers since your last strategy and any open withdrawal request with the time to plan its funding by, guardrail state (kill switch, halt, buys paused, broker verdict), whether the market is open today and the rebalance window, the active strategy version, and holdings with their sleeve and thesis state.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getOverview(deps),
@@ -134,7 +134,7 @@ export const TOOLS: Tool[] = [
     name: "preview_strategy",
     title: "Preview a strategy",
     description:
-      "Validate a draft and run it through the real pipeline on current data: thesis states, ranking, targets, the sells-first plan, and risk. Returns the validation errors, or the trades the next rebalance step would make and risk's verdict on each. Records nothing and orders nothing. Always run this before submit_strategy.",
+      "Validate a draft and run it through the real pipeline on current data: thesis states, ranking, targets, the sells-first plan, and risk. Returns the validation errors, or the trades the next rebalance step would make and risk's verdict on each, with each sell's estimated realized gain (short- and long-term, FIFO) and any wash-sale window it opens. While a withdrawal is open, it plans for the smaller account. Records nothing and orders nothing. Always run this before submit_strategy.",
     inputSchema: schema({ strategy: strategyProp }, ["strategy"]),
     readOnly: true,
     handler: (deps, args) => previewStrategy(deps, strategyArg(args)),

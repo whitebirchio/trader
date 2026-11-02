@@ -1,18 +1,21 @@
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
 import { buildLots } from "../broker/lots.js";
-import { submitOrder } from "../broker/orders.js";
+import { OPEN_ORDER_LOOKBACK_MS, OPEN_ORDER_STATES, submitOrder } from "../broker/orders.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import { brokerAccount, brokerActivities, orders, positions, rebalancePlans, thesisEvents } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import type { JobFn } from "../jobs.js";
 import { loadSnapshot, riskGate } from "../risk/gate.js";
+import { loadReserve } from "../risk/reserve.js";
+import { getRiskState } from "../risk/state.js";
 import { LIMITS, type Limits } from "../risk/limits.js";
 import { evaluateOrders } from "../risk/rules.js";
 import type { Decision, Sleeve } from "../risk/types.js";
+import { compare, round, sub } from "../money.js";
 import { marketDate, marketTimeToUtc } from "../time.js";
-import { type PlannedTrade, planTrades, washSaleWindow } from "./planner.js";
+import { type PlannedTrade, planTrades, washSaleWindow, withdrawalSells } from "./planner.js";
 import { activeStrategy, stoppedThesisIds } from "./store.js";
 import type { Strategy } from "./strategy.js";
 import { IDLE_SYMBOL, type DailyClose, rankUniverse, requiredHistory } from "./systematic.js";
@@ -27,8 +30,6 @@ import { thesisStates } from "./theses.js";
 export const WINDOW_OPEN = "09:45";
 export const WINDOW_CLOSE = "15:30";
 const LAST_STEP_BEFORE_CLOSE_MS = 30 * 60_000;
-/** Orders in these states are still in flight: the next step waits for them. */
-const OPEN_ORDER_STATES = ["intent", "unknown", "new", "accepted", "pending_new", "partially_filled", "accepted_for_bidding", "held"];
 
 export type RebalanceResult =
   | { status: "skipped"; reason: string }
@@ -73,7 +74,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   const inFlight = await db
     .select({ id: orders.id })
     .from(orders)
-    .where(and(inArray(orders.status, OPEN_ORDER_STATES), gte(orders.createdAt, new Date(now.getTime() - 2 * 86_400_000))));
+    .where(and(inArray(orders.status, OPEN_ORDER_STATES), gte(orders.createdAt, new Date(now.getTime() - OPEN_ORDER_LOOKBACK_MS))));
   // A preview still plans (on current holdings); a real step waits for fills.
   if (inFlight.length > 0 && !opts.dryRun) return { status: "skipped", reason: `waiting for ${inFlight.length} open order(s) to fill` };
 
@@ -81,7 +82,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   if (!account) return { status: "skipped", reason: "the broker has never been synced" };
 
   const active = opts.strategyOverride
-    ? { version: -1, authoredBy: "claude" as const, createdAt: now, strategy: opts.strategyOverride }
+    ? { version: -1, authoredBy: "claude" as const, createdAt: now, reaffirmedAt: now, strategy: opts.strategyOverride }
     : await activeStrategy(db, now);
   const { strategy } = active;
   const activityRows = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
@@ -96,31 +97,43 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   const bars: Record<string, DailyClose[]> = Object.fromEntries(Object.entries(raw).map(([s, b]) => [s, b.map((x) => ({ t: x.t, c: x.c }))]));
   const lastClose = Object.fromEntries(Object.entries(bars).flatMap(([s, b]) => (b.length ? [[s, b.at(-1)!.c]] : [])));
 
-  const states = thesisStates({ active: { strategy, createdAt: active.createdAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
+  const states = thesisStates({ active: { strategy, createdAt: active.createdAt, reaffirmedAt: active.reaffirmedAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
   const convictionSymbols = new Set(strategy.conviction.map((t) => t.symbol));
   const ranking = rankUniverse(bars, strategy.systematic, convictionSymbols);
-  const { targets, notes } = buildTargets({
+  // Cash for an open withdrawal is left out of the targets, and sells raise it (SPEC-capital).
+  const reserve = await loadReserve(db, account.equity, account.cash);
+  const { targets, notes, investable } = buildTargets({
     states,
     ranking,
     params: strategy.systematic,
     skip: washSaleWindow(lots.closed, now),
     equity: account.equity,
+    reserved: reserve.outstanding,
     limits,
   });
+  if (compare(reserve.outstanding, "0") > 0) notes.push(`$${reserve.outstanding} held for a withdrawal (${compare(reserve.unfunded, "0") > 0 ? `$${round(reserve.unfunded, 2, "up")} still to raise` : "covered by cash"})`);
 
   const exitReasons: Record<string, string> = {};
   for (const s of states) if (s.state !== "active") exitReasons[s.thesis.symbol] = `thesis ${s.thesis.id}: ${s.reason}`;
   const sleeveOf = (symbol: string): Sleeve => (convictionSymbols.has(symbol) ? "conviction" : "systematic");
 
   const planId = opts.dryRun ? "dry-run" : crypto.randomUUID();
-  const plan = planTrades({
-    planId,
-    targets,
-    holdings: held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, currentPrice: p.currentPrice })),
-    drift: strategy.drift,
-    exitReasons,
-    sleeveOf,
-  });
+  const holdings = held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, currentPrice: p.currentPrice }));
+  // Idle cash beyond the reserve and any buffer is invested now, whatever the drift bands say.
+  // (What isn't investable, the reserve and buffer, should stay as cash; the rest of the cash is idle.)
+  const idle = sub(account.cash, sub(account.equity, investable));
+  const deployCash = compare(idle, strategy.drift.minTradeUsd) >= 0;
+  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: reserve.unfunded, deployCash });
+
+  // Halted, with a withdrawal to fund: only the sells it needs (SPEC-capital decision 2).
+  // The kill switch is absolute, so it gets the normal path, where risk rejects everything.
+  const guard = await getRiskState(db);
+  if (guard.halted && !guard.killSwitch && compare(reserve.unfunded, "0") > 0) {
+    const trades = withdrawalSells(plan.trades, holdings, reserve.unfunded);
+    if (trades.length === 0) return { status: "skipped", reason: "halted; nothing in the plan raises the withdrawal's cash" };
+    plan = { phase: "sell", trades };
+    notes.push(`trading is halted: selling only the $${round(reserve.unfunded, 2, "up")} your withdrawal needs`);
+  }
 
   if (opts.dryRun) {
     const snapshot = await loadSnapshot(db, broker, plan.trades.map((t) => t.proposal), now, limits, sleeveOf);

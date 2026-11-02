@@ -16,7 +16,7 @@ export interface Target {
 
 export interface TargetSet {
   targets: Target[];
-  /** Equity minus risk's cash buffer: what targets add up to (to the cent, rounding aside). */
+  /** Equity minus risk's cash buffer and any withdrawal reserve: what targets add up to (to the cent, rounding aside). */
   investable: string;
   /** How the sleeve was built: rank notes, caps hit, overflow moved. */
   notes: string[];
@@ -29,6 +29,8 @@ export interface TargetInputs {
   /** Symbols in an open wash-sale window (planner.washSaleWindow). */
   skip: ReadonlySet<string>;
   equity: string;
+  /** Held for an open withdrawal (SPEC-capital): left out of what's invested. */
+  reserved?: string;
   limits: Limits;
 }
 
@@ -63,7 +65,8 @@ const pctOf = (v: string, pct: string) => round(div(mul(v, pct), "100", 6, "down
 export function buildTargets(input: TargetInputs): TargetSet {
   const { limits } = input;
   const buffer = compare(limits.cashBufferMin, pctOf(input.equity, limits.cashBufferPct)) >= 0 ? limits.cashBufferMin : pctOf(input.equity, limits.cashBufferPct);
-  const investable = compare(input.equity, buffer) > 0 ? sub(input.equity, buffer) : "0";
+  const kept = add(buffer, input.reserved ?? "0");
+  const investable = compare(input.equity, kept) > 0 ? sub(input.equity, kept) : "0";
   const cap = pctOf(input.equity, limits.positionCapPct);
   const capped = (symbol: string) => !capExempt(symbol, limits);
   const notes: string[] = [];

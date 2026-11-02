@@ -197,6 +197,45 @@ describe("capital emails", () => {
     expect(email.text).toContain("Put in $1500, now $1560.25; the same deposits in VTI: $1540.10");
   });
 
+  it("emails every withdrawal command, and when the money is ready", () => {
+    const email = composeUrgent(
+      [
+        ev("capital.withdrawal_requested", { amount: "500", requestedBy: "cli", deadline: "2026-11-02T18:00:00.000Z" }, "w1"),
+        ev("capital.command_rejected", { kind: "request", requestedBy: "dashboard:scott", reason: "a withdrawal is already open ($500, planning); cancel it first" }, "c2"),
+        ev("capital.withdrawal_ready", { outstanding: "500", reason: "$510.00 of settled cash covers $500.00" }, "w1"),
+      ],
+      "production",
+      at,
+    );
+    expect(email.text).toContain("You requested a withdrawal: $500");
+    expect(email.text).toContain("Claude plans which holdings to sell by Mon, Nov 2, 1:00 PM ET");
+    expect(email.text).toContain("Withdrawal command rejected (request)");
+    expect(email.text).toContain("$500 is ready: withdraw it in Alpaca");
+    expect(email.text).toContain("$510.00 of settled cash covers $500.00, so it should be withdrawable now.");
+  });
+
+  it("lists the open withdrawal in the digest every day until it closes", () => {
+    const planning = composeDigest({ ...base, withdrawal: { status: "planning", amount: "500", outstanding: "500", unfunded: "500", planBy: "2026-11-02T18:00:00.000Z" } }, "production");
+    expect(planning.text).toContain("Money in and out\n  Open withdrawal of $500: waiting for Claude's funding plan (by Mon, Nov 2, 1:00 PM ET); $500 still to raise. $500 is held back from investing.");
+    const ready = composeDigest({ ...base, withdrawal: { status: "ready", amount: "all", outstanding: "998.20", unfunded: "0", planBy: null } }, "production");
+    expect(ready.text).toContain("Open withdrawal of everything: ready: withdraw it in Alpaca. $998.20 is held back from investing.");
+  });
+
+  it("lists withdrawal progress in the digest", () => {
+    const email = composeDigest(
+      {
+        ...base,
+        events: [
+          ev("capital.withdrawal_partial", { withdrawn: "200", remaining: "300" }, "w1"),
+          ev("capital.withdrawal_completed", { withdrawn: "500" }, "w1"),
+        ],
+      },
+      "production",
+    );
+    expect(email.text).toContain("Withdrew $200 so far; $300 still held for the request");
+    expect(email.text).toContain("Withdrawal complete: $500 left the account");
+  });
+
   it("leaves the money section out on a day without transfers", () => {
     expect(composeDigest(base, "production").text).not.toContain("Money in and out");
   });

@@ -8,6 +8,12 @@ import { type BrokerAdapter, BrokerHttpError, type BrokerOrder, type OrderSide }
 
 export type OrderRow = typeof orders.$inferSelect;
 
+/** Order states still in flight (ours and Alpaca's): the rebalance waits for them, and a withdrawal isn't funded until they're done. */
+export const OPEN_ORDER_STATES = ["intent", "unknown", "new", "accepted", "pending_new", "partially_filled", "accepted_for_bidding", "held"];
+
+/** Open orders are looked for this far back; anything older is stale data, not in flight. */
+export const OPEN_ORDER_LOOKBACK_MS = 2 * 86_400_000;
+
 /**
  * What a caller (eventually `portfolio`, through `risk`) wants traded.
  * `key` identifies the intent, e.g. `<plan-id>:<symbol>:<side>`: the same key
@@ -98,6 +104,9 @@ export async function submitOrder(
           notional: intent.notional ?? null,
           qty: intent.qty ?? null,
           status: "intent",
+          // The caller's clock, not the database's: risk counts today's orders by it.
+          createdAt: now,
+          updatedAt: now,
         })
         .returning()
     )[0];

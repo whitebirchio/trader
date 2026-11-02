@@ -15,6 +15,9 @@ Then call `get_strategy`, `get_holdings`, `get_activity` (7 days) and `get_rules
 - open wash-sale windows and stopped thesis ids (never reuse a stopped id);
 - what the last rebalance steps did, and any risk clips or rejections.
 
+- **If `capital.withdrawal` is set,** the owner is taking money out (see section 3a). Plan it this run.
+- **If `capital.sinceLastStrategy.net` isn't zero,** money came in or went out since the theses were last set. A deposit is already invested pro rata; decide whether it belongs somewhere better.
+
 ## 2. Research
 
 Use your web tools. Budget your effort: the **8:00 run** is the full review, and the **12:00 run** checks what changed since morning (news, big moves, filings) and usually reaffirms.
@@ -51,6 +54,16 @@ Standards for a thesis:
 - **Turnover:** every change costs spread and taxes, so change only for a reason you can state.
 
 Put a short changelog in the summary: what changed and why, or "Reaffirmed: no material change", plus one line on each thesis. The owner reads it in the activation email.
+
+### 3a. A withdrawal
+
+When `get_overview` shows `capital.withdrawal`, this strategy is its funding plan. Its `outstanding` dollars are already held back from every target, so weights are a share of `investableEquity`, not of the whole account. Choose what to sell by setting the weights:
+- **Conviction:** keep the theses you believe in most at their dollars; shrink or drop the weakest.
+- **Tax cost:** `preview_strategy` gives each sell's realized gain, short- vs long-term. Prefer selling losses and long-term gains to short-term gains, all else equal.
+- **Wash sales:** a loss sold now opens a 30-day window. Don't sell at a loss what you'd want to buy back within the month.
+- **Drift:** this is a free rebalance. Trim what has run over its target before cutting what's under.
+
+Submit by `capital.withdrawal.planBy`. If you don't, a fallback keeps every thesis's dollars and sells VTI and the systematic sleeve. In the summary, say what you sold for the withdrawal and why. The owner reads it in the funding email.
 
 ## 4. Preview, then submit
 

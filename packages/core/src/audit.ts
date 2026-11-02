@@ -41,6 +41,16 @@ export const AUDIT_KINDS = [
   "capital.transfer_reversed",
   "capital.transfer_canceled",
   "capital.unplanned_outflow",
+  // Withdrawal requests: the owner's commands, then the engine's transitions.
+  "capital.withdrawal_requested",
+  "capital.fund_now",
+  "capital.withdrawal_cancelled",
+  "capital.command_rejected",
+  "capital.funding_planned",
+  "capital.withdrawal_settling",
+  "capital.withdrawal_ready",
+  "capital.withdrawal_partial",
+  "capital.withdrawal_completed",
 ] as const;
 
 export type AuditKind = (typeof AUDIT_KINDS)[number];
