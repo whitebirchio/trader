@@ -22,6 +22,7 @@ describe("schema", () => {
       "benchmark_closes",
       "broker_account",
       "broker_activities",
+      "capital_flows",
       "equity_snapshots",
       "job_runs",
       "notification_items",

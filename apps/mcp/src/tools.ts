@@ -73,7 +73,7 @@ export const TOOLS: Tool[] = [
     name: "get_overview",
     title: "Portfolio overview",
     description:
-      "Start here. Equity, cash, today's change and drawdown, performance vs VTI, guardrail state (kill switch, halt, buys paused, broker verdict), whether the market is open today and the rebalance window, the active strategy version, and holdings with their sleeve and thesis state.",
+      "Start here. Equity, cash, today's change and drawdown, performance vs VTI (time-weighted, plus money-weighted: net deposits, value, and the same deposits held in VTI), guardrail state (kill switch, halt, buys paused, broker verdict), whether the market is open today and the rebalance window, the active strategy version, and holdings with their sleeve and thesis state.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getOverview(deps),

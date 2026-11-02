@@ -43,6 +43,15 @@ export default async function OverviewPage() {
         )}
       </Card>
 
+      {o.capital && (
+        <Card title="Your money">
+          <p className="text-sm">
+            Put in {formatUsd(o.capital.contributed)}, now worth {formatUsd(o.capital.value)}.
+            {o.capital.sameFlowsInVti && <> The same deposits held in VTI would be worth {formatUsd(o.capital.sameFlowsInVti)}.</>}
+          </p>
+        </Card>
+      )}
+
       <Card title={`Strategy v${o.strategy.version} · ${o.strategy.authoredBy} · ${formatEt(o.strategy.createdAt)}`}>
         <p className="whitespace-pre-line text-sm leading-relaxed [overflow-wrap:anywhere]">{o.strategy.summary}</p>
       </Card>

@@ -1,3 +1,4 @@
+import { capitalSummary } from "../capital/shadow.js";
 import { asc, desc, gte, inArray } from "drizzle-orm";
 import { buildLots } from "../broker/lots.js";
 import type { BrokerAdapter } from "../broker/port.js";
@@ -59,6 +60,8 @@ export async function getOverview({ db, broker, env, now }: ToolDeps) {
     market: session ? { tradingDay: true, open: session.open.toISOString(), close: session.close.toISOString(), rebalanceWindowEt: `${WINDOW_OPEN}–${WINDOW_CLOSE}` } : { tradingDay: false },
     account: { equity: snapshot.equity, cash: snapshot.cash, todayPct: snapshot.index.dailyChangePct, drawdownFromPeakPct: snapshot.index.drawdownPct },
     vsBenchmark: await benchmarkSince(db, broker, now),
+    /** Money-weighted: net deposits, value now, the same deposits in VTI (SPEC-capital). Null before any transfer. */
+    capital: await capitalSummary(db, snapshot.equity),
     guardrails: {
       killSwitch: snapshot.state.killSwitch,
       halted: snapshot.state.halted,

@@ -16,12 +16,14 @@ beforeEach(async () => {
     INSERT INTO strategies (authored_by, summary, document) VALUES ('owner', 's', '{}');
     INSERT INTO thesis_events (thesis_id, symbol, kind, strategy_version, reason) VALUES ('t', 'AAPL', 'stopped', 1, 'r');
     INSERT INTO rebalance_plans (trading_date, strategy_version, phase, targets, trades, notes) VALUES ('2026-11-02', 0, 'none', '[]', '[]', '[]');
+    INSERT INTO broker_activities (id, type, at, net_amount, raw) VALUES ('csd-1', 'CSD', now(), 1000, '{}');
+    INSERT INTO capital_flows (activity_id, at, amount, kind, timed_by) VALUES ('csd-1', now(), 1000, 'deposit', 'booking_date');
   `);
 });
 
 describe.each(APPEND_ONLY_TABLES)("%s is append-only (ADR-008)", (table) => {
   it("rejects UPDATE", async () => {
-    const col = table === "strategies" ? "version" : "id";
+    const col = table === "strategies" ? "version" : table === "capital_flows" ? "activity_id" : "id";
     await expect(pglite.exec(`UPDATE ${table} SET ${col} = ${col}`)).rejects.toThrow(/append-only/);
   });
   it("rejects DELETE", async () => {

@@ -36,6 +36,11 @@ const ROUTES: Record<AuditKind, Route> = {
   "thesis.stopped_out": "urgent",
   "thesis.stale": "urgent", // the research loop may be down
   "rebalance.planned": "digest",
+
+  "capital.deposit_received": "digest", // your own action; invested at the next rebalance step
+  "capital.transfer_reversed": "urgent", // e.g. a returned instant ACH: money taken back
+  "capital.transfer_canceled": "urgent", // left out of the index on the assumption it never moved money
+  "capital.unplanned_outflow": "urgent", // money left with no withdrawal request
 };
 
 export function routeFor(kind: string): Route {

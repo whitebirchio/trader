@@ -50,6 +50,7 @@ describe("read tools", () => {
       strategy: { version: 0, authoredBy: "system" },
       holdings: [],
       vsBenchmark: null,
+      capital: null, // no transfers recorded yet
     });
   });
 
