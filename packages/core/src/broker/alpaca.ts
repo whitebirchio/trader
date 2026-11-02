@@ -191,7 +191,8 @@ function toActivity(raw: Json): Activity {
     id: a.id,
     type: a.activity_type,
     // Non-trade activities carry a booking date; created_at is the precise instant when present.
-    at: a.created_at ?? new Date(`${a.date}T00:00:00Z`),
+    // Without it, noon ET keeps the activity on its own market date (midnight UTC is the evening before).
+    at: a.created_at ?? marketTimeToUtc(a.date, "12:00"),
     symbol: a.symbol ?? null,
     side: null,
     qty: a.qty ?? null,

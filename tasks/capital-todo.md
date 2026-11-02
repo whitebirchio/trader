@@ -6,8 +6,8 @@
 ## Phase 1: Ledger (PR 1)
 
 ### C1: Activity dating fix
-- [ ] `toActivity`: a date-only non-trade activity gets `marketTimeToUtc(date, "12:00")`
-- [ ] Regression test: a `CSD` with only `date` → `marketDate(at) === date` (fails before the fix)
+- [x] `toActivity`: a date-only non-trade activity gets `marketTimeToUtc(date, "12:00")`
+- [x] Regression test: a `CSD` with only `date` → `marketDate(at) === date` (fails before the fix)
 - **Files:** `src/broker/alpaca.ts`, `test/broker/alpaca.test.ts` · **Scope:** XS
 
 ### C2: `capital_flows` ledger

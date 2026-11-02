@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { AlpacaBroker } from "../../src/broker/alpaca.js";
 import { BrokerHttpError } from "../../src/broker/port.js";
+import { marketDate } from "../../src/time.js";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const fixture = (name: string): unknown => JSON.parse(readFileSync(join(dir, `${name}.json`), "utf8"));
@@ -149,6 +150,18 @@ describe("AlpacaBroker", () => {
     const [journal] = await b.getActivities();
     expect(journal).toMatchObject({ type: "JNLC", netAmount: "100000", symbol: null, side: null });
     expect(journal?.at.toISOString()).toBe("2026-04-21T08:21:58.208Z");
+  });
+
+  it("keeps a date-only activity on its own market date (noon ET), in EDT and EST", async () => {
+    // Midnight UTC would be the evening before in New York, filing a deposit
+    // under the previous market date (SPEC-capital, the false-halt bug).
+    const csd = (id: string, date: string) => ({ id, activity_type: "CSD", date, net_amount: "500", status: "executed" });
+    const { b } = broker({ "/v2/account/activities": () => ({ body: [csd("d-edt", "2026-06-15"), csd("d-est", "2026-11-03")] }) });
+    const [edt, est] = await b.getActivities();
+    expect(edt && marketDate(edt.at)).toBe("2026-06-15");
+    expect(edt?.at.toISOString()).toBe("2026-06-15T16:00:00.000Z");
+    expect(est && marketDate(est.at)).toBe("2026-11-03");
+    expect(est?.at.toISOString()).toBe("2026-11-03T17:00:00.000Z");
   });
 
   it("follows activity pages by the last id", async () => {
