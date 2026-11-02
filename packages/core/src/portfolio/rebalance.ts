@@ -13,7 +13,7 @@ import { getRiskState } from "../risk/state.js";
 import { LIMITS, type Limits } from "../risk/limits.js";
 import { evaluateOrders } from "../risk/rules.js";
 import type { Decision, Sleeve } from "../risk/types.js";
-import { compare, round } from "../money.js";
+import { compare, round, sub } from "../money.js";
 import { marketDate, marketTimeToUtc } from "../time.js";
 import { type PlannedTrade, planTrades, washSaleWindow, withdrawalSells } from "./planner.js";
 import { activeStrategy, stoppedThesisIds } from "./store.js";
@@ -102,7 +102,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   const ranking = rankUniverse(bars, strategy.systematic, convictionSymbols);
   // Cash for an open withdrawal is left out of the targets, and sells raise it (SPEC-capital).
   const reserve = await loadReserve(db, account.equity, account.cash);
-  const { targets, notes } = buildTargets({
+  const { targets, notes, investable } = buildTargets({
     states,
     ranking,
     params: strategy.systematic,
@@ -119,7 +119,11 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
 
   const planId = opts.dryRun ? "dry-run" : crypto.randomUUID();
   const holdings = held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, currentPrice: p.currentPrice }));
-  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: compare(reserve.unfunded, "0") > 0 });
+  // Idle cash beyond the reserve and any buffer is invested now, whatever the drift bands say.
+  // (What isn't investable, the reserve and buffer, should stay as cash; the rest of the cash is idle.)
+  const idle = sub(account.cash, sub(account.equity, investable));
+  const deployCash = compare(idle, strategy.drift.minTradeUsd) >= 0;
+  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: compare(reserve.unfunded, "0") > 0, deployCash });
 
   // Halted, with a withdrawal to fund: only the sells it needs (SPEC-capital decision 2).
   // The kill switch is absolute, so it gets the normal path, where risk rejects everything.

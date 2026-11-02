@@ -49,10 +49,18 @@ export interface PlanInput {
    * withdrawal could wait forever inside the drift band.
    */
   raiseCash?: boolean;
+  /**
+   * Cash is sitting idle beyond any withdrawal reserve (a deposit, a
+   * cancelled withdrawal): buy anything under its target back to it, however
+   * small the drift (down to $1). A deposit spreads over every target, so
+   * each gap is inside its band and the cash would never be invested
+   * (ADR-013: no idle money).
+   */
+  deployCash?: boolean;
 }
 
-/** Alpaca's smallest order: a sell for less isn't worth raising cash with. */
-const MIN_SELL_USD = "1";
+/** Alpaca's smallest order: below it, a trade isn't worth placing to raise or invest cash. */
+const MIN_TRADE_USD = "1";
 
 const QTY_DP = 9;
 
@@ -60,7 +68,8 @@ const QTY_DP = 9;
  * Targets vs holdings → the next step's trades (SPEC-portfolio).
  * - Holdings with no target are sold in full.
  * - A target drifted by more than max(relativePct × target, minTradeUsd) is traded back to target
- *   (while raising cash for a withdrawal, any position over target by $1 or more is sold back to it).
+ *   (while raising cash for a withdrawal, any position over target by $1 or more is sold back to it;
+ *   while investing idle cash, any position under target by $1 or more is bought back to it).
  * - Sells first: if anything is to be sold, this step proposes only sells; buys
  *   are planned on a later step from the cash the fills actually produced.
  * - Buys are ordered conviction first, then largest first, since risk consumes
@@ -89,7 +98,8 @@ export function planTrades(input: PlanInput): Plan {
     const threshold = compare(relative, input.drift.minTradeUsd) > 0 ? relative : input.drift.minTradeUsd;
     const gap = compare(diff, "0") < 0 ? sub("0", diff) : diff;
     const raising = input.raiseCash === true && compare(diff, "0") < 0;
-    if (compare(gap, raising ? MIN_SELL_USD : threshold) < 0) continue;
+    const deploying = input.deployCash === true && compare(diff, "0") > 0;
+    if (compare(gap, raising || deploying ? MIN_TRADE_USD : threshold) < 0) continue;
 
     if (compare(diff, "0") > 0) {
       const dollars = round(diff, 2, "down");

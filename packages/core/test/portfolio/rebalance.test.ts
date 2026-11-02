@@ -108,6 +108,16 @@ describe("rebalance", () => {
     expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666666" });
   });
 
+  it("invests a deposit smaller than the drift band at the next step (no idle money)", async () => {
+    await step();
+    await fillAll({ VTI: "300" });
+    // A $100 deposit: VTI's target rises to $1100, $100 under it, inside the $220 band.
+    broker.account = { ...broker.account, cash: add(broker.account.cash, "100"), equity: add(broker.account.equity, "100") };
+    await sync();
+    expect(await step()).toMatchObject({ status: "planned", phase: "buy" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "buy", notional: "100" });
+  });
+
   describe("while halted (SPEC-capital decision 2)", () => {
     async function holdVtiWithWithdrawal(amount: string) {
       await step();

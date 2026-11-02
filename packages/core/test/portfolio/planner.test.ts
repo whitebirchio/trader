@@ -126,3 +126,18 @@ describe("withdrawalSells (halted: only what the withdrawal needs)", () => {
     expect(withdrawalSells(sells, holdings, "0")).toEqual([]);
   });
 });
+
+describe("investing idle cash (a deposit, a cancelled withdrawal)", () => {
+  // $1000 of VTI and a $100 deposit: the VTI target is $1100, $100 under, inside the $220 band.
+  const holdings = [h("VTI", "3.333333333", "1000", "300")];
+
+  it("buys a position under target even inside the drift band", () => {
+    expect(plan([t("VTI", "1100")], holdings)).toEqual({ phase: "none", trades: [] });
+    expect(plan([t("VTI", "1100")], holdings, { deployCash: true }).trades.map((x) => x.proposal)).toMatchObject([{ symbol: "VTI", side: "buy", notional: "100" }]);
+  });
+
+  it("still leaves sells to the band, and skips buys under $1", () => {
+    const p = plan([t("VTI", "1000.50"), t("AAPL", "250")], [...holdings, h("AAPL", "1", "290", "290")], { deployCash: true });
+    expect(p).toEqual({ phase: "none", trades: [] });
+  });
+});
