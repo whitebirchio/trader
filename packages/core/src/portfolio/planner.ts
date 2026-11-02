@@ -1,5 +1,5 @@
 import type { ClosedLot } from "../broker/lots.js";
-import { compare, div, mul, round, sub } from "../money.js";
+import { add, compare, div, mul, round, sub } from "../money.js";
 import type { Proposal, Sleeve } from "../risk/types.js";
 import type { Target } from "./targets.js";
 
@@ -44,11 +44,13 @@ export interface PlanInput {
   /** Sleeve of a holding with no target, for risk attribution of the exit. */
   sleeveOf?: (symbol: string) => Sleeve | undefined;
   /**
-   * A withdrawal still needs cash (SPEC-capital): sell anything over its
-   * target back to it, however small the drift (down to $1), or a small
-   * withdrawal could wait forever inside the drift band.
+   * Dollars a withdrawal still needs (SPEC-capital). Sells the drift band
+   * wants anyway count toward it; for the rest, positions over target inside
+   * their band are sold back toward it, largest gap first and the last sized
+   * to the remainder, so a small withdrawal can't wait forever inside the
+   * band and doesn't trim every drifted name either.
    */
-  raiseCash?: boolean;
+  raiseCash?: string;
   /**
    * Cash is sitting idle beyond any withdrawal reserve (a deposit, a
    * cancelled withdrawal): buy anything under its target back to it, however
@@ -80,6 +82,10 @@ export function planTrades(input: PlanInput): Plan {
   const held = new Map(input.holdings.filter((h) => compare(h.qty, "0") > 0).map((h) => [h.symbol, h]));
   const targeted = new Map(input.targets.map((t) => [t.symbol, t]));
   const sells: PlannedTrade[] = [];
+  const raise = input.raiseCash && compare(input.raiseCash, "0") > 0 ? input.raiseCash : null;
+  const raiseCandidates: { target: Target; holding: PlanHolding; gap: string }[] = [];
+  /** Proceeds of the sells planned so far, at the last price. */
+  let selling = "0";
   const buys: (PlannedTrade & { sleeve: Sleeve; dollars: string })[] = [];
 
   for (const h of held.values()) {
@@ -88,6 +94,7 @@ export function planTrades(input: PlanInput): Plan {
       proposal: { key: key(h.symbol, "sell"), symbol: h.symbol, side: "sell", sleeve: input.sleeveOf?.(h.symbol) ?? "systematic", qty: h.qty },
       reason: input.exitReasons?.[h.symbol] ?? `${h.symbol} is no longer a target`,
     });
+    selling = add(selling, h.marketValue);
   }
 
   for (const t of input.targets) {
@@ -97,9 +104,12 @@ export function planTrades(input: PlanInput): Plan {
     const relative = div(mul(t.dollars, input.drift.relativePct), "100", 2, "down");
     const threshold = compare(relative, input.drift.minTradeUsd) > 0 ? relative : input.drift.minTradeUsd;
     const gap = compare(diff, "0") < 0 ? sub("0", diff) : diff;
-    const raising = input.raiseCash === true && compare(diff, "0") < 0;
     const deploying = input.deployCash === true && compare(diff, "0") > 0;
-    if (compare(gap, raising || deploying ? MIN_TRADE_USD : threshold) < 0) continue;
+    if (compare(gap, deploying ? MIN_TRADE_USD : threshold) < 0) {
+      // Inside the band but over target: a candidate if a withdrawal still needs cash.
+      if (h && compare(diff, "0") < 0 && compare(gap, MIN_TRADE_USD) >= 0 && compare(h.currentPrice, "0") > 0) raiseCandidates.push({ target: t, holding: h, gap });
+      continue;
+    }
 
     if (compare(diff, "0") > 0) {
       const dollars = round(diff, 2, "down");
@@ -111,7 +121,7 @@ export function planTrades(input: PlanInput): Plan {
       });
     } else if (h && compare(h.currentPrice, "0") > 0) {
       // Raising cash rounds up, so the proceeds cover the gap rather than fall a fraction short.
-      const mode = raising ? "up" : "down";
+      const mode = raise ? "up" : "down";
       const qtyRaw = round(div(gap, h.currentPrice, QTY_DP + 2, mode), QTY_DP, mode);
       const qty = compare(qtyRaw, h.qty) > 0 ? h.qty : qtyRaw;
       if (compare(qty, "0") <= 0) continue;
@@ -119,6 +129,23 @@ export function planTrades(input: PlanInput): Plan {
         proposal: { key: key(t.symbol, "sell"), symbol: t.symbol, side: "sell", sleeve: t.sleeve, qty },
         reason: `${t.symbol} is $${round(gap, 2, "down")} over its $${t.dollars} target (${t.reason})`,
       });
+      selling = add(selling, mul(qty, h.currentPrice));
+    }
+  }
+
+  if (raise) {
+    let needed = sub(raise, selling);
+    raiseCandidates.sort((a, b) => compare(b.gap, a.gap));
+    for (const { target: t, holding: h, gap } of raiseCandidates) {
+      if (compare(needed, MIN_TRADE_USD) < 0) break;
+      const take = compare(gap, needed) > 0 ? needed : gap;
+      const qtyRaw = round(div(take, h.currentPrice, QTY_DP + 2, "up"), QTY_DP, "up");
+      const qty = compare(qtyRaw, h.qty) > 0 ? h.qty : qtyRaw;
+      sells.push({
+        proposal: { key: key(t.symbol, "sell"), symbol: t.symbol, side: "sell", sleeve: t.sleeve, qty },
+        reason: `${t.symbol} is $${round(gap, 2, "down")} over its $${t.dollars} target; selling $${round(take, 2, "up")} of it to raise cash for your withdrawal`,
+      });
+      needed = sub(needed, mul(qty, h.currentPrice));
     }
   }
 

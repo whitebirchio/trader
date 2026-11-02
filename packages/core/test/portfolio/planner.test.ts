@@ -98,13 +98,36 @@ describe("raising cash for a withdrawal", () => {
     // $980 target vs $1000 held: $20 over, under the $196 band. A $20 withdrawal needs it sold.
     const holdings = [h("VTI", "3.333333333", "1000", "300")];
     expect(plan([t("VTI", "980")], holdings)).toEqual({ phase: "none", trades: [] });
-    const p = plan([t("VTI", "980")], holdings, { raiseCash: true });
+    const p = plan([t("VTI", "980")], holdings, { raiseCash: "20" });
     expect(p.phase).toBe("sell");
     expect(p.trades[0]?.proposal).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666667" });
   });
 
+  it("sells only what the withdrawal needs: the largest gaps first, the last sized to the remainder", () => {
+    // Every name drifted a little over target, $40 in all, each inside its band. $50 is needed, so all three go.
+    const targets = [t("VTI", "490"), t("XLE", "290"), t("XLB", "190")];
+    const drifted = [h("VTI", "1.7", "510", "300"), h("XLE", "3", "300", "100"), h("XLB", "4", "200", "50")];
+    const p = plan(targets, drifted, { raiseCash: "50" });
+    expect(p.trades.map((x) => [x.proposal.symbol, x.proposal.side === "sell" ? x.proposal.qty : null])).toEqual([
+      ["VTI", "0.066666667"], // its $20 gap, the largest
+      ["XLE", "0.1"], // $10
+      ["XLB", "0.2"], // $10: $40 so far
+    ]);
+    // Less needed: stop once covered, the last trimmed to the remainder.
+    expect(plan(targets, drifted, { raiseCash: "25" }).trades.map((x) => [x.proposal.symbol, x.proposal.side === "sell" ? x.proposal.qty : null])).toEqual([
+      ["VTI", "0.066666667"],
+      ["XLE", "0.049999999"], // the first sell's round-up already covered a fraction of a cent
+    ]);
+  });
+
+  it("counts sells the drift band already wants toward the amount", () => {
+    // VTI is $300 over (outside its band) and sells anyway; that covers the $50.
+    const p = plan([t("VTI", "700"), t("XLE", "290")], [h("VTI", "3.333333333", "1000", "300"), h("XLE", "3", "300", "100")], { raiseCash: "50" });
+    expect(p.trades.map((x) => x.proposal.symbol)).toEqual(["VTI"]);
+  });
+
   it("still leaves buys under target to the band, and skips sells under $1", () => {
-    const p = plan([t("VTI", "999.50"), t("AAPL", "300")], [h("VTI", "3.333333333", "1000", "300"), h("AAPL", "1", "290", "290")], { raiseCash: true });
+    const p = plan([t("VTI", "999.50"), t("AAPL", "300")], [h("VTI", "3.333333333", "1000", "300"), h("AAPL", "1", "290", "290")], { raiseCash: "20" });
     expect(p).toEqual({ phase: "none", trades: [] });
   });
 });

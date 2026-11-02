@@ -123,7 +123,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   // (What isn't investable, the reserve and buffer, should stay as cash; the rest of the cash is idle.)
   const idle = sub(account.cash, sub(account.equity, investable));
   const deployCash = compare(idle, strategy.drift.minTradeUsd) >= 0;
-  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: compare(reserve.unfunded, "0") > 0, deployCash });
+  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: reserve.unfunded, deployCash });
 
   // Halted, with a withdrawal to fund: only the sells it needs (SPEC-capital decision 2).
   // The kill switch is absolute, so it gets the normal path, where risk rejects everything.
