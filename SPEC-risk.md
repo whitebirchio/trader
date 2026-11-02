@@ -47,7 +47,7 @@ Sells are never blocked by eligibility, position or sleeve rules: you can always
    False positives (blocking a fund that's actually fine) are acceptable. False negatives aren't.
 4. **Sleeve membership** of each holding and proposal is supplied by `portfolio`. `risk` defines the input shape (`sleeve: "core" | "satellite"`). Holdings it can't attribute count as satellite, which is the conservative side of the cap.
 5. **Clip, don't reject, when possible.** A buy that exceeds a cap is resized down to fit (2 dp notional) if at least $1 remains. `portfolio` sees the clipped amount and its reason. Proposals are evaluated in the order given, so `portfolio` controls which buys get priority when cash runs short.
-6. **Flow-adjusted index.** Daily index = previous index × (close equity − that day's net deposits) ÷ previous close equity. Deposits and withdrawals are Alpaca's cash-movement activities (`CSD`, `CSW`, `JNLC`, `JNLS`). The peak is the running max of the index. Intraday, today's index uses live equity minus today's flows. Before the first snapshot exists, drawdown is 0 and daily loss uses Alpaca's `last_equity`.
+6. **Flow-adjusted index.** Daily index = previous index × (close equity − that day's net deposits) ÷ previous close equity. Deposits and withdrawals are Alpaca's cash-movement activities (`CSD`, `CSW`, `JNLC`, `JNLS`). The peak is the running max of the index. Intraday, today's index uses live equity minus today's flows. Before the first snapshot exists, drawdown is 0 and daily loss uses Alpaca's `last_equity`. *Flows move to a ledger timed by instant, not date: see [SPEC-capital.md](SPEC-capital.md).*
 
 ## Tech Stack
 
