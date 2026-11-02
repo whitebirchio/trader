@@ -92,6 +92,20 @@
       "when": 1793588007346,
       "tag": "0012_capital_flows_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793621713073,
+      "tag": "0013_withdrawals",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793621724876,
+      "tag": "0014_capital_commands_append_only",
+      "breakpoints": true
     }
   ]
 }

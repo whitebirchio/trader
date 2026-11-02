@@ -28,6 +28,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -88,6 +89,8 @@ export const APPEND_ONLY_TABLES = [
   "thesis_events",
   "rebalance_plans",
   "capital_flows",
+  "capital_commands",
+  "capital_command_results",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -392,5 +395,75 @@ export const capitalFlows = pgTable(
     index("capital_flows_at_idx").on(t.at),
     check("capital_flows_kind", sql`${t.kind} in ('deposit', 'withdrawal', 'reversal')`),
     check("capital_flows_timed_by", sql`${t.timedBy} in ('created_at', 'booking_date')`),
+  ],
+);
+
+/**
+ * Owner commands about withdrawals: what the dashboard (its one INSERT
+ * grant) and the capital:* CLI write. Append-only. The engine processes each
+ * once, on its next tick, and records the outcome in capital_command_results;
+ * `amount` stays text so a bad value is rejected and audited, never guessed.
+ */
+export const capitalCommands = pgTable(
+  "capital_commands",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    kind: text({ enum: ["request", "cancel", "fund_now"] }).notNull(),
+    /** A request's dollars ("500" or "500.25"), or "all". */
+    amount: text(),
+    /** Who asked: "cli" or "dashboard:<email>". */
+    requestedBy: text().notNull(),
+    at: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [
+    index("capital_commands_at_idx").on(t.at),
+    check("capital_commands_kind", sql`${t.kind} in ('request', 'cancel', 'fund_now')`),
+  ],
+);
+
+/** One row per processed command: the at-most-once record. Append-only. */
+export const capitalCommandResults = pgTable("capital_command_results", {
+  commandId: uuid()
+    .primaryKey()
+    .references(() => capitalCommands.id),
+  outcome: text({ enum: ["accepted", "rejected"] }).notNull(),
+  /** Why it was rejected: email-ready. */
+  reason: text(),
+  withdrawalId: uuid(),
+  processedAt: timestamptz().notNull().defaultNow(),
+});
+
+/**
+ * Withdrawal requests (SPEC-capital): mutable state, like orders. Every
+ * transition is audited. At most one is open (a partial unique index).
+ * `requested` is the command waiting for the engine, so a row starts in
+ * `planning`.
+ */
+export const withdrawals = pgTable(
+  "withdrawals",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    status: text({ enum: ["planning", "funding", "settling", "ready", "withdrawn", "cancelled"] }).notNull(),
+    /** Dollars requested; null = everything in the account. */
+    amount: numeric(),
+    /** Outgoing transfers matched to it so far (positive dollars). */
+    withdrawn: numeric().notNull().default("0"),
+    /** The capital_flows rows matched to it. */
+    flowIds: jsonb().$type<string[]>().notNull().default([]),
+    commandId: uuid()
+      .notNull()
+      .references(() => capitalCommands.id),
+    requestedAt: timestamptz().notNull(),
+    /** When Claude's window to plan the funding closes and the fallback runs. */
+    deadline: timestamptz().notNull(),
+    /** The strategy version that funds it, and who wrote it. */
+    fundingVersion: integer(),
+    fundedBy: auditActor(),
+    updatedAt: timestamptz().notNull(),
+    closedAt: timestamptz(),
+  },
+  (t) => [
+    uniqueIndex("withdrawals_one_open").on(sql`(true)`).where(sql`${t.status} not in ('withdrawn', 'cancelled')`),
+    check("withdrawals_status", sql`${t.status} in ('planning', 'funding', 'settling', 'ready', 'withdrawn', 'cancelled')`),
   ],
 );

@@ -22,6 +22,8 @@ describe("schema", () => {
       "benchmark_closes",
       "broker_account",
       "broker_activities",
+      "capital_command_results",
+      "capital_commands",
       "capital_flows",
       "equity_snapshots",
       "job_runs",
@@ -35,6 +37,7 @@ describe("schema", () => {
       "risk_state",
       "strategies",
       "thesis_events",
+      "withdrawals",
     ]);
   });
 
