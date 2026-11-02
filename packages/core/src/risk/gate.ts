@@ -16,6 +16,7 @@ import { marketDate } from "../time.js";
 import { assetFacts } from "./eligibility.js";
 import { type DailyEquity, type IndexFlow, type LiveIndex, buildIndex, liveIndex } from "./equity-index.js";
 import { LIMITS, type Limits, limitsVersion } from "./limits.js";
+import { loadReserve } from "./reserve.js";
 import { evaluateOrders } from "./rules.js";
 import { getRiskState, latchHalt, markBuysPaused } from "./state.js";
 import type { AssetFacts, Decision, Proposal, RiskSnapshot, Sleeve } from "./types.js";
@@ -120,6 +121,8 @@ export async function loadSnapshot(
     }
   }
 
+  const withdrawal = await loadReserve(db, account?.equity ?? "0", account?.cash ?? "0");
+
   return {
     now,
     equity: account?.equity ?? "0",
@@ -138,6 +141,7 @@ export async function loadSnapshot(
     },
     state: { killSwitch: state.killSwitch, killReason: state.killReason, halted: state.halted, haltReason: state.haltReason },
     today,
+    withdrawal,
     assets,
   };
 }

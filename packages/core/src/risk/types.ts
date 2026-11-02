@@ -1,4 +1,5 @@
 import type { OrderSide } from "../broker/port.js";
+import type { WithdrawalReserve } from "./reserve.js";
 
 export type Sleeve = "systematic" | "conviction";
 
@@ -43,6 +44,8 @@ export interface RiskSnapshot {
   state: { killSwitch: boolean; killReason: string | null; halted: boolean; haltReason: string | null };
   /** Orders already placed today (any status), and their buy notional. */
   today: { orderCount: number; buyNotional: string };
+  /** Cash held for an open withdrawal request (SPEC-capital): buys may not touch it. */
+  withdrawal: WithdrawalReserve;
   assets: Record<string, AssetFacts>;
 }
 

@@ -2,6 +2,7 @@ import type { AuditActor } from "../audit.js";
 import type { CalendarDay } from "../broker/port.js";
 import type { withdrawals } from "../db/schema.js";
 import { add, compare, mul, round, sub } from "../money.js";
+import { OPEN_WITHDRAWAL_STATUSES, outstandingAmount } from "../risk/reserve.js";
 import { formatMarketTime, marketDate } from "../time.js";
 
 /**
@@ -16,7 +17,7 @@ import { formatMarketTime, marketDate } from "../time.js";
 export type Withdrawal = typeof withdrawals.$inferSelect;
 export type WithdrawalStatus = Withdrawal["status"];
 
-export const OPEN_STATUSES = ["planning", "funding", "settling", "ready"] as const satisfies readonly WithdrawalStatus[];
+export const OPEN_STATUSES = OPEN_WITHDRAWAL_STATUSES satisfies readonly WithdrawalStatus[];
 
 export function isOpen(status: WithdrawalStatus): boolean {
   return (OPEN_STATUSES as readonly string[]).includes(status);
@@ -63,9 +64,7 @@ export function parseAmount(raw: string | null): ParsedAmount {
 
 /** Dollars still to come out: the requested amount less what has been withdrawn, or the whole account for "all". */
 export function outstanding(w: Pick<Withdrawal, "amount" | "withdrawn">, equity: string): string {
-  if (w.amount === null) return compare(equity, "0") > 0 ? equity : "0";
-  const left = sub(w.amount, w.withdrawn);
-  return compare(left, "0") > 0 ? left : "0";
+  return outstandingAmount(w.amount, w.withdrawn, equity);
 }
 
 export interface SellFill {

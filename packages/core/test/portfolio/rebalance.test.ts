@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, orders, rebalancePlans, thesisEvents } from "../../src/db/schema.js";
+import { auditEvents, capitalCommands, orders, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { add, compare, div, mul, sub } from "../../src/money.js";
 import { runRebalance } from "../../src/portfolio/rebalance.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
@@ -85,6 +85,26 @@ describe("rebalance", () => {
     expect(await step()).toEqual({ status: "skipped", reason: "outside the trading window" });
     clock = new Date("2026-11-01T15:35:00Z"); // Sunday
     expect(await step()).toEqual({ status: "skipped", reason: "not a trading day" });
+  });
+
+  it("sells to raise a withdrawal's cash and doesn't reinvest it (SPEC-capital)", async () => {
+    await step();
+    await fillAll({ VTI: "300" });
+    const [command] = await db.insert(capitalCommands).values({ kind: "request", amount: "500", requestedBy: "cli" }).returning();
+    await db.insert(withdrawals).values({ status: "funding", amount: "500", commandId: command!.id, requestedAt: clock, deadline: clock, updatedAt: clock });
+
+    const sells = await step();
+    expect(sells).toMatchObject({ status: "planned", phase: "sell", notes: expect.arrayContaining(["$500 held for a withdrawal ($500 still to raise)"]) });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell", qty: "1.666666666" });
+    await fillAll({ VTI: "300" });
+
+    // $500 of cash sits there, held for the withdrawal: nothing to buy.
+    expect(await step()).toEqual({ status: "skipped", reason: "on target" });
+
+    // A small withdrawal inside the drift band still gets its cash.
+    await db.update(withdrawals).set({ amount: "520" });
+    expect(await step()).toMatchObject({ phase: "sell" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666667" });
   });
 
   it("on a strategy change, sells first and buys on the next step", async () => {

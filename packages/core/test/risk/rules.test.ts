@@ -28,6 +28,7 @@ function snapshot(overrides: Partial<RiskSnapshot> = {}): RiskSnapshot {
     broker: { tradingAllowed: true, blockedReasons: [], syncedAt: new Date(NOW.getTime() - 5 * 60_000) },
     state: { killSwitch: false, killReason: null, halted: false, haltReason: null },
     today: { orderCount: 0, buyNotional: "0" },
+    withdrawal: { outstanding: "0", unfunded: "0" },
     assets: {
       VTI: facts("VTI", { name: "Vanguard Total Stock Market ETF" }),
       AAPL: facts("AAPL"),
@@ -273,5 +274,22 @@ describe("input hygiene", () => {
     const s = snapshot();
     const p = [buy("AAPL", "300", "conviction"), buy("VTI", "500")];
     expect(run(s, ...p)).toEqual(run(s, ...p));
+  });
+});
+
+describe("cash held for a withdrawal (SPEC-capital)", () => {
+  it("keeps buys out of the reserve", () => {
+    const s = snapshot({ cash: "600", withdrawal: { outstanding: "500", unfunded: "0" } });
+    expect(run(s, buy("VTI", "300"))).toMatchObject([
+      { verdict: "clipped", notional: "100", reasons: ["Reduced to the cash available ($100, keeping $500 for your withdrawal)."] },
+    ]);
+    expect(run(snapshot({ cash: "500", withdrawal: { outstanding: "500", unfunded: "0" } }), buy("VTI", "50"))).toMatchObject([
+      { verdict: "rejected", reasons: ["Not enough cash: $0 available after the $500 held for your withdrawal."] },
+    ]);
+  });
+
+  it("doesn't touch sells", () => {
+    const s = snapshot({ cash: "0", holdings: [{ symbol: "VTI", qty: "3", marketValue: "900", sleeve: "systematic" }], withdrawal: { outstanding: "500", unfunded: "500" } });
+    expect(run(s, sell("VTI", "2"))).toMatchObject([{ verdict: "approved", qty: "2" }]);
   });
 });

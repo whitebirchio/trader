@@ -111,3 +111,16 @@ describe("weightToDecimal", () => {
     expect(() => weightToDecimal(-0.1)).toThrow();
   });
 });
+
+describe("cash held for a withdrawal", () => {
+  it("leaves the outstanding amount out of what's invested, and theses shrink with it", () => {
+    const r = build({ states: [active("t1", "AAPL", "10")], equity: "1000", reserved: "500" });
+    expect(r.investable).toBe("500");
+    expect(sum(r)).toBe("500");
+    expect(table(r).AAPL).toBe("50");
+  });
+
+  it("invests nothing when everything is reserved", () => {
+    expect(build({ equity: "1000", reserved: "1000" }).targets).toEqual([]);
+  });
+});

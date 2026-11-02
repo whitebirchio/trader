@@ -93,13 +93,18 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
       if (stopped) return reject(proposal, stopped);
     }
 
-    const cashRoom = sub(sub(snapshot.cash, buffer), state.plannedBuys);
+    // Cash held for a withdrawal is as untouchable as the buffer (SPEC-capital).
+    const reserved = snapshot.withdrawal.outstanding;
+    const cashRoom = sub(sub(sub(snapshot.cash, buffer), reserved), state.plannedBuys);
     const available = round(maxOf(cashRoom, "0"), 2, "down");
-    const hasBuffer = compare(buffer, "0") > 0;
+    const kept = [
+      ...(compare(buffer, "0") > 0 ? [{ keeping: `a $${buffer} buffer`, after: `the $${buffer} buffer` }] : []),
+      ...(compare(reserved, "0") > 0 ? [{ keeping: `$${reserved} for your withdrawal`, after: `the $${reserved} held for your withdrawal` }] : []),
+    ];
     const cashStop = limitTo(
       cashRoom,
-      hasBuffer ? `Reduced to the cash available ($${available}, keeping a $${buffer} buffer).` : `Reduced to the cash available ($${available}).`,
-      hasBuffer ? `Not enough cash: $${available} available after the $${buffer} buffer.` : `Not enough cash: $${available} available.`,
+      kept.length ? `Reduced to the cash available ($${available}, keeping ${kept.map((k) => k.keeping).join(" and ")}).` : `Reduced to the cash available ($${available}).`,
+      kept.length ? `Not enough cash: $${available} available after ${kept.map((k) => k.after).join(" and ")}.` : `Not enough cash: $${available} available.`,
     );
     if (cashStop) return reject(proposal, cashStop);
 

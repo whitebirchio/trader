@@ -49,9 +49,10 @@
 - **Depends on:** C2 · **Scope:** L (split C5a pure / C5b wiring if needed)
 
 ### C6: Reserved cash
-- [ ] `runRebalance`: investable = equity − outstanding
-- [ ] `RiskSnapshot.withdrawal { outstanding, unfunded }`; rule: buys ≤ cash − buffer − outstanding
-- [ ] Tests: $500 reserved on $1,000 VTI → sells ~$500, no buys; a buy into the reserve is rejected
+- [x] `runRebalance`: investable = equity − outstanding (so `preview_strategy` previews against it too)
+- [x] `RiskSnapshot.withdrawal { outstanding, unfunded }` (`risk/reserve.ts`, below portfolio and capital); rule: buys ≤ cash − buffer − outstanding
+- [x] While unfunded > 0 the planner sells anything over target back to it, ignoring the drift band (down to $1), so a small withdrawal can't stall inside the band
+- [x] Tests: $500 reserved on $1,000 VTI → sells ~$500, then on target with $500 idle; a $20 top-up sells inside the band; a buy into the reserve is clipped or rejected
 - **Depends on:** C5 · **Scope:** S
 
 ### C7: Fallback strategy, staleness fix, deadline

@@ -8,9 +8,11 @@ import { brokerAccount, brokerActivities, orders, positions, rebalancePlans, the
 import type { TradingEnv } from "../env.js";
 import type { JobFn } from "../jobs.js";
 import { loadSnapshot, riskGate } from "../risk/gate.js";
+import { loadReserve } from "../risk/reserve.js";
 import { LIMITS, type Limits } from "../risk/limits.js";
 import { evaluateOrders } from "../risk/rules.js";
 import type { Decision, Sleeve } from "../risk/types.js";
+import { compare, round } from "../money.js";
 import { marketDate, marketTimeToUtc } from "../time.js";
 import { type PlannedTrade, planTrades, washSaleWindow } from "./planner.js";
 import { activeStrategy, stoppedThesisIds } from "./store.js";
@@ -97,14 +99,18 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   const states = thesisStates({ active: { strategy, createdAt: active.createdAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
   const convictionSymbols = new Set(strategy.conviction.map((t) => t.symbol));
   const ranking = rankUniverse(bars, strategy.systematic, convictionSymbols);
+  // Cash for an open withdrawal is left out of the targets, and sells raise it (SPEC-capital).
+  const reserve = await loadReserve(db, account.equity, account.cash);
   const { targets, notes } = buildTargets({
     states,
     ranking,
     params: strategy.systematic,
     skip: washSaleWindow(lots.closed, now),
     equity: account.equity,
+    reserved: reserve.outstanding,
     limits,
   });
+  if (compare(reserve.outstanding, "0") > 0) notes.push(`$${reserve.outstanding} held for a withdrawal (${compare(reserve.unfunded, "0") > 0 ? `$${round(reserve.unfunded, 2, "up")} still to raise` : "covered by cash"})`);
 
   const exitReasons: Record<string, string> = {};
   for (const s of states) if (s.state !== "active") exitReasons[s.thesis.symbol] = `thesis ${s.thesis.id}: ${s.reason}`;
@@ -118,6 +124,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
     drift: strategy.drift,
     exitReasons,
     sleeveOf,
+    raiseCash: compare(reserve.unfunded, "0") > 0,
   });
 
   if (opts.dryRun) {

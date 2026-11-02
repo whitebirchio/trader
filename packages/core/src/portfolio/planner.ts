@@ -43,14 +43,24 @@ export interface PlanInput {
   exitReasons?: Record<string, string>;
   /** Sleeve of a holding with no target, for risk attribution of the exit. */
   sleeveOf?: (symbol: string) => Sleeve | undefined;
+  /**
+   * A withdrawal still needs cash (SPEC-capital): sell anything over its
+   * target back to it, however small the drift (down to $1), or a small
+   * withdrawal could wait forever inside the drift band.
+   */
+  raiseCash?: boolean;
 }
+
+/** Alpaca's smallest order: a sell for less isn't worth raising cash with. */
+const MIN_SELL_USD = "1";
 
 const QTY_DP = 9;
 
 /**
  * Targets vs holdings → the next step's trades (SPEC-portfolio).
  * - Holdings with no target are sold in full.
- * - A target drifted by more than max(relativePct × target, minTradeUsd) is traded back to target.
+ * - A target drifted by more than max(relativePct × target, minTradeUsd) is traded back to target
+ *   (while raising cash for a withdrawal, any position over target by $1 or more is sold back to it).
  * - Sells first: if anything is to be sold, this step proposes only sells; buys
  *   are planned on a later step from the cash the fills actually produced.
  * - Buys are ordered conviction first, then largest first, since risk consumes
@@ -78,7 +88,8 @@ export function planTrades(input: PlanInput): Plan {
     const relative = div(mul(t.dollars, input.drift.relativePct), "100", 2, "down");
     const threshold = compare(relative, input.drift.minTradeUsd) > 0 ? relative : input.drift.minTradeUsd;
     const gap = compare(diff, "0") < 0 ? sub("0", diff) : diff;
-    if (compare(gap, threshold) < 0) continue;
+    const raising = input.raiseCash === true && compare(diff, "0") < 0;
+    if (compare(gap, raising ? MIN_SELL_USD : threshold) < 0) continue;
 
     if (compare(diff, "0") > 0) {
       const dollars = round(diff, 2, "down");

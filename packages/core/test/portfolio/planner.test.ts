@@ -92,3 +92,19 @@ describe("washSaleWindow", () => {
     );
   });
 });
+
+describe("raising cash for a withdrawal", () => {
+  it("sells a position over target even inside the drift band", () => {
+    // $980 target vs $1000 held: $20 over, under the $196 band. A $20 withdrawal needs it sold.
+    const holdings = [h("VTI", "3.333333333", "1000", "300")];
+    expect(plan([t("VTI", "980")], holdings)).toEqual({ phase: "none", trades: [] });
+    const p = plan([t("VTI", "980")], holdings, { raiseCash: true });
+    expect(p.phase).toBe("sell");
+    expect(p.trades[0]?.proposal).toMatchObject({ symbol: "VTI", side: "sell", qty: "0.066666666" });
+  });
+
+  it("still leaves buys under target to the band, and skips sells under $1", () => {
+    const p = plan([t("VTI", "999.50"), t("AAPL", "300")], [h("VTI", "3.333333333", "1000", "300"), h("AAPL", "1", "290", "290")], { raiseCash: true });
+    expect(p).toEqual({ phase: "none", trades: [] });
+  });
+});
