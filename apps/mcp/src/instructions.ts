@@ -18,5 +18,6 @@ What's expected of you:
 5. Weigh the open wash-sale windows from get_holdings before buying back something recently sold at a loss.
 6. Prefer fewer, better-evidenced theses to many thin ones. When nothing has changed, resubmit to reaffirm the theses rather than inventing new ones.
 7. Explain your reasoning in the strategy's summary. The owner reads it in the activation email.
+8. If get_overview shows an open withdrawal in capital.withdrawal, the owner is taking money out. Its outstanding amount is held back from every target, so your next strategy is the funding plan: choose what to sell by setting the weights, weighing conviction, the tax cost of each sell (preview_strategy shows it), drift and wash sales. Submit by planBy, or a fallback keeps every thesis's dollars and sells VTI and the systematic sleeve.
 
 Money is always a decimal string ("12.50"), never a number.`;

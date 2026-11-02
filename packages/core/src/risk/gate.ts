@@ -11,11 +11,12 @@ import {
   riskDecisions,
   riskGateRuns,
 } from "../db/schema.js";
-import { add, compare } from "../money.js";
+import { add, compare, sub } from "../money.js";
 import { marketDate } from "../time.js";
 import { assetFacts } from "./eligibility.js";
 import { type DailyEquity, type IndexFlow, type LiveIndex, buildIndex, liveIndex } from "./equity-index.js";
 import { LIMITS, type Limits, limitsVersion } from "./limits.js";
+import { loadReserve, pendingTransferOut } from "./reserve.js";
 import { evaluateOrders } from "./rules.js";
 import { getRiskState, latchHalt, markBuysPaused } from "./state.js";
 import type { AssetFacts, Decision, Proposal, RiskSnapshot, Sleeve } from "./types.js";
@@ -120,6 +121,8 @@ export async function loadSnapshot(
     }
   }
 
+  const withdrawal = await loadReserve(db, account?.equity ?? "0", account?.cash ?? "0");
+
   return {
     now,
     equity: account?.equity ?? "0",
@@ -138,6 +141,7 @@ export async function loadSnapshot(
     },
     state: { killSwitch: state.killSwitch, killReason: state.killReason, halted: state.halted, haltReason: state.haltReason },
     today,
+    withdrawal,
     assets,
   };
 }
@@ -167,9 +171,12 @@ export interface AccountEquity {
 }
 
 /** Today's flow-adjusted change and drawdown, from the snapshots plus the last synced equity. */
-export async function currentIndex(db: Db, account: AccountEquity | undefined, now: Date): Promise<LiveIndex> {
-  const { snapshots, flows } = await loadIndexInputs(db);
+export async function currentIndex(db: Db, account: (AccountEquity & { cash?: string }) | undefined, now: Date): Promise<LiveIndex> {
+  const { snapshots, flows: recorded } = await loadIndexInputs(db);
   const equity = account?.equity ?? "0";
+  // A withdrawal's ACH that has left but not posted counts as money out now (risk/reserve.ts).
+  const pending = account?.cash !== undefined ? await pendingTransferOut(db, account.cash) : "0";
+  const flows = compare(pending, "0") > 0 ? [...recorded, { at: account?.syncedAt ?? now, amount: sub("0", pending) }] : recorded;
   // Before Alpaca reports a prior close, measure the day from our own last snapshot.
   const fallbackPriorClose = account?.lastEquity ?? snapshots.at(-1)?.equity ?? equity;
   return liveIndex(buildIndex(snapshots, flows), { equity, asOf: account?.syncedAt ?? now, flows, fallbackPriorClose });

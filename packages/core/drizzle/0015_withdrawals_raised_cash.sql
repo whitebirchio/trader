@@ -1,0 +1,1 @@
+ALTER TABLE "withdrawals" ADD COLUMN "raised_cash" numeric;

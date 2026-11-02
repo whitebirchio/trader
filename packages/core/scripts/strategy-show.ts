@@ -22,7 +22,8 @@ await withOps(values.env, async ({ env, db }) => {
     if (!row) throw new Error(`no strategy v${values.version}`);
     const parsed = validateStrategy(row.document);
     if (!parsed.ok) throw new Error(`v${row.version} no longer validates: ${parsed.errors.join("; ")}`);
-    shown = { version: row.version, authoredBy: row.authoredBy, createdAt: row.createdAt, strategy: parsed.strategy };
+    // A past version's staleness is shown as of its own date.
+    shown = { version: row.version, authoredBy: row.authoredBy, createdAt: row.createdAt, reaffirmedAt: row.createdAt, strategy: parsed.strategy };
   }
   const s = shown.strategy;
   console.log(`${env}: strategy v${shown.version} by ${shown.authoredBy}, ${shown.createdAt.toISOString()}`);
@@ -32,7 +33,7 @@ await withOps(values.env, async ({ env, db }) => {
   const lots = buildLots(acts.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null })));
   const held = await db.select().from(positions);
   const lastClose = Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice]));
-  const states = thesisStates({ active: { strategy: s, createdAt: shown.createdAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
+  const states = thesisStates({ active: { strategy: s, createdAt: shown.createdAt, reaffirmedAt: shown.reaffirmedAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
 
   console.log(`\n  Conviction (${s.conviction.length})`);
   for (const st of states) {

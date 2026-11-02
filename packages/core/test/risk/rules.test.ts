@@ -28,6 +28,7 @@ function snapshot(overrides: Partial<RiskSnapshot> = {}): RiskSnapshot {
     broker: { tradingAllowed: true, blockedReasons: [], syncedAt: new Date(NOW.getTime() - 5 * 60_000) },
     state: { killSwitch: false, killReason: null, halted: false, haltReason: null },
     today: { orderCount: 0, buyNotional: "0" },
+    withdrawal: { outstanding: "0", unfunded: "0" },
     assets: {
       VTI: facts("VTI", { name: "Vanguard Total Stock Market ETF" }),
       AAPL: facts("AAPL"),
@@ -273,5 +274,64 @@ describe("input hygiene", () => {
     const s = snapshot();
     const p = [buy("AAPL", "300", "conviction"), buy("VTI", "500")];
     expect(run(s, ...p)).toEqual(run(s, ...p));
+  });
+});
+
+describe("cash held for a withdrawal (SPEC-capital)", () => {
+  it("keeps buys out of the reserve", () => {
+    const s = snapshot({ cash: "600", withdrawal: { outstanding: "500", unfunded: "0" } });
+    expect(run(s, buy("VTI", "300"))).toMatchObject([
+      { verdict: "clipped", notional: "100", reasons: ["Reduced to the cash available ($100, keeping $500 for your withdrawal)."] },
+    ]);
+    expect(run(snapshot({ cash: "500", withdrawal: { outstanding: "500", unfunded: "0" } }), buy("VTI", "50"))).toMatchObject([
+      { verdict: "rejected", reasons: ["Not enough cash: $0 available after the $500 held for your withdrawal."] },
+    ]);
+  });
+
+  it("doesn't touch sells", () => {
+    const s = snapshot({ cash: "0", holdings: [{ symbol: "VTI", qty: "3", marketValue: "900", sleeve: "systematic" }], withdrawal: { outstanding: "500", unfunded: "500" } });
+    expect(run(s, sell("VTI", "2"))).toMatchObject([{ verdict: "approved", qty: "2" }]);
+  });
+});
+
+describe("owner withdrawals pass the drawdown halt, bounded (SPEC-capital decision 2)", () => {
+  const halted = { killSwitch: false, killReason: null, halted: true, haltReason: "down 21% from peak" };
+  const holdings = [
+    { symbol: "VTI", qty: "2", marketValue: "600", sleeve: "systematic" as const },
+    { symbol: "AAPL", qty: "2", marketValue: "400", sleeve: "conviction" as const },
+  ];
+  const wsell = (symbol: string, qty: string): Proposal => ({ ...sell(symbol, qty), key: `k:${symbol}:wsell`, purpose: "withdrawal" });
+  const s = (over: Partial<RiskSnapshot> = {}) => snapshot({ cash: "0", holdings, state: halted, withdrawal: { outstanding: "300", unfunded: "300" }, ...over });
+
+  it("lets withdrawal sells through up to what the withdrawal still needs, and nothing else", () => {
+    const d = run(s(), wsell("VTI", "1"), wsell("AAPL", "1"), sell("VTI", "1"), buy("VTI", "10"));
+    expect(d.map((x) => x.verdict)).toEqual(["approved", "rejected", "rejected", "rejected"]);
+    expect(d[1]?.reasons[0]).toContain("Earlier sells already cover the $300 your withdrawal needs");
+    expect(d[2]?.reasons[0]).toContain("Trading is halted: down 21% from peak.");
+  });
+
+  it("clips a withdrawal sell to the amount (plus $1 for rounding)", () => {
+    const [d] = run(s({ withdrawal: { outstanding: "100", unfunded: "100" } }), wsell("VTI", "2"));
+    expect(d).toMatchObject({ verdict: "clipped", qty: "0.336666666" });
+    expect(d?.reasons[0]).toContain("Reduced to the $100 your withdrawal still needs");
+  });
+
+  it("isn't a way around the halt when nothing is owed", () => {
+    expect(run(s({ withdrawal: { outstanding: "300", unfunded: "0" } }), wsell("VTI", "1"))[0]).toMatchObject({ verdict: "rejected" });
+    expect(run(s({ withdrawal: { outstanding: "0", unfunded: "0" } }), wsell("VTI", "1"))[0]).toMatchObject({ verdict: "rejected" });
+  });
+
+  it("still stops at the kill switch, a failed broker check and stale data", () => {
+    for (const over of [
+      { state: { ...halted, killSwitch: true, killReason: "broken" } },
+      { broker: { tradingAllowed: false, blockedReasons: ["account blocked"], syncedAt: NOW } },
+      { broker: { tradingAllowed: true, blockedReasons: [], syncedAt: new Date(NOW.getTime() - 30 * 60_000) } },
+    ]) {
+      expect(run(s(over), wsell("VTI", "1"))[0]).toMatchObject({ verdict: "rejected" });
+    }
+  });
+
+  it("is an ordinary sell when not halted", () => {
+    expect(run(s({ state: { ...halted, halted: false } }), wsell("VTI", "2"), wsell("AAPL", "2")).map((x) => x.verdict)).toEqual(["approved", "approved"]);
   });
 });

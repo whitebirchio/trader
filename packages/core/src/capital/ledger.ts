@@ -2,8 +2,9 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { type AuditKind, recordEvent } from "../audit.js";
 import type { Activity } from "../broker/port.js";
 import type { Db } from "../db/client.js";
-import { brokerActivities, capitalFlows } from "../db/schema.js";
+import { brokerActivities, capitalFlows, withdrawals } from "../db/schema.js";
 import { compare } from "../money.js";
+import { OPEN_STATUSES } from "./withdrawals.js";
 
 /**
  * The capital ledger (SPEC-capital): every external transfer, timed by the
@@ -62,8 +63,12 @@ export interface RecordFlowsResult {
 /** Older flows are recorded silently: the first run backfills history without a burst of emails. */
 export const ANNOUNCE_WITHIN_MS = 7 * 86_400_000;
 
-/** The audit event for a newly recorded flow (SPEC-capital). */
-export function flowEventKind(f: Pick<CapitalFlow, "kind" | "status">): AuditKind {
+/**
+ * The audit event for a newly recorded flow (SPEC-capital), or null for an
+ * outflow made while a withdrawal request is open: process-capital matches it
+ * to the request and announces that instead.
+ */
+export function flowEventKind(f: Pick<CapitalFlow, "kind" | "status" | "at">, openRequestSince: Date | null = null): AuditKind | null {
   if (f.status === "canceled") return "capital.transfer_canceled";
   switch (f.kind) {
     case "deposit":
@@ -71,8 +76,7 @@ export function flowEventKind(f: Pick<CapitalFlow, "kind" | "status">): AuditKin
     case "reversal":
       return "capital.transfer_reversed";
     case "withdrawal":
-      // Until withdrawal requests exist (C5), every outflow is unplanned.
-      return "capital.unplanned_outflow";
+      return openRequestSince && f.at >= openRequestSince ? null : "capital.unplanned_outflow";
   }
 }
 
@@ -96,6 +100,12 @@ export async function recordCapitalFlows(db: Db, now: Date): Promise<RecordFlows
     .filter((x): x is { flow: CapitalFlow; type: string } => x.flow !== null);
   if (flows.length === 0) return { added: 0, timedByBookingDate: 0 };
 
+  const [open] = await db
+    .select({ requestedAt: withdrawals.requestedAt })
+    .from(withdrawals)
+    .where(inArray(withdrawals.status, OPEN_STATUSES))
+    .limit(1);
+
   // The row and its announcement land together, or not at all.
   return db.transaction(async (tx) => {
     const inserted = await tx
@@ -106,9 +116,11 @@ export async function recordCapitalFlows(db: Db, now: Date): Promise<RecordFlows
     const insertedIds = new Set(inserted.map((r) => r.activityId));
     for (const { flow, type } of flows) {
       if (!insertedIds.has(flow.activityId) || now.getTime() - flow.at.getTime() > ANNOUNCE_WITHIN_MS) continue;
+      const kind = flowEventKind(flow, open?.requestedAt ?? null);
+      if (!kind) continue;
       await recordEvent(tx as unknown as Db, {
         actor: "system",
-        kind: flowEventKind(flow),
+        kind,
         subject: flow.activityId,
         payload: { amount: flow.amount, type, at: flow.at.toISOString(), timedBy: flow.timedBy, status: flow.status },
       });

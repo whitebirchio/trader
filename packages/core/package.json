@@ -32,7 +32,11 @@
     "strategy:show": "tsx scripts/strategy-show.ts",
     "rebalance:plan": "tsx scripts/rebalance.ts --mode plan",
     "rebalance:run": "tsx scripts/rebalance.ts --mode run",
-    "db:dashboard-role": "tsx scripts/dashboard-role.ts"
+    "db:dashboard-role": "tsx scripts/dashboard-role.ts",
+    "capital:status": "tsx scripts/capital-status.ts",
+    "capital:withdraw": "tsx scripts/capital-command.ts request",
+    "capital:fund-now": "tsx scripts/capital-command.ts fund-now",
+    "capital:cancel": "tsx scripts/capital-command.ts cancel"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

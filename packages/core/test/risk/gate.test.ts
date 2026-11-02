@@ -3,7 +3,7 @@ import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, brokerAccount, equitySnapshots, jobRuns, riskDecisions, riskGateRuns } from "../../src/db/schema.js";
+import { auditEvents, brokerAccount, capitalCommands, equitySnapshots, jobRuns, riskDecisions, riskGateRuns, withdrawals } from "../../src/db/schema.js";
 import { runJob } from "../../src/jobs.js";
 import { checkDrawdown, riskGate } from "../../src/risk/gate.js";
 import { getRiskState, setKillSwitch } from "../../src/risk/state.js";
@@ -161,6 +161,52 @@ describe("checkDrawdown", () => {
     await syncBroker(db, broker, "staging", NOW);
     await recordCapitalFlows(db, NOW);
     expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no" });
+  });
+
+  describe("a withdrawal's transfer in flight (cash left, Alpaca hasn't posted the CSW yet)", () => {
+    async function openRequest(status: "funding" | "settling" | "ready", amount: string | null, raisedCash: string | null = null) {
+      const [command] = await db.insert(capitalCommands).values({ kind: "request", amount: amount ?? "all", requestedBy: "cli" }).returning();
+      await db.insert(withdrawals).values({ status, amount, raisedCash, commandId: command!.id, requestedAt: new Date("2026-11-02T14:00:00Z"), deadline: NOW, updatedAt: NOW });
+    }
+    const afterAch = (equity: string, cash: string) => db.update(brokerAccount).set({ equity, cash, lastEquity: "1000" });
+
+    it("counts the missing reserved cash as money out, not a loss", async () => {
+      await snapshots(["2026-10-30", "1000"]);
+      await openRequest("ready", "500");
+      await afterAch("500", "0");
+      expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0", halted: "no", buysPaused: false });
+    });
+
+    it("does the same for all, against the cash it raised", async () => {
+      await snapshots(["2026-10-30", "1000"]);
+      await openRequest("ready", null, "1000");
+      await afterAch("0.40", "0.40");
+      expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", halted: "no" });
+    });
+
+    it("isn't counted twice once the transfer posts, before the request is matched", async () => {
+      await snapshots(["2026-10-30", "1000"]);
+      await openRequest("ready", "500");
+      transfer("csw-1", "CSW", "-500", new Date("2026-11-02T14:30:00Z"));
+      broker.account = { ...broker.account, equity: "500", cash: "0", lastEquity: "1000" };
+      await syncBroker(db, broker, "staging", NOW);
+      await recordCapitalFlows(db, NOW);
+      expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0", dailyChangePct: "0" });
+    });
+
+    it("covers only the reserved amount, and only once the cash was raised", async () => {
+      await snapshots(["2026-10-30", "1000"]);
+      await openRequest("ready", "100");
+      await afterAch("750", "0"); // $100 out, and a real $150 loss on holdings
+      expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "15", dailyChangePct: "-15", halted: "no" });
+
+      ({ db } = await createTestDb());
+      await syncBroker(db, broker, "staging", NOW);
+      await snapshots(["2026-10-30", "1000"]);
+      await openRequest("funding", "500"); // still selling: a fall in cash isn't a transfer yet
+      await afterAch("500", "0");
+      expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "50", halted: "tripped" });
+    });
   });
 
   it("announces a daily-loss pause once and its recovery once", async () => {

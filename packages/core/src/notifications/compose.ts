@@ -1,5 +1,5 @@
 import type { TradingEnv } from "../env.js";
-import { compare, sub } from "../money.js";
+import { compare, round, sub } from "../money.js";
 import { formatMarketTime } from "../time.js";
 import type { OutgoingEmail } from "./port.js";
 import { SEVERITY } from "./routing.js";
@@ -100,12 +100,55 @@ export function describe(e: NotifiableEvent): Described {
         headline: `Money left the account: ${money(sub("0", str(p.amount)))}`,
         lines: ["There was no withdrawal request for it. It's counted as a withdrawal, not as a loss.", "If you didn't move this money, check the Alpaca account now."],
       };
+    case "capital.withdrawal_requested":
+      return {
+        headline: `You requested a withdrawal: ${p.amount === "all" ? "everything" : money(p.amount)}`,
+        lines: [
+          `Requested by ${str(p.requestedBy)}. That cash is now held back from investing.`,
+          p.amount === "all"
+            ? "Everything is sold over the next rebalance steps. You'll get an email when it's ready to withdraw."
+            : `Claude plans which holdings to sell by ${when(p.deadline)}; after that the fallback sells from VTI and the systematic sleeve first. You'll get an email when it's ready to withdraw.`,
+          "If you didn't ask for this, cancel it (capital:cancel or the dashboard) and check who has access.",
+        ],
+      };
+    case "capital.fund_now":
+      return { headline: `Funding your withdrawal now: ${p.amount === "all" ? "everything" : money(p.amount)}`, lines: [`Requested by ${str(p.requestedBy)}. The fallback plans the sells on the next tick instead of waiting for Claude.`] };
+    case "capital.withdrawal_cancelled":
+      return {
+        headline: `Withdrawal cancelled: ${p.amount === "all" ? "everything" : money(p.amount)}`,
+        lines: [`Requested by ${str(p.requestedBy)}, while it was ${str(p.was)}. The held-back cash is reinvested at the next rebalance step.`],
+      };
+    case "capital.command_rejected":
+      return {
+        headline: `Withdrawal command rejected (${str(p.kind)})`,
+        lines: [`Why: ${str(p.reason)}.`, `Sent by ${str(p.requestedBy)}. Nothing changed.`],
+      };
+    case "capital.funding_planned":
+      return {
+        headline: `Withdrawal funding planned: ${p.amount === "all" ? "everything" : money(p.amount)}`,
+        lines: [
+          `${str(p.reason)}.`,
+          ...(p.summary ? [`Why: ${str(p.summary)}`] : []),
+          "The rebalance sells to raise the cash; you'll get an email when it's ready to withdraw.",
+        ],
+      };
+    case "capital.withdrawal_ready":
+      return {
+        headline: `${money(p.withdrawable ?? p.outstanding)} is ready: withdraw it in Alpaca`,
+        lines: [`${str(p.reason)}, so it should be withdrawable now.`, "Start the transfer in Alpaca. Trader matches it when it posts and closes the request. If Alpaca won't allow it yet, try again tomorrow."],
+      };
     default:
       return { headline: e.kind, lines: [JSON.stringify(p)] };
   }
 }
 
 /** "$500", "-$1000": signed dollars from a decimal string. */
+/** An ISO instant from a payload, as people read it. */
+function when(v: unknown): string {
+  const d = typeof v === "string" ? new Date(v) : null;
+  return d && !Number.isNaN(d.getTime()) ? formatMarketTime(d) : str(v);
+}
+
 function money(v: unknown): string {
   const s = str(v);
   return s.startsWith("-") ? `-$${s.slice(1)}` : `$${s}`;
@@ -165,6 +208,23 @@ export interface DigestData {
   benchmark?: { since: string; portfolioPct: string; benchmarkPct: string } | null;
   /** Money-weighted: net deposits, today's value, and the same deposits held in VTI (SPEC-capital). */
   capital?: { contributed: string; value: string; sameFlowsInVti: string | null } | null;
+  /** The open withdrawal request, listed every day until it closes (SPEC-capital). */
+  withdrawal?: { status: string; amount: string; outstanding: string; unfunded: string; planBy: string | null } | null;
+}
+
+const WITHDRAWAL_STAGE: Record<string, string> = {
+  planning: "waiting for Claude's funding plan",
+  funding: "selling to raise the cash",
+  settling: "cash raised, settling",
+  ready: "ready: withdraw it in Alpaca",
+};
+
+/** The open request's one-line status for the digest. */
+export function withdrawalLine(w: NonNullable<DigestData["withdrawal"]>): string {
+  const what = w.amount === "all" ? "everything" : money(w.amount);
+  const stage = w.status === "planning" && w.planBy ? `${WITHDRAWAL_STAGE.planning} (by ${when(w.planBy)})` : (WITHDRAWAL_STAGE[w.status] ?? w.status);
+  const raise = compare(w.unfunded, "0") > 0 && w.status !== "ready" ? `; ${money(round(w.unfunded, 2, "up"))} still to raise` : "";
+  return `Open withdrawal of ${what}: ${stage}${raise}. ${money(w.outstanding)} is held back from investing.`;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -197,7 +257,19 @@ function tradeLine(e: NotifiableEvent): string | null {
 }
 
 function capitalLine(e: NotifiableEvent): string | null {
-  return e.kind === "capital.deposit_received" ? `Received ${money(e.payload.amount)} (invested at the next rebalance step)` : null;
+  const p = e.payload;
+  switch (e.kind) {
+    case "capital.deposit_received":
+      return `Received ${money(p.amount)} (invested at the next rebalance step)`;
+    case "capital.withdrawal_settling":
+      return `Withdrawal: the cash is raised; ${str(p.reason).split("; ").at(-1)}`;
+    case "capital.withdrawal_partial":
+      return `Withdrew ${money(p.withdrawn)} so far; ${money(p.remaining)} still held for the request`;
+    case "capital.withdrawal_completed":
+      return `Withdrawal complete: ${money(p.withdrawn)} left the account`;
+    default:
+      return null;
+  }
 }
 
 function guardrailLine(e: NotifiableEvent): string | null {
@@ -221,7 +293,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
 
   const trades = data.events.map(tradeLine).filter((l): l is string => l !== null);
   const guardrails = data.events.map(guardrailLine).filter((l): l is string => l !== null);
-  const capital = data.events.map(capitalLine).filter((l): l is string => l !== null);
+  const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
     : data.state.halted

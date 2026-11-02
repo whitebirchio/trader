@@ -16,6 +16,19 @@ const run = (o: { lots?: OpenLot[]; close?: string; stopped?: string[]; now?: Da
     now: o.now ?? new Date(created.getTime() + day),
   })[0];
 
+describe("staleness", () => {
+  it("counts from when the theses were last reaffirmed, not from a system version", () => {
+    const states = thesisStates({
+      active: { strategy: strategy(), createdAt: new Date(created.getTime() + 29 * day), reaffirmedAt: created },
+      stoppedIds: new Set(),
+      lots: [],
+      lastClose: {},
+      now: new Date(created.getTime() + 30 * day),
+    });
+    expect(states[0]).toMatchObject({ state: "stale", reason: "not reaffirmed for 30 days (limit 30)" });
+  });
+});
+
 describe("averageCost", () => {
   it("is the basis-weighted cost of the open lots", () => {
     expect(averageCost([lot("AAPL", "1", "200"), lot("AAPL", "3", "660"), lot("MSFT", "1", "400")], "AAPL")).toBe("215");

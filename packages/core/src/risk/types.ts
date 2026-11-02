@@ -1,4 +1,5 @@
 import type { OrderSide } from "../broker/port.js";
+import type { WithdrawalReserve } from "./reserve.js";
 
 export type Sleeve = "systematic" | "conviction";
 
@@ -10,6 +11,12 @@ export type Proposal = {
   key: string;
   symbol: string;
   sleeve: Sleeve;
+  /**
+   * `withdrawal`: a sell raising cash for the owner's withdrawal. The one
+   * thing a drawdown halt lets through, and only up to what the withdrawal
+   * still needs (SPEC-capital decision 2).
+   */
+  purpose?: "withdrawal";
 } & ({ side: Extract<OrderSide, "buy">; notional: string } | { side: Extract<OrderSide, "sell">; qty: string });
 
 export interface Holding {
@@ -43,6 +50,8 @@ export interface RiskSnapshot {
   state: { killSwitch: boolean; killReason: string | null; halted: boolean; haltReason: string | null };
   /** Orders already placed today (any status), and their buy notional. */
   today: { orderCount: number; buyNotional: string };
+  /** Cash held for an open withdrawal request (SPEC-capital): buys may not touch it. */
+  withdrawal: WithdrawalReserve;
   assets: Record<string, AssetFacts>;
 }
 

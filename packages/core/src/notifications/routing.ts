@@ -41,6 +41,16 @@ const ROUTES: Record<AuditKind, Route> = {
   "capital.transfer_reversed": "urgent", // e.g. a returned instant ACH: money taken back
   "capital.transfer_canceled": "urgent", // left out of the index on the assumption it never moved money
   "capital.unplanned_outflow": "urgent", // money left with no withdrawal request
+  // Every owner command emails at once: an out-of-band notice of each write (SPEC-capital).
+  "capital.withdrawal_requested": "urgent",
+  "capital.fund_now": "urgent",
+  "capital.withdrawal_cancelled": "urgent",
+  "capital.command_rejected": "urgent",
+  "capital.funding_planned": "urgent", // what will be sold, and why
+  "capital.withdrawal_settling": "digest",
+  "capital.withdrawal_ready": "urgent", // your turn: withdraw it in Alpaca
+  "capital.withdrawal_partial": "digest",
+  "capital.withdrawal_completed": "digest",
 };
 
 export function routeFor(kind: string): Route {
@@ -58,12 +68,16 @@ export const SEVERITY: Partial<Record<AuditKind, number>> = {
   "broker.config_unsafe": 3,
   "broker.reconcile_mismatch": 4,
   "order.external": 5,
+  "capital.unplanned_outflow": 5.2, // money left that nobody asked for
+  "capital.transfer_reversed": 5.4,
+  "capital.command_rejected": 5.6,
   "order.unknown": 6,
   "risk.buys_paused": 7,
   "job.failed": 8,
   "thesis.stopped_out": 7.5,
   "thesis.stale": 7.6,
   "strategy.rejected": 7.7,
+  "capital.withdrawal_ready": 7.8, // your turn: withdraw it in Alpaca
   "risk.resumed": 9,
   "strategy.activated": 9.5,
   "broker.trading_allowed": 10,
