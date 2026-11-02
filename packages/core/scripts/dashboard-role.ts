@@ -110,10 +110,15 @@ async function expectDenied(label: string, query: string): Promise<void> {
   throw new Error(`${label} was NOT denied for ${ROLE}`);
 }
 
-/** The same probe in an explicit READ WRITE transaction: how the dashboard writes. */
+/**
+ * The same probe in a READ WRITE transaction, the way the dashboard writes.
+ * neon-http's `readOnly: false` doesn't override the role's read-only
+ * default (found on staging, 2026-11-02), so it's set as the first
+ * statement instead.
+ */
 async function expectDeniedReadWrite(label: string, query: string): Promise<void> {
   try {
-    await reader.transaction([reader.query(query)], { readOnly: false });
+    await reader.transaction([reader.query("SET TRANSACTION READ WRITE"), reader.query(query)]);
   } catch (e) {
     if (/permission denied|append-only/i.test(String((e as Error).message))) {
       log(`  ✓ ${label} (read-write): denied`);
@@ -132,7 +137,7 @@ await expectDenied("DELETE", "DELETE FROM positions WHERE false");
 await expectDenied("CREATE TABLE", "CREATE TABLE trader_dashboard_probe (id int)");
 // Its one write works only in a read-write transaction (WHERE false: no row is written)…
 await expectDenied("INSERT capital_commands (default read-only)", "INSERT INTO capital_commands (kind, requested_by) SELECT 'cancel', 'probe' WHERE false");
-await reader.transaction([reader.query("INSERT INTO capital_commands (kind, requested_by) SELECT 'cancel', 'probe' WHERE false")], { readOnly: false });
+await reader.transaction([reader.query("SET TRANSACTION READ WRITE"), reader.query("INSERT INTO capital_commands (kind, requested_by) SELECT 'cancel', 'probe' WHERE false")]);
 log("  ✓ INSERT capital_commands (read-write): allowed");
 // …and read-write unlocks nothing else.
 await expectDeniedReadWrite("INSERT", "INSERT INTO equity_snapshots (trading_date, equity, cash, long_market_value) SELECT current_date, 1, 1, 1 WHERE false");
