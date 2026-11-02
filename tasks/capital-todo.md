@@ -11,10 +11,10 @@
 - **Files:** `src/broker/alpaca.ts`, `test/broker/alpaca.test.ts` · **Scope:** XS
 
 ### C2: `capital_flows` ledger
-- [ ] Schema + migration: `capital_flows` (`activity_id` PK, `at`, signed `amount`, `kind`, `withdrawal_id` null), `trader_app` append-only REVOKE, backfill from `broker_activities`
-- [ ] `capital/ledger.ts` (pure): activities → flows, with kind deposit / withdrawal / reversal
-- [ ] `sync-broker` inserts flows idempotently and reports the date-only fallback count
-- [ ] Tests: live shape (booked after `created_at`), paper shape (booked before), reversal, overlapping re-sync
+- [x] Schema + migrations `0011_capital_flows` / `0012_capital_flows_append_only`: `capital_flows` (`activity_id` PK → broker_activities, `at`, signed `amount`, `kind`, `timed_by`, `status`), trigger + `trader_app` REVOKE. *No `withdrawal_id` (the table is append-only; C5 links from `withdrawals`). Backfill = the first `recordCapitalFlows` run.*
+- [x] `capital/ledger.ts` (pure): activities → flows, with kind deposit / withdrawal / reversal
+- [x] The `sync-broker` job (and `broker:sync`) records flows idempotently before `checkDrawdown`, and reports `capital: { added, timedByBookingDate }`
+- [x] Tests: live shape (booked after `created_at`), paper shape (booked before), reversal, overlapping re-sync, job wiring, append-only
 - **Files:** `src/db/schema.ts`, `drizzle/*`, `src/capital/ledger.ts`, `src/broker/sync.ts`, tests · **Depends on:** C1 · **Scope:** M
 
 ### C3: Index by instant

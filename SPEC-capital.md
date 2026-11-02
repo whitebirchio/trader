@@ -24,7 +24,7 @@ Success: Scott deposits and withdraws without thinking about Trader, and every g
 
 ### 1. The capital ledger
 
-`capital_flows`: one row per external transfer, written by `sync-broker` from Alpaca's cash-movement activities (`CSD`, `CSW`, `JNLC`, `JNLS`).
+`capital_flows`: one row per external transfer, copied from `broker_activities` (Alpaca's `CSD`, `CSW`, `JNLC`, `JNLS`) by the `sync-broker` job right after each sync, and before the drawdown check. It's append-only. The first run backfills the history, and a withdrawal request links to its flows from its own side.
 
 | Column | Meaning |
 |---|---|
@@ -32,7 +32,8 @@ Success: Scott deposits and withdraws without thinking about Trader, and every g
 | `at` | the instant: `created_at`. Date-only fallback: noon ET on `date`, counted in the sync result |
 | `amount` | signed `numeric`: + in, − out |
 | `kind` | `deposit`, `withdrawal`, `reversal` (a returned instant ACH) |
-| `withdrawal_id` | the request it closed, if any |
+| `timed_by` | `created_at` or `booking_date` (the approximate case) |
+| `status` | Alpaca's activity status, when given |
 
 It is the **single source** for every consumer. The three ad-hoc `FLOW_TYPES` filters (`risk/gate.ts`, `portfolio/benchmark.ts`, `dashboard/views.ts`) go away.
 
@@ -93,7 +94,7 @@ Weights are a share of equity, so a smaller account shrinks every target pro rat
 
 | Module | Change |
 |---|---|
-| `broker` | `sync-broker` writes `capital_flows`. `toActivity`'s date-only fallback moves to noon ET. The `Account` port exposes withdrawable cash (assumption 2). |
+| `broker` | The `sync-broker` job calls `recordCapitalFlows` after `syncBroker`, so `broker` itself doesn't depend on `capital`. `toActivity`'s date-only fallback moves to noon ET. The `Account` port exposes withdrawable cash (assumption 2). |
 | `risk` | The index reads the ledger by instant. New rules: *withdrawal sells pass the drawdown halt* (bounded) and *buys keep reserved cash*. ADR-012's "freeze everything" gets this one owner exception. |
 | `portfolio` | `investable` subtracts the outstanding withdrawal. Fallback strategy builder. Halted withdrawal-only mode. Preview adds realized gain/loss and wash-sale detail per sell. |
 | `agent` | `get_overview` gets a `capital` section (pending withdrawal and deadline, flows since the last strategy, money-weighted vs VTI). The preview additions. A routine-prompt section. **No new write tool.** Claude can't create or cancel withdrawals. |
@@ -118,7 +119,7 @@ The dashboard stays keyless and nearly read-only:
 
 ## Tech Stack
 
-No new dependencies. Drizzle migrations: `capital_flows`, `withdrawals`, `capital_commands`, and a grant for `trader_dashboard`. All additive. `capital_flows` is backfilled from `broker_activities` in the migration.
+No new dependencies. Drizzle migrations: `capital_flows`, `withdrawals`, `capital_commands`, and a grant for `trader_dashboard`. All additive. `capital_flows` is backfilled from `broker_activities` by the first `recordCapitalFlows` run, not by the migration.
 
 ## Commands
 
