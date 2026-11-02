@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Activity } from "../../src/broker/port.js";
 import { recordCapitalFlows, toCapitalFlow } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, brokerActivities, capitalFlows } from "../../src/db/schema.js";
+import { auditEvents, brokerActivities, capitalCommands, capitalFlows, withdrawals } from "../../src/db/schema.js";
 import { runJob } from "../../src/jobs.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb, deps } from "../helpers.js";
@@ -114,6 +114,15 @@ describe("recordCapitalFlows audit events", () => {
     await add("today", "CSD", "50");
     expect(await recordCapitalFlows(db, NOW)).toMatchObject({ added: 2 });
     expect((await events()).map((e) => e.subject)).toEqual(["today"]);
+  });
+
+  it("leaves an outflow during an open request to process-capital, but not one from before it", async () => {
+    const [command] = await db.insert(capitalCommands).values({ kind: "request", amount: "200", requestedBy: "cli" }).returning();
+    await db.insert(withdrawals).values({ status: "ready", amount: "200", commandId: command!.id, requestedAt: new Date("2026-11-03T12:00:00Z"), deadline: recent, updatedAt: recent });
+    await add("planned", "CSW", "-200");
+    await add("before", "CSW", "-50", {}, new Date("2026-11-03T11:00:00Z"));
+    await recordCapitalFlows(db, NOW);
+    expect((await events()).map((e) => [e.kind, e.subject])).toEqual([["capital.unplanned_outflow", "before"]]);
   });
 
   it("announces each flow once", async () => {

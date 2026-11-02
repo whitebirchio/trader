@@ -37,14 +37,15 @@
 ## Phase 2: Withdrawals in the engine (PR 2)
 
 ### C5: Requests, commands, job, CLI
-- [ ] Migration: `withdrawals`, `capital_commands` (append-only)
-- [ ] `capital/withdrawals.ts`: pure `advance()` (status unions) + persistence
-- [ ] `capital/commands.ts`: validate (one open; ≤ equity; `all`) → transition → owner audit
-- [ ] Settlement from sell fills, T+1 trading day (Alpaca calendar)
-- [ ] `process-capital` in `TICK_JOBS` after `sync-broker`
-- [ ] Outflow matching: full → withdrawn; partial → remainder stays `ready`; none open → unplanned
-- [ ] CLI: `capital:withdraw`, `capital:cancel`, `capital:fund-now`, `capital:status`
-- [ ] Audit kinds + routing: requested, ready, completed, cancelled
+- [x] Migration: `withdrawals` (one open: a partial unique index), `capital_commands` + `capital_command_results` (append-only)
+- [x] `capital/withdrawals.ts`: pure `advance()` (status unions) + persistence in `capital/commands.ts`
+- [x] `capital/commands.ts`: validate (one open; ≤ equity; `all`) → transition → owner audit; a rejected command is recorded and emailed
+- [x] Settlement from sell fills, T+1 trading day (Alpaca calendar; the next trading day's close)
+- [x] `process-capital` in `TICK_JOBS` after `sync-broker` (skips without a broker call when idle)
+- [x] Outflow matching: full → withdrawn; partial → remainder stays open; none open → unplanned (the ledger stays quiet for outflows during an open request)
+- [x] CLI: `capital:withdraw`, `capital:cancel`, `capital:fund-now` (queue, then process at once), `capital:status`
+- [x] Audit kinds + routing + email copy: requested, fund_now, cancelled, command_rejected, funding_planned, settling, ready, partial, completed
+- *Pulled forward from C7:* `ROUTINE_CRON_UTC` (pinned to SPEC-agent's cron) and `fundingDeadline`; `fund_now` sets the deadline to now. `all` skips planning (nothing is investable whatever the plan).
 - **Depends on:** C2 · **Scope:** L (split C5a pure / C5b wiring if needed)
 
 ### C6: Reserved cash

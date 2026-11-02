@@ -100,12 +100,51 @@ export function describe(e: NotifiableEvent): Described {
         headline: `Money left the account: ${money(sub("0", str(p.amount)))}`,
         lines: ["There was no withdrawal request for it. It's counted as a withdrawal, not as a loss.", "If you didn't move this money, check the Alpaca account now."],
       };
+    case "capital.withdrawal_requested":
+      return {
+        headline: `You requested a withdrawal: ${p.amount === "all" ? "everything" : money(p.amount)}`,
+        lines: [
+          `Requested by ${str(p.requestedBy)}. That cash is now held back from investing.`,
+          p.amount === "all"
+            ? "Everything is sold over the next rebalance steps. You'll get an email when it's ready to withdraw."
+            : `Claude plans which holdings to sell by ${when(p.deadline)}; after that the fallback sells from VTI and the systematic sleeve first. You'll get an email when it's ready to withdraw.`,
+          "If you didn't ask for this, cancel it (capital:cancel or the dashboard) and check who has access.",
+        ],
+      };
+    case "capital.fund_now":
+      return { headline: `Funding your withdrawal now: ${p.amount === "all" ? "everything" : money(p.amount)}`, lines: [`Requested by ${str(p.requestedBy)}. The fallback plans the sells on the next tick instead of waiting for Claude.`] };
+    case "capital.withdrawal_cancelled":
+      return {
+        headline: `Withdrawal cancelled: ${p.amount === "all" ? "everything" : money(p.amount)}`,
+        lines: [`Requested by ${str(p.requestedBy)}, while it was ${str(p.was)}. The held-back cash is reinvested at the next rebalance step.`],
+      };
+    case "capital.command_rejected":
+      return {
+        headline: `Withdrawal command rejected (${str(p.kind)})`,
+        lines: [`Why: ${str(p.reason)}.`, `Sent by ${str(p.requestedBy)}. Nothing changed.`],
+      };
+    case "capital.funding_planned":
+      return {
+        headline: `Withdrawal funding planned: ${p.amount === "all" ? "everything" : money(p.amount)}`,
+        lines: [`${str(p.reason)}.`, "The rebalance sells to raise the cash; you'll get an email when it's ready to withdraw."],
+      };
+    case "capital.withdrawal_ready":
+      return {
+        headline: `${money(p.outstanding)} is ready: withdraw it in Alpaca`,
+        lines: [`${str(p.reason)}, so it should be withdrawable now.`, "Start the transfer in Alpaca. Trader matches it when it posts and closes the request. If Alpaca won't allow it yet, try again tomorrow."],
+      };
     default:
       return { headline: e.kind, lines: [JSON.stringify(p)] };
   }
 }
 
 /** "$500", "-$1000": signed dollars from a decimal string. */
+/** An ISO instant from a payload, as people read it. */
+function when(v: unknown): string {
+  const d = typeof v === "string" ? new Date(v) : null;
+  return d && !Number.isNaN(d.getTime()) ? formatMarketTime(d) : str(v);
+}
+
 function money(v: unknown): string {
   const s = str(v);
   return s.startsWith("-") ? `-$${s.slice(1)}` : `$${s}`;
@@ -197,7 +236,19 @@ function tradeLine(e: NotifiableEvent): string | null {
 }
 
 function capitalLine(e: NotifiableEvent): string | null {
-  return e.kind === "capital.deposit_received" ? `Received ${money(e.payload.amount)} (invested at the next rebalance step)` : null;
+  const p = e.payload;
+  switch (e.kind) {
+    case "capital.deposit_received":
+      return `Received ${money(p.amount)} (invested at the next rebalance step)`;
+    case "capital.withdrawal_settling":
+      return `Withdrawal: the cash is raised; ${str(p.reason).split("; ").at(-1)}`;
+    case "capital.withdrawal_partial":
+      return `Withdrew ${money(p.withdrawn)} so far; ${money(p.remaining)} still held for the request`;
+    case "capital.withdrawal_completed":
+      return `Withdrawal complete: ${money(p.withdrawn)} left the account`;
+    default:
+      return null;
+  }
 }
 
 function guardrailLine(e: NotifiableEvent): string | null {

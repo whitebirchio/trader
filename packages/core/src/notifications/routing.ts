@@ -41,6 +41,16 @@ const ROUTES: Record<AuditKind, Route> = {
   "capital.transfer_reversed": "urgent", // e.g. a returned instant ACH: money taken back
   "capital.transfer_canceled": "urgent", // left out of the index on the assumption it never moved money
   "capital.unplanned_outflow": "urgent", // money left with no withdrawal request
+  // Every owner command emails at once: an out-of-band notice of each write (SPEC-capital).
+  "capital.withdrawal_requested": "urgent",
+  "capital.fund_now": "urgent",
+  "capital.withdrawal_cancelled": "urgent",
+  "capital.command_rejected": "urgent",
+  "capital.funding_planned": "urgent", // what will be sold, and why
+  "capital.withdrawal_settling": "digest",
+  "capital.withdrawal_ready": "urgent", // your turn: withdraw it in Alpaca
+  "capital.withdrawal_partial": "digest",
+  "capital.withdrawal_completed": "digest",
 };
 
 export function routeFor(kind: string): Route {

@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { recordEvent } from "./audit.js";
 import type { BrokerAdapter } from "./broker/port.js";
 import { syncBroker } from "./broker/sync.js";
+import { processCapital } from "./capital/commands.js";
 import { recordCapitalFlows } from "./capital/ledger.js";
 import { checkDrawdown } from "./risk/gate.js";
 import type { Db } from "./db/client.js";
@@ -54,10 +55,18 @@ const syncBrokerJob: JobFn = async ({ db, env, broker, now }) => {
   return { status: "succeeded", detail: { ...result.detail, capital, risk } };
 };
 
+/** Owner withdrawal commands, then the open request's next step (SPEC-capital). After sync-broker, so it sees this tick's fills and transfers. */
+const processCapitalJob: JobFn = async ({ db, broker, now }) => {
+  const result = await processCapital(db, broker, now());
+  if (result.status === "idle") return { status: "skipped", reason: "no commands or open withdrawal" };
+  return { status: "succeeded", detail: { commands: result.commands, withdrawal: result.withdrawal } };
+};
+
 /** Every job the engine can run. Later modules register `rebalance`, … */
 export const JOBS = {
   heartbeat,
   "sync-broker": syncBrokerJob,
+  "process-capital": processCapitalJob,
   "notify-urgent": notifyUrgent,
   "notify-digest": notifyDigest,
   // Not in TICK_JOBS: it has its own schedule, 5 minutes after each tick (SPEC-portfolio).
@@ -134,7 +143,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "notify-urgent", "notify-digest"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "notify-urgent", "notify-digest"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);

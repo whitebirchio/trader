@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
 import { buildLots } from "../broker/lots.js";
-import { submitOrder } from "../broker/orders.js";
+import { OPEN_ORDER_LOOKBACK_MS, OPEN_ORDER_STATES, submitOrder } from "../broker/orders.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import { brokerAccount, brokerActivities, orders, positions, rebalancePlans, thesisEvents } from "../db/schema.js";
@@ -27,8 +27,6 @@ import { thesisStates } from "./theses.js";
 export const WINDOW_OPEN = "09:45";
 export const WINDOW_CLOSE = "15:30";
 const LAST_STEP_BEFORE_CLOSE_MS = 30 * 60_000;
-/** Orders in these states are still in flight: the next step waits for them. */
-const OPEN_ORDER_STATES = ["intent", "unknown", "new", "accepted", "pending_new", "partially_filled", "accepted_for_bidding", "held"];
 
 export type RebalanceResult =
   | { status: "skipped"; reason: string }
@@ -73,7 +71,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   const inFlight = await db
     .select({ id: orders.id })
     .from(orders)
-    .where(and(inArray(orders.status, OPEN_ORDER_STATES), gte(orders.createdAt, new Date(now.getTime() - 2 * 86_400_000))));
+    .where(and(inArray(orders.status, OPEN_ORDER_STATES), gte(orders.createdAt, new Date(now.getTime() - OPEN_ORDER_LOOKBACK_MS))));
   // A preview still plans (on current holdings); a real step waits for fills.
   if (inFlight.length > 0 && !opts.dryRun) return { status: "skipped", reason: `waiting for ${inFlight.length} open order(s) to fill` };
 
