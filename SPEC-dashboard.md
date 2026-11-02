@@ -24,6 +24,12 @@ The claude.ai connector already answers ad-hoc questions. The dashboard is the a
 
 The owner controls stay on the command line (ADR-012).
 
+> **Amendment 1 (Scott, 2026-11-02; SPEC-capital, ADR-015): one write.** The **Money** page (`/money`) can queue withdrawal commands: *Withdraw*, *Fund now* and *Cancel*. That is the dashboard's only write, and it can't move money out of the account (the ACH is done in Alpaca, to the linked bank).
+> - **Database:** `trader_dashboard` gains `INSERT` on `capital_commands` alone (migration `0016`). It keeps `default_transaction_read_only`, so the write runs as an explicit read-write transaction (`src/lib/write.ts`). It has no `UPDATE` or `DELETE` anywhere, and the table's trigger rejects them for every role. `db:dashboard-role -- --check` proves this without rotating the password.
+> - **Request checks** (`src/lib/commands.ts`, all tested): an owner session; an `Origin` header that equals `DASHBOARD_URL` (missing fails closed); a signed form token bound to the owner's email, valid 30 minutes; and an explicit confirmation field. The Money page's buttons only GET `/money/confirm`, which repeats exactly what will be sent; only its POST form writes.
+> - **Engine side:** the engine validates and applies each command on its next tick and emails the owner about every command, accepted or rejected.
+> - **Blast radius** if the dashboard were compromised: forced sells and cash held idle. The trading, strategy and kill/resume paths are still absent, and there are still no broker keys or SES access.
+
 ### Pages
 | Route | Shows |
 |---|---|
@@ -55,7 +61,7 @@ Same as Fred's web app, so both projects share one set of conventions:
    - Rotating `DASHBOARD_SESSION_KEY` signs everyone out.
    - Every route except `/login`, `/auth/*` and the static assets checks it.
 3. **The raw endpoint is closed:** CloudFront reaches the Web Function through origin access control, so its generated `*.lambda-web…on.aws` URL refuses direct callers. The session check still runs behind that.
-4. **The database role is read-only:** `trader_dashboard` gets `SELECT` only, using a new `DATABASE_READ_URL` secret. Even a compromised dashboard can't write.
+4. **The database role is read-only,** apart from Amendment 1's one INSERT: `trader_dashboard` gets `SELECT`, plus `INSERT` on `capital_commands`, using a new `DATABASE_READ_URL` secret. Even a compromised dashboard can't change anything else.
 5. **No broker keys:** the dashboard never talks to Alpaca. VTI's daily closes, which the chart needs, are recorded by the engine.
    - **New:** an additive table, `benchmark_closes (symbol, trading_date, close)`.
    - `sync-broker` fills it in its after-close phase, and backfills one year on its first run.
@@ -151,13 +157,13 @@ export default async function HoldingsPage() {
 ## Boundaries
 
 - **Always:**
-  - The dashboard is read-only.
+  - The dashboard is read-only, except for queueing withdrawal commands (Amendment 1).
   - Check the session on every route.
   - Keep logic in core read models.
   - Show money as decimal strings until render.
   - Show the staging banner on staging.
 - **Ask first:**
-  - Any write or control action in the UI.
+  - Any write or control action in the UI beyond Amendment 1's withdrawal commands.
   - Giving the dashboard broker keys or a write role.
   - Allowing a second email.
   - Adding caching of signed-in pages.

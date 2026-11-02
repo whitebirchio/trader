@@ -88,10 +88,11 @@
 - **Depends on:** C4, C5 · **Scope:** S
 
 ### C11: Dashboard writes
-- [ ] `dashboard-role.ts`: `GRANT INSERT ON capital_commands` only; the role check proves everything else is still denied
-- [ ] POST handlers (request, fund-now, cancel): owner session + `Origin` + CSRF token; a confirmation step; a read-write transaction (verify neon-http first)
-- [ ] Tests: CSRF / Origin rejection, session-less → 401; infra: still no Alpaca or SES
-- [ ] SPEC-dashboard read-only boundary amended (ADR-015)
+- [x] Grant by migration `0016` (no password rotation; a no-op where the role doesn't exist) and in `dashboard-role.ts` for new branches; its self-check allows exactly `INSERT` on `capital_commands`, and its probes prove that INSERT works only in a read-write transaction while every other write (incl. UPDATE/DELETE on `capital_commands`, INSERT on `capital_command_results`) is still denied. New `--check` mode runs them without rotating.
+- [x] `POST /money/command` (one route, `handleCommandPost`): owner session + exact `Origin` + a signed form token bound to the owner + `confirm=yes` + the engine's own `parseAmount`; inserted in a READ WRITE transaction over neon-http. The Money page's buttons GET `/money/confirm`, which restates the command.
+- [x] Tests: 401 without/with someone else's/forged session; 403 for foreign/missing Origin and missing/forged/expired/foreign/wrong-kind tokens; 400 unconfirmed/unknown/bad amount; nothing inserted on any refusal. Infra tests already pin no Alpaca keys, no SES.
+- [x] SPEC-dashboard Amendment 1 (ADR-015)
+- [ ] Live: `db:dashboard-role -- --check` on staging after the migration; a dashboard withdrawal on staging (Checkpoint C)
 - **Depends on:** C10 · **Scope:** M
 
 ### C12: Notifications
