@@ -26,16 +26,25 @@ export function outstandingAmount(amount: string | null, withdrawn: string, equi
   return positive(amount === null ? equity : sub(amount, withdrawn));
 }
 
-export function reserveFor(request: { amount: string | null; withdrawn: string } | null, equity: string, cash: string): WithdrawalReserve {
+/** Past these, the cash has been raised: a later fall in cash is most likely the transfer itself, not yet posted. */
+const RAISED = new Set(["settling", "ready"]);
+
+/**
+ * Once the cash has been raised (settling, ready), nothing more is sold for
+ * the request: if Alpaca lowers cash when Scott starts the ACH, before the
+ * transfer activity posts, re-raising would sell the amount twice. Buys stay
+ * blocked by `outstanding` until the transfer is matched.
+ */
+export function reserveFor(request: { status: string; amount: string | null; withdrawn: string } | null, equity: string, cash: string): WithdrawalReserve {
   if (!request) return NO_RESERVE;
   const outstanding = outstandingAmount(request.amount, request.withdrawn, equity);
-  return { outstanding, unfunded: positive(sub(outstanding, cash)) };
+  return { outstanding, unfunded: RAISED.has(request.status) ? "0" : positive(sub(outstanding, cash)) };
 }
 
 /** The open request's reserve, from the database. */
 export async function loadReserve(db: Db, equity: string, cash: string): Promise<WithdrawalReserve> {
   const [open] = await db
-    .select({ amount: withdrawals.amount, withdrawn: withdrawals.withdrawn })
+    .select({ status: withdrawals.status, amount: withdrawals.amount, withdrawn: withdrawals.withdrawn })
     .from(withdrawals)
     .where(inArray(withdrawals.status, OPEN_WITHDRAWAL_STATUSES))
     .limit(1);
