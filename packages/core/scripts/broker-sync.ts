@@ -14,6 +14,7 @@ import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { AlpacaBroker } from "../src/broker/alpaca.js";
 import { syncBroker } from "../src/broker/sync.js";
+import { recordCapitalFlows } from "../src/capital/ledger.js";
 import type { Db } from "../src/db/client.js";
 import { readRepoEnv } from "./repo-env.js";
 
@@ -33,7 +34,8 @@ const pool = new Pool({ connectionString: repo.require(`${prefix}_MIGRATE_URL`) 
 try {
   const db = drizzle(pool, { casing: "snake_case" }) as unknown as Db;
   const result = await syncBroker(db, broker, env, new Date(), { ignoreSession: values.force });
-  console.log(JSON.stringify(result, null, 2));
+  const capital = result.status === "synced" ? await recordCapitalFlows(db, new Date()) : null;
+  console.log(JSON.stringify({ ...result, capital }, null, 2));
 } finally {
   await pool.end();
 }

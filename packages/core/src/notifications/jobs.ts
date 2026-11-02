@@ -1,3 +1,4 @@
+import { capitalSummary } from "../capital/shadow.js";
 import { and, desc, eq, gte, inArray, isNotNull, isNull } from "drizzle-orm";
 import { auditEvents, notificationItems, notifications } from "../db/schema.js";
 import { benchmarkSince } from "../portfolio/benchmark.js";
@@ -140,6 +141,7 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
 
   const snapshot = await loadSnapshot(db, broker, [], at, LIMITS);
   const benchmark = await benchmarkSince(db, broker, at);
+  const capital = await capitalSummary(db, snapshot.equity);
   const events = (
     await db
       .select()
@@ -159,6 +161,7 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
       events: events.map((e) => toNotifiable(e)),
       state: { killSwitch: snapshot.state.killSwitch, halted: snapshot.state.halted, haltReason: snapshot.state.haltReason },
       benchmark,
+      capital,
     },
     env,
     at,

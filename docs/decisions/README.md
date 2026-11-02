@@ -18,3 +18,4 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 | [012](012-halts-freeze-owner-resumes.md) | Halts freeze everything; only the owner resumes | Accepted | 2026-10-31 |
 | [013](013-conviction-first-portfolio.md) | A conviction-first portfolio; idle money sits in VTI | Accepted | 2026-11-01 |
 | [014](014-run-on-aws-with-cdk.md) | Run the engine on AWS with CDK; keep Neon and Cloudflare DNS/inbound mail | Accepted | 2026-11-01 |
+| [015](015-owner-capital-flows.md) | Owner capital flows are first-class; withdrawals are strategy-funded requests | Accepted | 2026-11-01 |

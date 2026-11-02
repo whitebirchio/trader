@@ -165,3 +165,39 @@ describe("footer", () => {
     expect(stg.html).toContain("— Trader (staging) · Mon, Nov 2, 9:45 AM ET");
   });
 });
+
+describe("capital emails", () => {
+  it("explains a reversal, a canceled transfer and an unplanned outflow", () => {
+    const email = composeUrgent(
+      [
+        ev("capital.transfer_reversed", { amount: "-1000", type: "CSD" }, "a-1"),
+        ev("capital.transfer_canceled", { amount: "500", type: "CSD" }, "a-2"),
+        ev("capital.unplanned_outflow", { amount: "-200", type: "CSW" }, "a-3"),
+      ],
+      "production",
+      at,
+    );
+    expect(email.text).toContain("Transfer reversed: -$1000");
+    expect(email.text).toContain("Transfer canceled: $500");
+    expect(email.text).toContain("Trader leaves it out of performance on the assumption that no money moved.");
+    expect(email.text).toContain("Money left the account: $200");
+    expect(email.text).toContain("There was no withdrawal request");
+  });
+
+  it("lists the day's deposits and the money-weighted comparison in the digest", () => {
+    const email = composeDigest(
+      {
+        ...base,
+        events: [ev("capital.deposit_received", { amount: "500", type: "CSD" }, "a-1")],
+        capital: { contributed: "1500", value: "1560.25", sameFlowsInVti: "1540.10" },
+      },
+      "production",
+    );
+    expect(email.text).toContain("Money in and out\n  Received $500 (invested at the next rebalance step)");
+    expect(email.text).toContain("Put in $1500, now $1560.25; the same deposits in VTI: $1540.10");
+  });
+
+  it("leaves the money section out on a day without transfers", () => {
+    expect(composeDigest(base, "production").text).not.toContain("Money in and out");
+  });
+});

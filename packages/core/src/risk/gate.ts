@@ -1,10 +1,10 @@
-import { asc, eq, gte, inArray } from "drizzle-orm";
+import { asc, eq, gte, isNull, ne, or } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import {
   brokerAccount,
-  brokerActivities,
+  capitalFlows,
   equitySnapshots,
   orders,
   positions,
@@ -14,7 +14,7 @@ import {
 import { add, compare } from "../money.js";
 import { marketDate } from "../time.js";
 import { assetFacts } from "./eligibility.js";
-import { FLOW_TYPES, type LiveIndex, buildIndex, flowsByDate, liveIndex } from "./equity-index.js";
+import { type DailyEquity, type IndexFlow, type LiveIndex, buildIndex, liveIndex } from "./equity-index.js";
 import { LIMITS, type Limits, limitsVersion } from "./limits.js";
 import { evaluateOrders } from "./rules.js";
 import { getRiskState, latchHalt, markBuysPaused } from "./state.js";
@@ -106,7 +106,7 @@ export async function loadSnapshot(
   const account = (await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1)))[0];
   const held = await db.select().from(positions);
   const state = await getRiskState(db);
-  const index = await currentIndex(db, account?.equity ?? "0", account?.lastEquity ?? null, now);
+  const index = await currentIndex(db, account, now);
   const today = await ordersToday(db, now);
 
   const buySymbols = [...new Set(proposals.filter((p) => p.side === "buy").map((p) => p.symbol))];
@@ -142,17 +142,37 @@ export async function loadSnapshot(
   };
 }
 
-/** Today's flow-adjusted change and drawdown, from the snapshots plus live equity. */
-export async function currentIndex(db: Db, equity: string, lastEquity: string | null, now: Date): Promise<LiveIndex> {
-  const snaps = await db
-    .select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity })
+/**
+ * The index's inputs: post-close snapshots and the capital ledger's flows
+ * (SPEC-capital). A flow Alpaca marks `canceled` is left out: it's taken as
+ * money that never moved.
+ */
+export async function loadIndexInputs(db: Db): Promise<{ snapshots: DailyEquity[]; flows: IndexFlow[] }> {
+  const snapshots = await db
+    .select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity, recordedAt: equitySnapshots.recordedAt })
     .from(equitySnapshots)
     .orderBy(asc(equitySnapshots.tradingDate));
-  const flowRows = await db.select().from(brokerActivities).where(inArray(brokerActivities.type, [...FLOW_TYPES]));
-  const flows = flowsByDate(flowRows.map((r) => ({ ...r, side: null })));
+  const flows = await db
+    .select({ at: capitalFlows.at, amount: capitalFlows.amount })
+    .from(capitalFlows)
+    .where(or(isNull(capitalFlows.status), ne(capitalFlows.status, "canceled")));
+  return { snapshots, flows };
+}
+
+export interface AccountEquity {
+  equity: string;
+  lastEquity: string | null;
+  /** When the sync read this equity from the broker. */
+  syncedAt: Date;
+}
+
+/** Today's flow-adjusted change and drawdown, from the snapshots plus the last synced equity. */
+export async function currentIndex(db: Db, account: AccountEquity | undefined, now: Date): Promise<LiveIndex> {
+  const { snapshots, flows } = await loadIndexInputs(db);
+  const equity = account?.equity ?? "0";
   // Before Alpaca reports a prior close, measure the day from our own last snapshot.
-  const base = lastEquity ?? snaps.at(-1)?.equity ?? equity;
-  return liveIndex(buildIndex(snaps, flows), equity, flows, base, marketDate(now));
+  const fallbackPriorClose = account?.lastEquity ?? snapshots.at(-1)?.equity ?? equity;
+  return liveIndex(buildIndex(snapshots, flows), { equity, asOf: account?.syncedAt ?? now, flows, fallbackPriorClose });
 }
 
 async function ordersToday(db: Db, now: Date): Promise<RiskSnapshot["today"]> {
@@ -183,7 +203,7 @@ export interface DrawdownCheck {
 export async function checkDrawdown(db: Db, now: Date, limits: Limits = LIMITS): Promise<DrawdownCheck> {
   const account = (await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1)))[0];
   if (!account) return { drawdownPct: "0", dailyChangePct: "0", halted: "no", buysPaused: false };
-  const index = await currentIndex(db, account.equity, account.lastEquity, now);
+  const index = await currentIndex(db, account, now);
 
   let halted: DrawdownCheck["halted"] = "no";
   if (compare(index.drawdownPct, limits.drawdownHaltPct) >= 0) {

@@ -13,8 +13,9 @@ Trader is an autonomous US-equity portfolio. **Claude owns the strategy**: it re
 | `agent` | Remote MCP server (OAuth, ported from Fred) with portfolio-read, research-data, `preview_strategy` and `submit_strategy` tools (no order or control-plane tools: kill/resume stay owner-only), plus the scheduled Claude Code research routine that drives it | `portfolio` |
 | `notifications` | Email for every trade and every meaningful autonomous action, driven from the audit log | `foundation` |
 | `dashboard` | Read-only Next.js PWA at trader.whitebirch.io (staging: trader-staging): overview with performance vs VTI, holdings by sleeve, strategy and history, activity. Lambda Web Function behind CloudFront (OAC), Google sign-in for the owner only, SELECT-only DB role, no broker keys | `portfolio` |
+| `capital` | Money in and out: a capital-flow ledger (instant-timed, feeds the risk index and a same-flows VTI comparison), owner withdrawal requests funded by a Claude-authored strategy with a deterministic fallback, the dashboard's one write path | `broker`, `risk`, `portfolio` |
 
-**Build order:** `foundation` → `broker`, `risk`, `notifications` → `portfolio` → `agent`, `dashboard`
+**Build order:** `foundation` → `broker`, `risk`, `notifications` → `portfolio` → `agent`, `dashboard` → `capital`
 
 **v1 milestone ("small but deployed"):** a thin vertical slice through `foundation` → `broker` → `risk` → `portfolio` (core sleeve on default quant parameters) → `agent` (`submit_strategy` + reads), deployed to staging (paper) and then promoted to production (the $1k live account), running unattended on Workers cron. `notifications` and `dashboard` follow right after.
 

@@ -87,6 +87,7 @@ export const APPEND_ONLY_TABLES = [
   "strategies",
   "thesis_events",
   "rebalance_plans",
+  "capital_flows",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -358,4 +359,38 @@ export const rebalancePlans = pgTable(
     createdAt: timestamptz().notNull().defaultNow(),
   },
   (t) => [index("rebalance_plans_date_idx").on(t.tradingDate)],
+);
+
+// ---------------------------------------------------------------------------
+// capital (SPEC-capital.md): money moving in and out of the account.
+// ---------------------------------------------------------------------------
+
+/**
+ * One row per external transfer (deposit, withdrawal, or a reversal of
+ * either), copied from broker_activities. The single source of flows for the
+ * risk index, the VTI comparison and every surface. `at` is the instant the
+ * money moved (Alpaca's created_at); `timed_by = booking_date` marks the rare
+ * activity without one, timed at noon ET on its booking date. Append-only:
+ * a withdrawal request links to its flows from its own side.
+ */
+export const capitalFlows = pgTable(
+  "capital_flows",
+  {
+    activityId: text()
+      .primaryKey()
+      .references(() => brokerActivities.id),
+    at: timestamptz().notNull(),
+    /** Signed: positive into the account, negative out. */
+    amount: numeric().notNull(),
+    kind: text({ enum: ["deposit", "withdrawal", "reversal"] }).notNull(),
+    timedBy: text({ enum: ["created_at", "booking_date"] }).notNull(),
+    /** Alpaca's activity status (executed, correct, canceled), when given. */
+    status: text(),
+    recordedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [
+    index("capital_flows_at_idx").on(t.at),
+    check("capital_flows_kind", sql`${t.kind} in ('deposit', 'withdrawal', 'reversal')`),
+    check("capital_flows_timed_by", sql`${t.timedBy} in ('created_at', 'booking_date')`),
+  ],
 );
