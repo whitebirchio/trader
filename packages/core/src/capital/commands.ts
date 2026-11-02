@@ -269,7 +269,14 @@ export async function processWithdrawal(db: Db, now: Date, calendar: CalendarDay
       const tx = txn as unknown as Db;
       const [row] = await tx
         .update(withdrawals)
-        .set({ status: t.to, updatedAt: now, ...(t.fundingVersion !== undefined ? { fundingVersion: t.fundingVersion } : {}), ...(t.fundedBy ? { fundedBy: t.fundedBy } : {}) })
+        .set({
+          status: t.to,
+          updatedAt: now,
+          ...(t.fundingVersion !== undefined ? { fundingVersion: t.fundingVersion } : {}),
+          ...(t.fundedBy ? { fundedBy: t.fundedBy } : {}),
+          // The cash the sells raised: the baseline for spotting the transfer in flight.
+          ...((t.to === "settling" || t.to === "ready") && w!.raisedCash === null ? { raisedCash: view.cash } : {}),
+        })
         .where(and(eq(withdrawals.id, w!.id), eq(withdrawals.status, w!.status)))
         .returning();
       if (!row) return null;

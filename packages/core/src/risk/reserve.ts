@@ -1,6 +1,6 @@
-import { inArray } from "drizzle-orm";
+import { and, gte, inArray, isNull, lt, ne, or } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { withdrawals } from "../db/schema.js";
+import { capitalFlows, withdrawals } from "../db/schema.js";
 import { compare, sub } from "../money.js";
 
 /**
@@ -49,4 +49,31 @@ export async function loadReserve(db: Db, equity: string, cash: string): Promise
     .where(inArray(withdrawals.status, OPEN_WITHDRAWAL_STATUSES))
     .limit(1);
   return reserveFor(open ?? null, equity, cash);
+}
+
+/**
+ * Reserved cash that has left the account without a posted transfer: the
+ * owner's ACH in flight (SPEC-capital). Counted as money out by the drawdown
+ * and daily-loss measures, so a withdrawal can't latch a false halt if Alpaca
+ * lowers cash before the CSW activity appears.
+ *
+ * Bounded so it can't hide a loss: only once the sells have raised the cash
+ * (settling, ready), never more than what's outstanding, and less any
+ * outgoing transfer already posted but not yet matched. Reserved cash isn't
+ * invested and risk keeps buys out of it, so a fall in it is a transfer, a
+ * fee, or an order placed by hand in Alpaca (which emails on its own).
+ */
+export async function pendingTransferOut(db: Db, cash: string): Promise<string> {
+  const [w] = await db.select().from(withdrawals).where(inArray(withdrawals.status, ["settling", "ready"])).limit(1);
+  if (!w) return "0";
+  // The cash that should still be there: the amount left, or for "all" what was raised less what's gone.
+  const expected = w.amount === null ? (w.raisedCash ? positive(sub(w.raisedCash, w.withdrawn)) : "0") : positive(sub(w.amount, w.withdrawn));
+  const posted = await db
+    .select({ id: capitalFlows.activityId, amount: capitalFlows.amount })
+    .from(capitalFlows)
+    .where(and(lt(capitalFlows.amount, "0"), gte(capitalFlows.at, w.requestedAt), or(isNull(capitalFlows.status), ne(capitalFlows.status, "canceled"))));
+  const matched = new Set(w.flowIds);
+  const unmatched = posted.filter((f) => !matched.has(f.id)).reduce((sum, f) => sub(sum, f.amount), "0");
+  const missing = positive(sub(sub(expected, cash), unmatched));
+  return compare(missing, expected) > 0 ? expected : missing;
 }

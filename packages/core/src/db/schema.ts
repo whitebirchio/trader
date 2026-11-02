@@ -459,6 +459,11 @@ export const withdrawals = pgTable(
     /** The strategy version that funds it, and who wrote it. */
     fundingVersion: integer(),
     fundedBy: auditActor(),
+    /**
+     * Cash when the sells had raised it (entering settling or ready). Below
+     * this, missing cash counts as the transfer in flight (risk/reserve.ts).
+     */
+    raisedCash: numeric(),
     updatedAt: timestamptz().notNull(),
     closedAt: timestamptz(),
   },

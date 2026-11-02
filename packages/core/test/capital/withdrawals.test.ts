@@ -96,6 +96,7 @@ const request = (over: Partial<Withdrawal> = {}): Withdrawal => ({
   deadline: marketTimeToUtc("2026-11-02", "13:00"),
   fundingVersion: null,
   fundedBy: null,
+  raisedCash: null,
   updatedAt: REQUESTED,
   closedAt: null,
   ...over,
