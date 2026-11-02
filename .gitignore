@@ -7,6 +7,11 @@ coverage/
 .env
 .env.*
 !.env.example
+# Wrangler's local secrets and state. Kept although the Worker is gone: dropping
+# these with apps/engine let a stray .dev.vars (Neon owner URL) be committed.
+.dev.vars
+.dev.vars.*
+.wrangler/
 
 # OS / editor
 .DS_Store

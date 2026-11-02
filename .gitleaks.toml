@@ -1,0 +1,22 @@
+# gitleaks config: CI scans all of history on every push (ci.yml), and a hit
+# fails the build before any deploy. The default rules don't catch a Postgres
+# URL with an inline password, which is how the Neon owner URL leaked in
+# apps/engine/.dev.vars, so this adds one.
+#
+#   gitleaks git .        # history, same as CI
+#   gitleaks dir .        # working tree (also reports gitignored files like .env)
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "postgres-url-password"
+description = "Postgres connection URL with an inline password"
+regex = '''postgres(?:ql)?://[^:/\s'"]+:([^@\s'"]{8,})@'''
+secretGroup = 1
+keywords = ["postgres://", "postgresql://"]
+
+# Fake passwords in test fixtures and docs placeholders.
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^(s3cretPassw0rd|CHANGE_ME|\*+|…+)$''']
