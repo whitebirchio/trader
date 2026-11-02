@@ -56,10 +56,10 @@
 - **Depends on:** C5 · **Scope:** S
 
 ### C7: Fallback strategy, staleness fix, deadline
-- [ ] `capital/funding.ts` (pure): keep thesis dollars, re-weight, cap, pro-rata trim if needed → `system` version through `submitStrategy`
-- [ ] `thesisStates`: staleness from the latest `claude`-authored version listing the thesis
-- [ ] `ROUTINE_SLOTS_ET` constant (pinned by a test); deadline = next slot + 60 min; deadline or `fund_now` → fallback
-- [ ] Tests: dollars kept, caps, theses > remainder, system version doesn't reset staleness, deadline over a weekend or holiday
+- [x] `capital/funding.ts`: `fallbackStrategy` (pure) keeps thesis dollars (planned dollars for one not bought yet), re-weights, caps at 20%, trims pro rata if needed, drops stopped theses → a `system` version through `submitStrategy` (the active document resubmitted unchanged if that were ever rejected)
+- [x] Staleness from `ActiveStrategy.reaffirmedAt`: the latest version Claude *or the owner* wrote (a system version only copies the theses it replaces); used by the rebalance, `get_strategy` and the dashboard
+- [x] Deadline (done in C5) or `fund_now` → `processCapital` runs the fallback, then the request moves to funding on the same tick
+- [x] Tests: dollars kept, caps, theses > remainder, stopped dropped, a system version doesn't reset staleness, deadline and fund_now end to end
 - **Depends on:** C5 · **Scope:** M
 
 ### C8: Halted withdrawal-only mode

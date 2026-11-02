@@ -81,7 +81,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   if (!account) return { status: "skipped", reason: "the broker has never been synced" };
 
   const active = opts.strategyOverride
-    ? { version: -1, authoredBy: "claude" as const, createdAt: now, strategy: opts.strategyOverride }
+    ? { version: -1, authoredBy: "claude" as const, createdAt: now, reaffirmedAt: now, strategy: opts.strategyOverride }
     : await activeStrategy(db, now);
   const { strategy } = active;
   const activityRows = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
@@ -96,7 +96,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   const bars: Record<string, DailyClose[]> = Object.fromEntries(Object.entries(raw).map(([s, b]) => [s, b.map((x) => ({ t: x.t, c: x.c }))]));
   const lastClose = Object.fromEntries(Object.entries(bars).flatMap(([s, b]) => (b.length ? [[s, b.at(-1)!.c]] : [])));
 
-  const states = thesisStates({ active: { strategy, createdAt: active.createdAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
+  const states = thesisStates({ active: { strategy, createdAt: active.createdAt, reaffirmedAt: active.reaffirmedAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
   const convictionSymbols = new Set(strategy.conviction.map((t) => t.symbol));
   const ranking = rankUniverse(bars, strategy.systematic, convictionSymbols);
   // Cash for an open withdrawal is left out of the targets, and sells raise it (SPEC-capital).

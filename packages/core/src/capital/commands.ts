@@ -14,6 +14,7 @@ import {
   withdrawals,
 } from "../db/schema.js";
 import { compare } from "../money.js";
+import { fundWithFallback } from "./funding.js";
 import { formatMarketTime, marketDate } from "../time.js";
 import {
   type AccountView,
@@ -203,7 +204,7 @@ export type ProcessWithdrawalResult =
 /**
  * Move the open request along: match outgoing transfers first (they can close
  * it in any state), then advance until nothing changes. `fallback_due` is
- * returned for the caller to fund (C7).
+ * returned for processCapital to fund.
  */
 export async function processWithdrawal(db: Db, now: Date, calendar: CalendarDay[]): Promise<ProcessWithdrawalResult> {
   let w = await openWithdrawal(db);
@@ -301,7 +302,13 @@ export function describeWithdrawal(w: Withdrawal, equity: string): string {
 
 export type ProcessCapitalResult =
   | { status: "idle" }
-  | { status: "processed"; commands: { id: string; kind: CommandKind; outcome: CommandOutcome }[]; withdrawal: ProcessWithdrawalResult };
+  | {
+      status: "processed";
+      commands: { id: string; kind: CommandKind; outcome: CommandOutcome }[];
+      withdrawal: ProcessWithdrawalResult;
+      /** The system version the fallback stored, when it ran. */
+      fallbackVersion?: number;
+    };
 
 /**
  * The `process-capital` tick job's work: commands first, then the open
@@ -319,6 +326,18 @@ export async function processCapital(db: Db, broker: Pick<BrokerAdapter, "getCal
 
   const calendar = await broker.getCalendar(marketDate(new Date(now.getTime() - SETTLEMENT_LOOKBACK_MS)), marketDate(new Date(now.getTime() + 21 * 86_400_000)));
   const commands = await processCommands(db, now, calendar);
-  const withdrawal = await processWithdrawal(db, now, calendar);
-  return { status: "processed", commands: commands.map((c) => ({ id: c.command.id, kind: c.command.kind, outcome: c.outcome })), withdrawal };
+  let withdrawal = await processWithdrawal(db, now, calendar);
+  let fallbackVersion: number | undefined;
+  if (withdrawal.status === "open" && withdrawal.last.status === "fallback_due") {
+    // The new version is the funding plan: the next pass moves the request to funding.
+    fallbackVersion = await fundWithFallback(db, withdrawal.last.reason, now);
+    const next = await processWithdrawal(db, now, calendar);
+    withdrawal = next.status === "open" ? { ...next, steps: [...withdrawal.steps, ...next.steps] } : next;
+  }
+  return {
+    status: "processed",
+    commands: commands.map((c) => ({ id: c.command.id, kind: c.command.kind, outcome: c.outcome })),
+    withdrawal,
+    ...(fallbackVersion !== undefined ? { fallbackVersion } : {}),
+  };
 }

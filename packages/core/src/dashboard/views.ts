@@ -122,7 +122,7 @@ export async function holdingsView(db: Db, now: Date) {
   const active = await activeStrategy(db, now);
   const states = thesisStates({ active, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose: Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice])), now });
   const bySymbol = new Map(states.map((s) => [s.thesis.symbol, s]));
-  const staleInDays = staleInDaysFrom(active.createdAt, now);
+  const staleInDays = staleInDaysFrom(active.reaffirmedAt, now);
 
   const rows: HoldingRow[] = held.map((p) => {
     const t = bySymbol.get(p.symbol);

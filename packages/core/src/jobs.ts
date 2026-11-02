@@ -59,7 +59,8 @@ const syncBrokerJob: JobFn = async ({ db, env, broker, now }) => {
 const processCapitalJob: JobFn = async ({ db, broker, now }) => {
   const result = await processCapital(db, broker, now());
   if (result.status === "idle") return { status: "skipped", reason: "no commands or open withdrawal" };
-  return { status: "succeeded", detail: { commands: result.commands, withdrawal: result.withdrawal } };
+  const { status: _, ...detail } = result;
+  return { status: "succeeded", detail };
 };
 
 /** Every job the engine can run. Later modules register `rebalance`, … */

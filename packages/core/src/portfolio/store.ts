@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
 import type { Db } from "../db/client.js";
 import { strategies, thesisEvents } from "../db/schema.js";
@@ -9,6 +9,12 @@ export interface ActiveStrategy {
   version: number;
   authoredBy: "claude" | "owner" | "system";
   createdAt: Date;
+  /**
+   * When its theses were last reaffirmed: the latest version Claude or the
+   * owner wrote. A system version (withdrawal fallback funding) only copies
+   * the theses it replaces, so it doesn't reset their staleness (SPEC-capital).
+   */
+  reaffirmedAt: Date;
   strategy: Strategy;
 }
 
@@ -19,13 +25,23 @@ export interface ActiveStrategy {
  */
 export async function activeStrategy(db: Db, now: Date): Promise<ActiveStrategy> {
   const [row] = await db.select().from(strategies).orderBy(desc(strategies.version)).limit(1);
-  if (!row) return { version: 0, authoredBy: "system", createdAt: now, strategy: VERSION_0 };
+  if (!row) return { version: 0, authoredBy: "system", createdAt: now, reaffirmedAt: now, strategy: VERSION_0 };
   const parsed = validateStrategy(row.document);
   if (!parsed.ok) {
     console.error(JSON.stringify({ level: "error", message: "stored strategy failed validation; using version 0", version: row.version, errors: parsed.errors }));
-    return { version: 0, authoredBy: "system", createdAt: now, strategy: VERSION_0 };
+    return { version: 0, authoredBy: "system", createdAt: now, reaffirmedAt: now, strategy: VERSION_0 };
   }
-  return { version: row.version, authoredBy: row.authoredBy, createdAt: row.createdAt, strategy: parsed.strategy };
+  let reaffirmedAt = row.createdAt;
+  if (row.authoredBy === "system") {
+    const [authored] = await db
+      .select({ createdAt: strategies.createdAt })
+      .from(strategies)
+      .where(ne(strategies.authoredBy, "system"))
+      .orderBy(desc(strategies.version))
+      .limit(1);
+    if (authored) reaffirmedAt = authored.createdAt;
+  }
+  return { version: row.version, authoredBy: row.authoredBy, createdAt: row.createdAt, reaffirmedAt, strategy: parsed.strategy };
 }
 
 /** Thesis ids that have been stopped out (permanent). */
@@ -38,10 +54,11 @@ export type SubmitStrategyResult = { status: "activated"; version: number } | { 
 
 /**
  * Validate and store a new strategy version (SPEC-portfolio). `actor` is
- * `claude` (via `agent`'s submit_strategy) or `owner` (strategy:submit).
+ * `claude` (via `agent`'s submit_strategy), `owner` (strategy:submit), or
+ * `system` (a withdrawal's fallback funding, SPEC-capital).
  * A rejection is audited (urgent email) and leaves the active version alone.
  */
-export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner", now: Date): Promise<SubmitStrategyResult> {
+export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner" | "system", now: Date): Promise<SubmitStrategyResult> {
   const parsed = validateStrategy(doc);
   const errors = parsed.ok ? [] : parsed.errors;
   if (parsed.ok) {

@@ -95,7 +95,7 @@ export async function getStrategy({ db, now }: DbDeps, version?: number) {
   }
   const { lots, held } = await holdingsWithLots(db);
   const states = thesisStates({ active, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose: Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice])), now });
-  const daysSince = Math.floor((now.getTime() - active.createdAt.getTime()) / 86_400_000);
+  const daysSince = Math.floor((now.getTime() - active.reaffirmedAt.getTime()) / 86_400_000);
   return {
     version: active.version,
     authoredBy: active.authoredBy,

@@ -13,8 +13,12 @@ export type ThesisState =
   | { state: "stale"; thesis: Thesis; reason: string };
 
 export interface ThesisInputs {
-  /** The active strategy and when its version was created. Listing a thesis in a version reaffirms it. */
-  active: { strategy: Strategy; createdAt: Date };
+  /**
+   * The active strategy and when its version was created. Listing a thesis in
+   * a version reaffirms it, except in a system version: `reaffirmedAt`, when
+   * given, is when Claude or the owner last did.
+   */
+  active: { strategy: Strategy; createdAt: Date; reaffirmedAt?: Date };
   /** Thesis ids already recorded as stopped (thesis_events). */
   stoppedIds: ReadonlySet<string>;
   /** Open FIFO lots (broker). */
@@ -43,7 +47,7 @@ export function averageCost(lots: OpenLot[], symbol: string): string | null {
  * positions with a known price.
  */
 export function thesisStates(input: ThesisInputs): ThesisState[] {
-  const age = input.now.getTime() - input.active.createdAt.getTime();
+  const age = input.now.getTime() - (input.active.reaffirmedAt ?? input.active.createdAt).getTime();
   const stale = age >= STALE_AFTER_MS;
   const days = Math.floor(age / 86_400_000);
 

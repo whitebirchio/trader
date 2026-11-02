@@ -16,13 +16,23 @@ beforeEach(async () => {
 
 describe("activeStrategy", () => {
   it("is version 0 (hold VTI) before anything is submitted", async () => {
-    expect(await activeStrategy(db, now)).toEqual({ version: 0, authoredBy: "system", createdAt: now, strategy: VERSION_0 });
+    expect(await activeStrategy(db, now)).toEqual({ version: 0, authoredBy: "system", createdAt: now, reaffirmedAt: now, strategy: VERSION_0 });
   });
 
   it("is the highest stored version", async () => {
     await submitStrategy(db, strategy({ summary: "first" }), "owner", now);
     await submitStrategy(db, strategy({ summary: "second" }), "claude", now);
     expect(await activeStrategy(db, now)).toMatchObject({ version: 2, authoredBy: "claude", strategy: { summary: "second" } });
+  });
+
+  it("dates the theses from the last version Claude or the owner wrote, not a system one (SPEC-capital)", async () => {
+    const claudeAt = new Date("2026-10-01T15:00:00Z");
+    await submitStrategy(db, strategy(), "claude", claudeAt);
+    await submitStrategy(db, strategy({ summary: "fallback funding" }), "system", now);
+    expect(await activeStrategy(db, now)).toMatchObject({ version: 2, authoredBy: "system", createdAt: now, reaffirmedAt: claudeAt });
+    const later = new Date("2026-11-03T15:00:00Z");
+    await submitStrategy(db, strategy(), "claude", later);
+    expect(await activeStrategy(db, later)).toMatchObject({ version: 3, reaffirmedAt: later });
   });
 
   it("falls back to version 0 if a stored document no longer validates", async () => {
