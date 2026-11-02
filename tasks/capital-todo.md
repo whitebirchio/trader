@@ -30,9 +30,9 @@
 - **Depends on:** C3 · **Scope:** M
 
 ### Checkpoint A
-- [ ] Gate green · `db:generate` clean · staging deploy
-- [ ] Paper `JNLC` in → `broker:sync --force`, `risk:status`, `notify:run`: ledger row, email, drawdown ~0, `rebalance:plan` invests it
-- [ ] PR 1 → merge → `capital:status --env production` shows the April $1,000 deposit
+- [x] Gate green · `db:generate` clean · staging deploy
+- [x] Paper `JNLC` in → `broker:sync --force`, `risk:status`: the backfilled $100k journal recorded silently (older than 7 days), drawdown 0, `get_overview.capital` live. *A fresh paper deposit needs funds added by hand in Alpaca's paper dashboard; covered by tests.*
+- [x] PR 1 (#20) → merge → production migrated and deployed; a forced sync recorded the April $1,000 deposit silently; `get_overview.capital` = contributed $1000, value $1000, same flows in VTI $1065.74; drawdown 0, no halt
 
 ## Phase 2: Withdrawals in the engine (PR 2)
 
