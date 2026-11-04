@@ -189,12 +189,12 @@ describe("capital emails", () => {
       {
         ...base,
         events: [ev("capital.deposit_received", { amount: "500", type: "CSD" }, "a-1")],
-        capital: { contributed: "1500", value: "1560.25", sameFlowsInVti: "1540.10" },
+        capital: { since: "2026-10-30", startValue: "1000", addedSince: "500", value: "1560.25", sameFlowsInVti: "1540.10" },
       },
       "production",
     );
     expect(email.text).toContain("Money in and out\n  Received $500 (invested at the next rebalance step)");
-    expect(email.text).toContain("Put in $1500, now $1560.25; the same deposits in VTI: $1540.10");
+    expect(email.text).toContain("Since Fri Oct 30: started with $1000, net transfers $500, now $1560.25; the same money in VTI: $1540.10");
   });
 
   it("emails every withdrawal command, and when the money is ready", () => {

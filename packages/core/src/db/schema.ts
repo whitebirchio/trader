@@ -204,11 +204,17 @@ export const benchmarkCloses = pgTable(
 );
 
 /** One row per trading day, written by the first sync after the close. */
+/**
+ * One row per trading day, read after the close. The earliest row is the
+ * index's base: the equity at the close before the first trading day, so day
+ * one's return counts. A base row may have no cash/long split (only Alpaca's
+ * prior-close equity is known), hence the nullable columns.
+ */
 export const equitySnapshots = pgTable("equity_snapshots", {
   tradingDate: date({ mode: "string" }).primaryKey(),
   equity: numeric().notNull(),
-  cash: numeric().notNull(),
-  longMarketValue: numeric().notNull(),
+  cash: numeric(),
+  longMarketValue: numeric(),
   recordedAt: timestamptz().notNull().defaultNow(),
 });
 

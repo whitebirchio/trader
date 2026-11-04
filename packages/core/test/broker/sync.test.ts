@@ -109,6 +109,23 @@ describe("mirroring", () => {
       expect.objectContaining({ tradingDate: "2026-11-02", equity: "1000", cash: "1000" }),
     ]);
   });
+
+  it("seeds the index base at the prior close with the first snapshot only", async () => {
+    broker.calendar.unshift({ date: "2026-10-30", open: new Date("2026-10-30T13:30:00Z"), close: new Date("2026-10-30T20:00:00Z") });
+    broker.account = { ...broker.account, equity: "987.83", lastEquity: "1000" };
+    broker.clock.isOpen = false;
+    await sync(AFTER_CLOSE);
+    expect(await db.select().from(equitySnapshots).orderBy(equitySnapshots.tradingDate)).toEqual([
+      expect.objectContaining({ tradingDate: "2026-10-30", equity: "1000", cash: null, recordedAt: new Date("2026-10-30T20:00:00Z") }),
+      expect.objectContaining({ tradingDate: "2026-11-02", equity: "987.83" }),
+    ]);
+
+    // A later day doesn't add another base.
+    broker.calendar.push({ date: "2026-11-03", open: new Date("2026-11-03T14:30:00Z"), close: new Date("2026-11-03T21:00:00Z") });
+    broker.account = { ...broker.account, equity: "992.67", lastEquity: "987.83" };
+    await sync(new Date("2026-11-03T21:15:00Z"));
+    expect((await db.select().from(equitySnapshots)).map((s) => s.tradingDate).sort()).toEqual(["2026-10-30", "2026-11-02", "2026-11-03"]);
+  });
 });
 
 describe("tradingAllowed", () => {

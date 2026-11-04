@@ -1,3 +1,4 @@
+import type { CapitalSummary } from "../capital/shadow.js";
 import type { TradingEnv } from "../env.js";
 import { compare, round, sub } from "../money.js";
 import { formatMarketTime } from "../time.js";
@@ -206,8 +207,8 @@ export interface DigestData {
   state: { killSwitch: boolean; halted: boolean; haltReason: string | null };
   /** Flow-adjusted performance vs VTI since the first snapshot (portfolio/benchmark.ts), once there are two. */
   benchmark?: { since: string; portfolioPct: string; benchmarkPct: string } | null;
-  /** Money-weighted: net deposits, today's value, and the same deposits held in VTI (SPEC-capital). */
-  capital?: { contributed: string; value: string; sameFlowsInVti: string | null } | null;
+  /** Money-weighted over the index's window: start value, transfers since, value at the close, the same money in VTI (SPEC-capital). */
+  capital?: Pick<CapitalSummary, "since" | "startValue" | "addedSince" | "value" | "sameFlowsInVti"> | null;
   /** The open withdrawal request, listed every day until it closes (SPEC-capital). */
   withdrawal?: { status: string; amount: string; outstanding: string; unfunded: string; planBy: string | null } | null;
 }
@@ -308,8 +309,10 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
         ...(data.benchmark
           ? [`Since ${shortDate(data.benchmark.since)}: ${signed(data.benchmark.portfolioPct)}% vs VTI ${signed(data.benchmark.benchmarkPct)}%`]
           : []),
-        ...(data.capital
-          ? [`Put in $${data.capital.contributed}, now $${data.capital.value}${data.capital.sameFlowsInVti ? `; the same deposits in VTI: $${data.capital.sameFlowsInVti}` : ""}`]
+        ...(data.capital?.since && data.capital.startValue && data.capital.value
+          ? [
+              `Since ${shortDate(data.capital.since)}: started with $${data.capital.startValue}${compare(data.capital.addedSince, "0") !== 0 ? `, net transfers $${data.capital.addedSince}` : ""}, now $${data.capital.value}${data.capital.sameFlowsInVti ? `; the same money in VTI: $${data.capital.sameFlowsInVti}` : ""}`,
+            ]
           : []),
         `Cash $${data.cash}`,
         `Guardrails: ${status}`,

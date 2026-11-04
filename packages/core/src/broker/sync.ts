@@ -72,7 +72,7 @@ export async function syncBroker(
     if (reconcile.reasons.length === 0) break;
   }
 
-  const snapshot = phase === "after_close" ? await writeSnapshot(db, account, now) : false;
+  const snapshot = phase === "after_close" ? await writeSnapshot(db, broker, account, now) : false;
   // Market data for readers without broker keys. Best effort: a missing
   // benchmark close never blocks the account verdict.
   const benchmarkCloses = phase === "open" ? null : await recordBenchmarkCloses(db, broker, now).catch((e: unknown) => {
@@ -251,11 +251,14 @@ function toActivity(row: typeof brokerActivities.$inferSelect): Activity {
   };
 }
 
-async function writeSnapshot(db: Db, account: Account, now: Date): Promise<boolean> {
+async function writeSnapshot(db: Db, broker: BrokerAdapter, account: Account, now: Date): Promise<boolean> {
+  const today = marketDate(now);
+  const [existing] = await db.select({ tradingDate: equitySnapshots.tradingDate }).from(equitySnapshots).limit(1);
+  if (!existing) await writeBaseSnapshot(db, broker, account, today);
   const inserted = await db
     .insert(equitySnapshots)
     .values({
-      tradingDate: marketDate(now),
+      tradingDate: today,
       equity: account.equity,
       cash: account.cash,
       longMarketValue: account.longMarketValue,
@@ -263,6 +266,22 @@ async function writeSnapshot(db: Db, account: Account, now: Date): Promise<boole
     .onConflictDoNothing({ target: equitySnapshots.tradingDate })
     .returning({ tradingDate: equitySnapshots.tradingDate });
   return inserted.length > 0;
+}
+
+/**
+ * The index's base, written with the very first snapshot: Alpaca's prior-close
+ * equity, dated the prior session and timed at its close. Without it the index
+ * would start at the first day's close and never show day one's return (flows
+ * after that close are netted out by the index as usual).
+ */
+async function writeBaseSnapshot(db: Db, broker: BrokerAdapter, account: Account, today: string): Promise<void> {
+  const from = marketDate(new Date(new Date(`${today}T12:00:00Z`).getTime() - 14 * 86_400_000));
+  const prior = (await broker.getCalendar(from, today)).filter((d) => d.date < today).at(-1);
+  if (!prior) return;
+  await db
+    .insert(equitySnapshots)
+    .values({ tradingDate: prior.date, equity: account.lastEquity, cash: null, longMarketValue: null, recordedAt: prior.close })
+    .onConflictDoNothing({ target: equitySnapshots.tradingDate });
 }
 
 // ---------------------------------------------------------------------------

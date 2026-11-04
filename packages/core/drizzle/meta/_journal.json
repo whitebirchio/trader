@@ -120,6 +120,20 @@
       "when": 1793636668639,
       "tag": "0016_dashboard_insert_capital_commands",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793804000904,
+      "tag": "0017_equity_snapshots_base_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793804001347,
+      "tag": "0018_equity_snapshots_seed_base",
+      "breakpoints": true
     }
   ]
 }
