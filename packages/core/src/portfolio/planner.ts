@@ -160,7 +160,10 @@ export function planTrades(input: PlanInput): Plan {
   const fundingBlocked: string[] = [];
   if (raise || funding) {
     let needed = sub(add(raise ?? "0", funding ?? "0"), selling);
-    raiseCandidates.sort((a, b) => compare(b.gap, a.gap));
+    // VTI and the systematic sleeve first, theses last (their own buys would
+    // just top them back up); within each, the largest gap first.
+    const tier = (c: (typeof raiseCandidates)[number]) => (c.target.sleeve === "conviction" ? 1 : 0);
+    raiseCandidates.sort((a, b) => tier(a) - tier(b) || compare(b.gap, a.gap));
     for (const { target: t, holding: h, gap } of raiseCandidates) {
       if (compare(needed, MIN_TRADE_USD) < 0) break;
       if (input.blocked?.sell.has(t.symbol)) {

@@ -147,6 +147,13 @@ describe("planTrades: funding conviction buys in a fully invested account", () =
     expect(p.trades[0]?.reason).toBe("VTI is $20 over its $480 target; selling $20 of it to raise cash for the conviction buys");
   });
 
+  it("takes from VTI and the systematic sleeve before trimming another thesis", () => {
+    // AAPL is $30 over target, the largest gap, but it's a thesis: VTI's $20 and XLF's $15 go first.
+    const withThesis = [t("BA", "50", "conviction"), t("AAPL", "170", "conviction"), t("VTI", "480"), t("XLF", "285")];
+    const held = [h("AAPL", "1", "200", "200"), h("VTI", "1", "500", "500"), h("XLF", "3", "300", "100")];
+    expect(sold(plan(withThesis, held, { spendableCash: "0" }))).toEqual([["VTI", "0.04"], ["XLF", "0.15"], ["AAPL", "0.075"]]);
+  });
+
   it("buys straight away when the spare cash covers it", () => {
     expect(plan(targets, holdings, { spendableCash: "60" })).toMatchObject({ phase: "buy", trades: [{ proposal: { symbol: "BA", notional: "50" } }] });
   });
