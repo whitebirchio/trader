@@ -1,8 +1,8 @@
-import { overviewView } from "@trader/core";
+import { overviewView, sub } from "@trader/core";
 import { PerformanceChart } from "@/components/performance-chart";
 import { Card, Change, StatTile, Status } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
-import { formatEt, formatPct, formatUsd } from "@/lib/format";
+import { formatEt, formatPct, formatPts, formatUsd, sign } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +19,16 @@ export default async function OverviewPage() {
         <StatTile label="From peak" value={o.account.drawdownFromPeakPct === "0" ? "0.00%" : `−${formatPct(o.account.drawdownFromPeakPct, 2, false)}`} detail="Drawdown" />
         <StatTile
           label="vs VTI"
-          value={totals ? formatPct(totals.portfolioPct) : "—"}
-          detail={totals ? <>VTI {formatPct(totals.benchmarkPct)} since {totals.since}</> : "After two trading days"}
+          value={totals ? formatPts(sub(totals.portfolioPct, totals.benchmarkPct)) : "—"}
+          detail={
+            totals ? (
+              <>
+                Trader {formatPct(totals.portfolioPct)}, VTI {formatPct(totals.benchmarkPct)} · {totals.since} to {totals.through} close
+              </>
+            ) : (
+              "After the first close"
+            )
+          }
         />
       </div>
 
@@ -45,9 +53,17 @@ export default async function OverviewPage() {
 
       {o.capital && (
         <Card title="Your money">
-          <p className="text-sm">
-            Put in {formatUsd(o.capital.contributed)}, now worth {formatUsd(o.capital.value)}.
-            {o.capital.sameFlowsInVti && <> The same deposits held in VTI would be worth {formatUsd(o.capital.sameFlowsInVti)}.</>}
+          {o.capital.since && o.capital.startValue && o.capital.value ? (
+            <p className="text-sm">
+              From the {o.capital.since} close (the start of the chart) to the {o.capital.through} close: started with {formatUsd(o.capital.startValue)}
+              {sign(o.capital.addedSince) !== 0 && <>, net transfers {formatUsd(o.capital.addedSince)}</>}, worth {formatUsd(o.capital.value)}.
+              {o.capital.sameFlowsInVti && <> The same money held in VTI over those days would be worth {formatUsd(o.capital.sameFlowsInVti)}.</>}
+            </p>
+          ) : (
+            <p className="text-sm">The comparison with VTI starts after the first close.</p>
+          )}
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            All time: put in {formatUsd(o.capital.contributed)}, worth {formatUsd(o.account.equity)} now.
           </p>
         </Card>
       )}

@@ -23,6 +23,11 @@ export function formatPct(value: string, dp = 2, signed = true): string {
   return signed && compare(r, "0") > 0 ? `+${body}` : body;
 }
 
+/** A gap between two percentages: "+0.16 pts" / "−1.26 pts". */
+export function formatPts(value: string, dp = 2): string {
+  return formatPct(value, dp).replace("%", " pts");
+}
+
 export function formatQty(value: string): string {
   return round(value, 4, "half-even").replace(/\.?0+$/, "") || "0";
 }

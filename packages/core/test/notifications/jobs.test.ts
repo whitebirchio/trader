@@ -123,9 +123,11 @@ describe("notify-digest", () => {
     broker.activities.push({ id: "csd-1", type: "CSD", at: new Date("2026-11-02T15:30:00Z"), symbol: null, side: null, qty: null, price: null, netAmount: "1000", orderId: null, raw: { created_at: "2026-11-02T15:30:00Z" } });
     await syncBroker(db, broker, "staging", new Date("2026-11-02T15:45:00Z"));
     await recordCapitalFlows(db, new Date("2026-11-02T15:45:00Z"));
+    broker.clock.isOpen = false;
+    await syncBroker(db, broker, "staging", new Date(CLOSE.getTime() + 10 * 60_000)); // the closing snapshot
     clock = new Date(CLOSE.getTime() + 30 * 60_000);
     await notifyDigest(ctx());
-    expect(mailer.sent[0]?.text).toMatch(/Put in \$1000, now \$/);
+    expect(mailer.sent[0]?.text).toContain("Since Mon Nov 2: started with $1000, now $1000"); // no VTI closes in the fake
   });
 
   it("sends on a quiet day too", async () => {

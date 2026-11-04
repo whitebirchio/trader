@@ -36,7 +36,7 @@ export interface CapitalOverview {
 }
 
 export async function capitalOverview(db: Db, account: { equity: string; cash: string }, since: Date): Promise<CapitalOverview | null> {
-  const summary = await capitalSummary(db, account.equity);
+  const summary = await capitalSummary(db);
   const [w] = await db.select().from(withdrawals).where(inArray(withdrawals.status, OPEN_STATUSES)).limit(1);
   if (!summary && !w) return null;
 

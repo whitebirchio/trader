@@ -18,11 +18,13 @@ const { values } = parseArgs({ options: { env: { type: "string" } } });
 await withOps(values.env, async ({ env, db, broker }) => {
   const now = new Date();
   const account = (await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1)))[0];
-  const summary = await capitalSummary(db, account?.equity ?? "0");
+  const summary = await capitalSummary(db);
   const flows = await db.select().from(capitalFlows).orderBy(desc(capitalFlows.at)).limit(10);
 
   console.log(`Capital — ${env}`);
-  console.log(summary ? `  put in $${summary.contributed}, now $${summary.value}; the same flows in VTI: $${summary.sameFlowsInVti ?? "?"}` : "  no transfers recorded");
+  console.log(summary ? `  put in $${summary.contributed} (all time), now $${account?.equity ?? "?"}` : "  no transfers recorded");
+  if (summary?.since)
+    console.log(`  ${summary.since} → ${summary.through} closes: started $${summary.startValue}, net transfers $${summary.addedSince}, now $${summary.value}; the same money in VTI: $${summary.sameFlowsInVti ?? "?"}`);
   for (const f of flows) console.log(`  ${formatMarketTime(f.at)}  ${f.kind.padEnd(10)} ${f.amount.padStart(12)}  ${f.status ?? ""}${f.timedBy === "booking_date" ? " (timed by booking date)" : ""}`);
 
   const w = await openWithdrawal(db);

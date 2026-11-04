@@ -38,7 +38,7 @@ Success: Scott deposits and withdraws without thinking about Trader, and every g
 It is the **single source** for every consumer. The three ad-hoc `FLOW_TYPES` filters (`risk/gate.ts`, `portfolio/benchmark.ts`, `dashboard/views.ts`) go away.
 
 - **Index timing by instant.** A flow is subtracted at the first equity snapshot whose `recorded_at` is after its `at`. Live, the flows since the last snapshot count. This fixes the date-boundary bug: real deposits have been booked a day *after* (live, 2026-04) and a day *before* (paper) their `created_at`, and a big deposit could latch a false halt.
-- **Money-weighted VTI comparison.** A shadow account "buys" VTI with every flow at that market date's close. Overview and dashboard show *contributed $X → worth $Y; the same deposits in VTI → $Z*. The time-weighted index stays as the risk measure.
+- **Money-weighted VTI comparison.** Over the index's window, close to close: a shadow account "buys" VTI with the equity at the index base (the close before the first trading day), then with every flow inside the window at that market date's close, valued at the latest snapshot's close. Overview and dashboard show *from the base close to the latest close: started with $X, net transfers $T, worth $Y; the same money in VTI → $Z*, plus the all-time net deposits. (Until 2026-11-04 it bought VTI at each deposit's own date, which credited VTI with the months the money sat in cash before Trader ran.) The time-weighted index stays as the risk measure.
 
 ### 2. Withdrawal requests
 

@@ -73,7 +73,7 @@ export const TOOLS: Tool[] = [
     name: "get_overview",
     title: "Portfolio overview",
     description:
-      "Start here. Equity, cash, today's change and drawdown, performance vs VTI (time-weighted, plus money-weighted: net deposits, value, and the same deposits held in VTI), transfers since your last strategy and any open withdrawal request with the time to plan its funding by, guardrail state (kill switch, halt, buys paused, broker verdict), whether the market is open today and the rebalance window, the active strategy version, and holdings with their sleeve and thesis state.",
+      "Start here. Equity, cash, today's change and drawdown, performance vs VTI (time-weighted, plus money-weighted over the same close-to-close window: start value, net transfers, value at the latest close, and the same money held in VTI; and all-time net deposits), transfers since your last strategy and any open withdrawal request with the time to plan its funding by, guardrail state (kill switch, halt, buys paused, broker verdict), whether the market is open today and the rebalance window, the active strategy version, and holdings with their sleeve and thesis state.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getOverview(deps),

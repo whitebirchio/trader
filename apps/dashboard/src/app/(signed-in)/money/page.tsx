@@ -56,7 +56,15 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Put in" value={m.summary ? formatUsd(m.summary.contributed) : "—"} detail="Deposits − withdrawals" />
         <StatTile label="Now worth" value={formatUsd(m.equity)} detail={`Cash ${formatUsd(m.cash)}`} />
-        <StatTile label="Same in VTI" value={m.summary?.sameFlowsInVti ? formatUsd(m.summary.sameFlowsInVti) : "—"} detail="Each transfer bought or sold VTI" />
+        <StatTile
+          label="Same money in VTI"
+          value={m.summary?.sameFlowsInVti ? formatUsd(m.summary.sameFlowsInVti) : "—"}
+          detail={
+            m.summary?.since && m.summary.value
+              ? `${m.summary.since} to ${m.summary.through} close; Trader ${formatUsd(m.summary.value)}`
+              : "After the first close"
+          }
+        />
         <StatTile label="Held for a withdrawal" value={w ? formatUsd(w.outstanding) : formatUsd("0")} detail={w ? `${formatUsd(w.unfunded)} still to raise` : "Nothing open"} />
       </div>
 

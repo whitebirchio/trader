@@ -153,7 +153,8 @@ describe("moneyView", () => {
     await processCommands(db, new Date(NOW.getTime() + 2000), broker.calendar);
 
     const m = await moneyView(db, NOW);
-    expect(m.summary).toMatchObject({ contributed: "1000", value: "980" });
+    expect(m.equity).toBe("980");
+    expect(m.summary).toMatchObject({ contributed: "1000", since: null, value: null }); // no closing snapshot yet
     expect(m.ledger).toEqual([{ at: "2026-10-27T15:00:00.000Z", amount: "1000", kind: "deposit", status: "executed", approximate: false }]);
     expect(m.withdrawal).toMatchObject({ status: "planning", amount: "300", outstanding: "300" });
     expect(m.timeline.map((e) => [e.kind, e.actor])).toEqual([["capital.withdrawal_requested", "owner"]]);

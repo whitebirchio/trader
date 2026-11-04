@@ -85,7 +85,7 @@ function withdrawalSamples() {
         positions: [{ symbol: "VTI", qty: "1.667", marketValue: "501.08" }],
         events: [ev("capital.withdrawal_settling", { reason: "$503.12 of cash covers $500.00; should settle by Tue, Nov 3, 4:00 PM ET" }, 200)],
         state: { killSwitch: false, halted: false, haltReason: null },
-        capital: { contributed: "1000", value: "1004.20", sameFlowsInVti: "1065.74" },
+        capital: { since: "2026-10-30", startValue: "1000", addedSince: "0", value: "1004.20", sameFlowsInVti: "1003.10" },
         withdrawal: { status: "settling", amount: "500", outstanding: "500", unfunded: "0", planBy: null },
       },
       "production",
