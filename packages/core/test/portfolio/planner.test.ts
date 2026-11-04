@@ -132,6 +132,52 @@ describe("raising cash for a withdrawal", () => {
   });
 });
 
+describe("planTrades: funding conviction buys in a fully invested account", () => {
+  // $1000, all invested. A new 5% thesis moves $50 out of the others, each
+  // only $15–20 over target: inside its band, so without funding it never sells.
+  const targets = [t("BA", "50", "conviction"), t("VTI", "480"), t("XLF", "285"), t("XLK", "185")];
+  const holdings = [h("VTI", "1", "500", "500"), h("XLF", "3", "300", "100"), h("XLK", "2", "200", "100")];
+  const sold = (p: ReturnType<typeof planTrades>) => p.trades.map((x) => [x.proposal.symbol, x.proposal.side === "sell" ? x.proposal.qty : null]);
+
+  it("sells what's over target, largest gap first, to cover what cash can't", () => {
+    const p = plan(targets, holdings, { spendableCash: "0.05" });
+    expect(p.phase).toBe("sell");
+    // Needs $49.95: VTI's $20, XLF's $15, then $14.95 of XLK.
+    expect(sold(p)).toEqual([["VTI", "0.04"], ["XLF", "0.15"], ["XLK", "0.1495"]]);
+    expect(p.trades[0]?.reason).toBe("VTI is $20 over its $480 target; selling $20 of it to raise cash for the conviction buys");
+  });
+
+  it("buys straight away when the spare cash covers it", () => {
+    expect(plan(targets, holdings, { spendableCash: "60" })).toMatchObject({ phase: "buy", trades: [{ proposal: { symbol: "BA", notional: "50" } }] });
+  });
+
+  it("keeps the old behaviour without spendableCash (no funding sells)", () => {
+    expect(plan(targets, holdings).phase).toBe("buy");
+  });
+});
+
+describe("planTrades: same-day round-trip guard", () => {
+  it("skips a funding source bought today and moves on to the next", () => {
+    const targets = [t("BA", "50", "conviction"), t("VTI", "480"), t("XLF", "285"), t("XLK", "185")];
+    const holdings = [h("VTI", "1", "500", "500"), h("XLF", "3", "300", "100"), h("XLK", "2", "200", "100")];
+    const p = plan(targets, holdings, { spendableCash: "0", blocked: { sell: new Set(["VTI"]), buy: new Set() } });
+    expect(p.trades.map((x) => x.proposal.symbol)).toEqual(["XLF", "XLK"]);
+  });
+
+  it("holds an exit of something bought today until tomorrow, with a note, and plans the rest", () => {
+    const p = plan([t("VTI", "300")], [h("VTI", "1", "300", "300"), h("TTMI", "1", "50", "50")], {
+      exitReasons: { TTMI: "thesis ttmi-x stopped out" },
+      blocked: { sell: new Set(["TTMI"]), buy: new Set() },
+    });
+    expect(p).toEqual({ phase: "none", trades: [], deferred: ["TTMI: sell waits until tomorrow (it was bought today, and same-day round trips are off)"] });
+  });
+
+  it("holds a buy back of something sold today", () => {
+    const p = plan([t("XLE", "100")], [], { blocked: { sell: new Set(), buy: new Set(["XLE"]) } });
+    expect(p).toMatchObject({ phase: "none", deferred: ["XLE: buy waits until tomorrow (it was sold today, and same-day round trips are off)"] });
+  });
+});
+
 describe("withdrawalSells (halted: only what the withdrawal needs)", () => {
   const holdings = [h("VTI", "3", "900", "300"), h("AAPL", "2", "400", "200")];
   const sells = plan([t("VTI", "500")], holdings).trades;

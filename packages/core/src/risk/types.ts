@@ -48,8 +48,12 @@ export interface RiskSnapshot {
   index: { drawdownPct: string; dailyChangePct: string };
   broker: { tradingAllowed: boolean; blockedReasons: string[]; syncedAt: Date | null };
   state: { killSwitch: boolean; killReason: string | null; halted: boolean; haltReason: string | null };
-  /** Orders already placed today (any status), and their buy notional. */
-  today: { orderCount: number; buyNotional: string };
+  /**
+   * Orders already placed today (any status), and their buy notional. `bought`
+   * and `sold`: symbols traded today on each side (fills, plus orders that may
+   * still fill), for the same-day round-trip guard.
+   */
+  today: { orderCount: number; buyNotional: string; bought: string[]; sold: string[] };
   /** Cash held for an open withdrawal request (SPEC-capital): buys may not touch it. */
   withdrawal: WithdrawalReserve;
   assets: Record<string, AssetFacts>;

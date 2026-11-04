@@ -4,6 +4,7 @@ import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import {
   brokerAccount,
+  brokerActivities,
   capitalFlows,
   equitySnapshots,
   orders,
@@ -184,15 +185,34 @@ export async function currentIndex(db: Db, account: (AccountEquity & { cash?: st
 
 async function ordersToday(db: Db, now: Date): Promise<RiskSnapshot["today"]> {
   const today = marketDate(now);
+  const since = new Date(now.getTime() - 2 * 86_400_000);
   const recent = await db
-    .select({ side: orders.side, notional: orders.notional, createdAt: orders.createdAt })
+    .select({ symbol: orders.symbol, side: orders.side, notional: orders.notional, status: orders.status, filledQty: orders.filledQty, createdAt: orders.createdAt })
     .from(orders)
-    .where(gte(orders.createdAt, new Date(now.getTime() - 2 * 86_400_000)));
+    .where(gte(orders.createdAt, since));
   const todays = recent.filter((o) => marketDate(o.createdAt) === today);
+  // Fills (ours or anyone's, e.g. a trade placed in Alpaca's app) plus our orders that may still fill.
+  const fills = (await db.select({ symbol: brokerActivities.symbol, side: brokerActivities.side, at: brokerActivities.at }).from(brokerActivities).where(gte(brokerActivities.at, since)))
+    .filter((a) => a.symbol && marketDate(a.at) === today);
+  const mayFill = todays.filter((o) => o.status !== "rejected" && !(NO_FILL_ENDS.has(o.status) && compare(o.filledQty ?? "0", "0") <= 0));
+  const traded = (side: "buy" | "sell") =>
+    [...new Set([...fills.filter((f) => f.side === side).map((f) => f.symbol!), ...mayFill.filter((o) => o.side === side).map((o) => o.symbol)])].sort();
   return {
     orderCount: todays.length,
     buyNotional: todays.filter((o) => o.side === "buy").reduce((sum, o) => add(sum, o.notional ?? "0"), "0"),
+    bought: traded("buy"),
+    sold: traded("sell"),
   };
+}
+
+/** Order states that end an order; with nothing filled, it never traded. */
+const NO_FILL_ENDS = new Set(["canceled", "expired", "done_for_day", "replaced"]);
+
+/** Symbols the same-day round-trip guard blocks today, per side (none when round trips are allowed). */
+export async function roundTripBlocks(db: Db, now: Date, limits: Limits = LIMITS): Promise<{ sell: Set<string>; buy: Set<string> }> {
+  if (limits.sameDayRoundTrips) return { sell: new Set(), buy: new Set() };
+  const today = await ordersToday(db, now);
+  return { sell: new Set(today.bought), buy: new Set(today.sold) };
 }
 
 export interface DrawdownCheck {
