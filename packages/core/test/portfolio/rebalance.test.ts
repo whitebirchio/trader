@@ -4,8 +4,9 @@ import { syncBroker } from "../../src/broker/sync.js";
 import type { Db } from "../../src/db/client.js";
 import { auditEvents, capitalCommands, orders, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { add, compare, div, mul, sub } from "../../src/money.js";
-import { runRebalance } from "../../src/portfolio/rebalance.js";
+import { type RebalanceOptions, runRebalance } from "../../src/portfolio/rebalance.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
+import { LIMITS, type Limits } from "../../src/risk/limits.js";
 import { latchHalt, setKillSwitch } from "../../src/risk/state.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
@@ -59,7 +60,10 @@ async function fillAll(prices: Record<string, string>) {
   await sync();
 }
 
-const step = (opts = {}) => runRebalance(db, broker, "staging", clock, opts);
+// These scenarios compress several trading days into one simulated day, so they
+// allow same-day round trips; the guard has its own test below, on LIMITS.
+const COMPRESSED_DAYS: Limits = { ...LIMITS, sameDayRoundTrips: true };
+const step = (opts: RebalanceOptions = {}) => runRebalance(db, broker, "staging", clock, { limits: COMPRESSED_DAYS, ...opts });
 const kinds = async () => (await db.select().from(auditEvents)).map((e) => e.kind);
 
 describe("rebalance", () => {
@@ -116,6 +120,35 @@ describe("rebalance", () => {
     await sync();
     expect(await step()).toMatchObject({ status: "planned", phase: "buy" });
     expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "buy", notional: "100" });
+  });
+
+  it("funds a new thesis inside the drift band by selling VTI, but never the day VTI was bought", async () => {
+    await step();
+    await fillAll({ VTI: "300" }); // all $1000 in VTI, bought today
+    const idleInVti = { universe: ["VTI"], lookbackDays: 252, skipRecentDays: 21, topN: 1, trendFilterDays: null, weighting: "equal" as const, volatilityDays: 63, defensive: null };
+    await submitStrategy(db, strategy({ conviction: [thesis({ targetWeightPct: "5" })], systematic: idleInVti }), "claude", clock);
+
+    // $50 for AAPL would come out of VTI ($50 over its $950 target, inside the band), but VTI was bought today.
+    const sameDay = await step({ limits: LIMITS });
+    expect(sameDay).toEqual({ status: "skipped", reason: "on target" });
+    const preview = await step({ limits: LIMITS, dryRun: true });
+    expect(preview).toMatchObject({
+      phase: "none",
+      notes: expect.arrayContaining([
+        "VTI: sell waits until tomorrow (it was bought today, and same-day round trips are off)",
+        "the conviction buys wait for the sells that fund them ($50 short in cash)",
+      ]),
+    });
+
+    // The next day: VTI is sold to fund it, then AAPL is bought.
+    clock = new Date(clock.getTime() + 86_400_000);
+    broker.calendar.push({ date: "2026-11-03", open: new Date("2026-11-03T14:30:00Z"), close: new Date("2026-11-03T21:00:00Z") });
+    await sync();
+    expect(await step({ limits: LIMITS })).toMatchObject({ status: "planned", phase: "sell" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "VTI", side: "sell" });
+    await fillAll({ VTI: "300" });
+    expect(await step({ limits: LIMITS })).toMatchObject({ status: "planned", phase: "buy" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "AAPL", side: "buy" });
   });
 
   describe("while halted (SPEC-capital decision 2)", () => {

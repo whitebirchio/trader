@@ -39,7 +39,7 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
 - **Each run, Claude:**
   1. Reads `get_overview`, `get_strategy`, `get_holdings` and `get_activity`.
   2. Researches with its own web tools. Sources: Congress trade disclosures (STOCK Act filings and aggregator sites), SEC EDGAR Form 4 insider buys and 13F holdings (e.g. Berkshire Hathaway), earnings, guidance and news for current and candidate names.
-  3. Decides: **keep** (resubmit unchanged, which reaffirms the theses), **change** (theses or systematic parameters), or **exit** a thesis.
+  3. Decides: **add** a thesis, **change** (resize or replace theses), **exit** a thesis, or **keep** (resubmit unchanged, which reaffirms the theses). Since ADR-016 the stance is aggressive but evidence-based: most of the account in 5–8 theses, a few trades a week, the systematic sleeve idle-only (VTI).
   4. Runs `preview_strategy`, then `submit_strategy`.
 - **If the routine stops running,** the last strategy keeps executing. After 30 days without a resubmission, theses unwind to systematic and you're emailed (ADR-004, ADR-013).
 

@@ -19,8 +19,9 @@ When `risk` is done:
 | Rule | Limit | Applies to | When breached |
 |---|---|---|---|
 | **Kill switch** | owner on/off | every order | reject all, including sells |
-| **Drawdown halt** | flow-adjusted equity ≤ **−20% from peak** | every order | latch; reject all until **you** run `risk:resume` |
-| **Daily loss pause** | flow-adjusted equity ≤ **−5% vs prior close** | buys | reject buys for the rest of the day; sells still run; clears itself the next trading day |
+| **Drawdown halt** | flow-adjusted equity ≤ **−30% from peak** (−20% until ADR-016) | every order | latch; reject all until **you** run `risk:resume` |
+| **Daily loss pause** | flow-adjusted equity ≤ **−8% vs prior close** (−5% until ADR-016) | buys | reject buys for the rest of the day; sells still run; clears itself the next trading day |
+| **No same-day round trips** (`sameDayRoundTrips: false`, ADR-016) | the symbol was bought today (for a sell) or sold today (for a buy): today's fills plus our orders that may still fill | that order | reject; the planner holds it back with a note until the next trading day |
 | **Broker verdict** | `broker_account.trading_allowed` | every order | reject all |
 | **Fresh data** | last successful broker sync ≤ 20 min old | every order | reject all (fail closed) |
 | **Broad-ETF and cash-equivalent position** | uncapped. Broad: VTI, VOO, … Cash-equivalents: SGOV, BIL, SHV (Treasury bills, added 2026-11-01 so defensive moves can go all the way) | buys | — |

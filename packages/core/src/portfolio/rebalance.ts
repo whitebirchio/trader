@@ -7,7 +7,7 @@ import type { Db } from "../db/client.js";
 import { brokerAccount, brokerActivities, orders, positions, rebalancePlans, thesisEvents } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import type { JobFn } from "../jobs.js";
-import { loadSnapshot, riskGate } from "../risk/gate.js";
+import { loadSnapshot, riskGate, roundTripBlocks } from "../risk/gate.js";
 import { loadReserve } from "../risk/reserve.js";
 import { getRiskState } from "../risk/state.js";
 import { LIMITS, type Limits } from "../risk/limits.js";
@@ -123,7 +123,10 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   // (What isn't investable, the reserve and buffer, should stay as cash; the rest of the cash is idle.)
   const idle = sub(account.cash, sub(account.equity, investable));
   const deployCash = compare(idle, strategy.drift.minTradeUsd) >= 0;
-  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: reserve.unfunded, deployCash });
+  const spendableCash = compare(idle, "0") > 0 ? idle : "0";
+  const blocked = await roundTripBlocks(db, now, limits);
+  let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: reserve.unfunded, deployCash, spendableCash, blocked });
+  notes.push(...(plan.deferred ?? []));
 
   // Halted, with a withdrawal to fund: only the sells it needs (SPEC-capital decision 2).
   // The kill switch is absolute, so it gets the normal path, where risk rejects everything.

@@ -27,7 +27,7 @@ function snapshot(overrides: Partial<RiskSnapshot> = {}): RiskSnapshot {
     index: { drawdownPct: "0", dailyChangePct: "0" },
     broker: { tradingAllowed: true, blockedReasons: [], syncedAt: new Date(NOW.getTime() - 5 * 60_000) },
     state: { killSwitch: false, killReason: null, halted: false, haltReason: null },
-    today: { orderCount: 0, buyNotional: "0" },
+    today: { orderCount: 0, buyNotional: "0", bought: [], sold: [] },
     withdrawal: { outstanding: "0", unfunded: "0" },
     assets: {
       VTI: facts("VTI", { name: "Vanguard Total Stock Market ETF" }),
@@ -79,16 +79,38 @@ describe("account-wide stops block everything, sells included", () => {
   });
 });
 
+describe("same-day round trips (no day trades)", () => {
+  const traded = snapshot({
+    today: { orderCount: 2, buyNotional: "50", bought: ["AAPL"], sold: ["XLE"] },
+    holdings: [
+      { symbol: "AAPL", qty: "1", marketValue: "200", sleeve: "conviction" },
+      { symbol: "VTI", qty: "1", marketValue: "300", sleeve: "systematic" },
+    ],
+  });
+
+  it("rejects selling what was bought today, and buying back what was sold today", () => {
+    expect(run(traded, sell("AAPL", "1"), buy("XLE", "10"))).toMatchObject([
+      { verdict: "rejected", reasons: ["AAPL was bought today; selling it today would be a day trade, so it waits until tomorrow."] },
+      { verdict: "rejected", reasons: ["XLE was sold today; buying it back today would be a day trade, so it waits until tomorrow."] },
+    ]);
+  });
+
+  it("lets other trades through, and everything when round trips are allowed", () => {
+    expect(run(traded, sell("VTI", "1"))[0]).toMatchObject({ verdict: "approved" });
+    expect(evaluateOrders(traded, [sell("AAPL", "1")], { ...LIMITS, sameDayRoundTrips: true })[0]).toMatchObject({ verdict: "approved" });
+  });
+});
+
 describe("daily loss pause", () => {
   const down = snapshot({
-    index: { drawdownPct: "5", dailyChangePct: "-5.2" },
+    index: { drawdownPct: "5", dailyChangePct: "-8.2" },
     holdings: [{ symbol: "VTI", qty: "1", marketValue: "300", sleeve: "systematic" }],
   });
 
   it("rejects buys", () => {
     expect(run(down, buy("VTI", "50"))[0]).toMatchObject({
       verdict: "rejected",
-      reasons: ["Buys are paused for today: the account is down 5.2% since yesterday's close (limit 5%)."],
+      reasons: ["Buys are paused for today: the account is down 8.2% since yesterday's close (limit 8%)."],
     });
   });
 
@@ -246,12 +268,12 @@ describe("cash", () => {
 
 describe("runaway guard", () => {
   it("rejects orders past the daily count", () => {
-    const s = snapshot({ today: { orderCount: 39, buyNotional: "0" } });
+    const s = snapshot({ today: { orderCount: 39, buyNotional: "0", bought: [], sold: [] } });
     expect(run(s, buy("VTI", "10"), buy("VTI", "10")).map((d) => d.verdict)).toEqual(["approved", "rejected"]);
   });
 
   it("caps a day's buys at 100% of equity", () => {
-    const s = snapshot({ today: { orderCount: 2, buyNotional: "950" }, cash: "1000" });
+    const s = snapshot({ today: { orderCount: 2, buyNotional: "950", bought: [], sold: [] }, cash: "1000" });
     expect(run(s, buy("VTI", "100"))[0]).toMatchObject({
       verdict: "clipped",
       notional: "50",

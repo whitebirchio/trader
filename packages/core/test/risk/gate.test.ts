@@ -5,7 +5,8 @@ import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
 import { auditEvents, brokerAccount, capitalCommands, equitySnapshots, jobRuns, riskDecisions, riskGateRuns, withdrawals } from "../../src/db/schema.js";
 import { runJob } from "../../src/jobs.js";
-import { checkDrawdown, riskGate } from "../../src/risk/gate.js";
+import { checkDrawdown, riskGate, roundTripBlocks } from "../../src/risk/gate.js";
+import { LIMITS } from "../../src/risk/limits.js";
 import { getRiskState, setKillSwitch } from "../../src/risk/state.js";
 import type { Proposal } from "../../src/risk/types.js";
 import { FakeBroker } from "../broker/fake-broker.js";
@@ -109,6 +110,19 @@ describe("riskGate", () => {
   });
 });
 
+describe("roundTripBlocks", () => {
+  it("blocks today's fills on the opposite side, and nothing when round trips are allowed", async () => {
+    broker.fill("o-1", "AAPL", "buy", "1", "230", new Date(NOW.getTime() - 10 * 60_000));
+    broker.fill("o-2", "XLE", "sell", "2", "65", new Date(NOW.getTime() - 5 * 60_000));
+    broker.fill("o-0", "MSFT", "buy", "1", "400", new Date(NOW.getTime() - 86_400_000)); // yesterday: free to sell
+    await syncBroker(db, broker, "staging", NOW);
+    const blocks = await roundTripBlocks(db, NOW);
+    expect([...blocks.sell]).toEqual(["AAPL"]);
+    expect([...blocks.buy]).toEqual(["XLE"]);
+    expect(await roundTripBlocks(db, NOW, { ...LIMITS, sameDayRoundTrips: true })).toEqual({ sell: new Set(), buy: new Set() });
+  });
+});
+
 describe("checkDrawdown", () => {
   async function snapshots(...rows: [string, string][]) {
     await db.insert(equitySnapshots).values(
@@ -120,12 +134,14 @@ describe("checkDrawdown", () => {
     broker.activities.push({ id, type, at, symbol: null, side: null, qty: null, price: null, netAmount, orderId: null, raw: { created_at: at.toISOString(), status } });
   }
 
-  it("latches the halt at 20% below peak, once, and recovery doesn't clear it", async () => {
+  it("latches the halt at 30% below peak, once, and recovery doesn't clear it", async () => {
     await snapshots(["2026-10-29", "1000"], ["2026-10-30", "1250"]);
     await db.update(brokerAccount).set({ equity: "999", lastEquity: "1250" });
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "20.08", halted: "no" });
+    await db.update(brokerAccount).set({ equity: "874" });
 
     const first = await checkDrawdown(db, NOW);
-    expect(first).toMatchObject({ drawdownPct: "20.08", halted: "tripped" });
+    expect(first).toMatchObject({ drawdownPct: "30.08", halted: "tripped" });
     expect((await checkDrawdown(db, NOW)).halted).toBe("already");
     expect(await events("risk.halted")).toHaveLength(1);
 
@@ -211,6 +227,8 @@ describe("checkDrawdown", () => {
 
   it("announces a daily-loss pause once and its recovery once", async () => {
     await db.update(brokerAccount).set({ equity: "940", lastEquity: "1000" });
+    expect((await checkDrawdown(db, NOW)).buysPaused).toBe(false); // −6% is inside the 8% limit
+    await db.update(brokerAccount).set({ equity: "910" });
     expect((await checkDrawdown(db, NOW)).buysPaused).toBe(true);
     await checkDrawdown(db, NOW);
     await db.update(brokerAccount).set({ equity: "990" });

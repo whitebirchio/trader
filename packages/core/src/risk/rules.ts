@@ -38,10 +38,25 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
     }
     if (halted) {
       if (proposal.side !== "sell" || proposal.purpose !== "withdrawal") return reject(proposal, halted);
-      return evaluateWithdrawalSell(proposal, halted);
+      const roundTrip = sameDayRoundTrip(proposal);
+      return roundTrip ? reject(proposal, roundTrip) : evaluateWithdrawalSell(proposal, halted);
     }
+    const roundTrip = sameDayRoundTrip(proposal);
+    if (roundTrip) return reject(proposal, roundTrip);
     return proposal.side === "sell" ? evaluateSell(proposal) : evaluateBuy(proposal);
   });
+
+  /** No day trades (limits.sameDayRoundTrips): a symbol bought today isn't sold today, nor one sold today bought back. */
+  function sameDayRoundTrip(proposal: Proposal): string | null {
+    if (limits.sameDayRoundTrips) return null;
+    if (proposal.side === "sell" && snapshot.today.bought.includes(proposal.symbol)) {
+      return `${proposal.symbol} was bought today; selling it today would be a day trade, so it waits until tomorrow.`;
+    }
+    if (proposal.side === "buy" && snapshot.today.sold.includes(proposal.symbol)) {
+      return `${proposal.symbol} was sold today; buying it back today would be a day trade, so it waits until tomorrow.`;
+    }
+    return null;
+  }
 
   /**
    * While halted: a withdrawal sell is allowed while the sells so far don't

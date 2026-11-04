@@ -6,12 +6,25 @@
  * Percentages and money are decimal strings (ADR-009).
  */
 export const LIMITS = {
-  /** Flow-adjusted equity this far below its peak latches a full halt (owner resumes). */
-  drawdownHaltPct: "20",
+  /**
+   * Flow-adjusted equity this far below its peak latches a full halt (owner
+   * resumes). 30 and 8 (from 20 and 5) by the owner's choice, 2026-11-04: a
+   * concentrated book of 5+ names swings more than an index.
+   */
+  drawdownHaltPct: "30",
   /** Flow-adjusted equity this far below the prior close pauses buys for the day. */
-  dailyLossPausePct: "5",
+  dailyLossPausePct: "8",
   /** Reject everything if the last successful broker sync is older than this. */
   maxDataAgeMinutes: 20,
+
+  /**
+   * Same-day round trips: selling a symbol bought today, or buying back one
+   * sold today. Off by the owner's choice (Scott, 2026-11-04): Trader swings,
+   * a few trades a week, and never makes a day trade, so the day-trading rules
+   * (PDT, or FINRA's intraday margin rule) can't bite. A future day-trading
+   * mode turns this on deliberately, with those rules designed in.
+   */
+  sameDayRoundTrips: false as boolean,
 
   /** Max position, after the trade, for anything not in BROAD_ETFS. */
   positionCapPct: "20",
