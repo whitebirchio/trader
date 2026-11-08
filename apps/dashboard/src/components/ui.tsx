@@ -9,7 +9,7 @@ export function Card({ title, children, className = "" }: { title?: string; chil
   );
 }
 
-export function StatTile({ label, value, detail }: { label: string; value: string; detail?: React.ReactNode }) {
+export function StatTile({ label, value, detail }: { label: string; value: React.ReactNode; detail?: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="text-xs font-medium text-[var(--muted)]">{label}</div>
@@ -19,9 +19,9 @@ export function StatTile({ label, value, detail }: { label: string; value: strin
   );
 }
 
-/** A signed percentage in text ink, with a colored arrow beside it (identity never by color alone). */
-export function Change({ pct }: { pct: string }) {
-  const s = sign(pct);
+/** A signed figure in text ink, with a colored arrow beside it (identity never by color alone). `value` decides the arrow. */
+export function Signed({ value, children }: { value: string; children: React.ReactNode }) {
+  const s = sign(value);
   return (
     <span className="whitespace-nowrap">
       {s !== 0 && (
@@ -29,9 +29,14 @@ export function Change({ pct }: { pct: string }) {
           {s > 0 ? "▲ " : "▼ "}
         </span>
       )}
-      {formatPct(pct)}
+      {children}
     </span>
   );
+}
+
+/** A signed percentage with its arrow. */
+export function Change({ pct }: { pct: string }) {
+  return <Signed value={pct}>{formatPct(pct)}</Signed>;
 }
 
 /** Status with icon + label, never color alone. */
