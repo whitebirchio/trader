@@ -20,7 +20,7 @@ import {
 } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import { compare, div, mul, sub } from "../money.js";
-import { getActivity, getHoldings, getStrategy } from "../agent/tools.js";
+import { getActivity, getHoldings, getStrategy, getTrackRecord } from "../agent/tools.js";
 import { compareToBenchmark } from "../portfolio/benchmark.js";
 import { activeStrategy, stoppedThesisIds } from "../portfolio/store.js";
 import { VERSION_0, validateStrategy } from "../portfolio/strategy.js";
@@ -203,6 +203,11 @@ export async function strategyVersion(db: Db, version: number) {
 /** The activity timeline: the same feed Claude reads (get_activity), 1–90 days. */
 export function activityView(db: Db, now: Date, days = 14) {
   return getActivity({ db, now }, days);
+}
+
+/** The Track record page: every thesis's return vs the same dollars in VTI (the same view Claude reads, get_track_record). */
+export function trackRecordView(db: Db, now: Date) {
+  return getTrackRecord({ db, now });
 }
 
 /**
