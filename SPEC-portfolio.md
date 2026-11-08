@@ -158,3 +158,38 @@ packages/core/src/portfolio/
 4. **Over-cap systematic targets → option 1b** (Scott, 2026-11-01): cap, then overflow down the ranking, then VTI. See the daily check.
 5. **No cash buffer; idle money sits in VTI** (Scott, 2026-11-01). `risk`'s `cashBufferMin`/`cashBufferPct` are now `0`.
 6. **Cash-equivalent ETFs are exempt from the 20% cap** (Scott, 2026-11-01): SGOV, BIL and SHV are on an owner-set `cashEquivalentEtfs` list, so a defensive slot holds its full share. A `defensive` symbol not on that list stays capped. The role isn't an exemption.
+
+## Scorecard (2026-11-07, #27)
+
+> **Status: Built** (approved by Scott 2026-11-07; #27). Plan: [tasks/scorecard-plan.md](tasks/scorecard-plan.md).
+
+**Why.** Trader exists to find out whether Claude's research beats VTI, but nothing measures that one idea at a time. The account-level comparison (`compareToBenchmark`, `capitalSummary`) mixes every thesis with the idle VTI money. After the first week, all seven live theses are the same kind of bet (insider buying after a sell-off), and neither Claude nor Scott can see whether that signal pays.
+
+**What.** One row per thesis ever held, plus roll-ups. It's computed on read from data we already keep (strategy versions, `thesis_events`, `broker_activities`, `positions`, `benchmark_closes`): no migration, no new job, and nothing stored, the same way lots are rebuilt from fills. Database only, so the dashboard's SELECT-only role can read it.
+
+### Attribution: which fills belong to a thesis
+- A thesis's **window opens** at the `createdAt` of the first version that lists its id. Past versions are read leniently (id, symbol, weight, evidence kinds), so an old document that no longer validates still counts.
+- It **leaves** at the first of: a `thesis_events` `stopped` or `stale` row; or the first later version that doesn't list it (*removed*).
+- Its **window closes** when, after it leaves, the symbol's position next goes flat. The sell-out fills after the strategy changed still belong to it. A thesis that hasn't left is **open**.
+- **A successor on the same symbol** (a new id opened while the old one's shares are still held, e.g. a re-written thesis) continues the same row: the row keeps the first id and lists the later ones. Splitting a position no one sold would invent a trade.
+- **Unscored, with a reason:** the symbol was already held when the window opened (no attributable cost), or `buildLots` reports an issue for it (a split or transfer).
+- Fills outside every window (VTI and the systematic sleeve, manual trades) aren't on the scorecard.
+
+### Money: return vs the same dollars in VTI
+For each row, over its fills (`FILL`) and dividends (`DIV`) in the window:
+- `bought` = Σ buy qty × price; `proceeds` = Σ sell qty × price; `dividends` = Σ DIV net amount.
+- `marketValue` = open qty × the mark. `pnl` = proceeds + dividends + marketValue − bought.
+- **VTI shadow:** each buy's dollars buy VTI at that day's adjusted close. Each sell sells the same fraction of the shadow's shares as of the thesis's shares, at that day's close. Its `pnl` is computed the same way, with dividends inside the adjusted closes.
+- `excess` = pnl − vtiPnl. Percentages are on `bought`: `returnPct`, `vtiPct`, `excessPct`. That is exact for a buy-and-hold thesis and understates when a thesis was resized; this is accepted for v1.
+- **Mark:** open rows are valued at `positions.current_price` (the last sync), and the shadow at VTI's `positions.current_price` when VTI is held, otherwise its latest recorded close. The result carries `markedAt`.
+- Known approximations: VTI is bought at the close, not at the thesis fill's minute; Alpaca's sell-side regulatory fees aren't counted.
+
+### Roll-ups
+- **Overall** and **by primary signal kind**, where the primary kind is the most frequent `evidence.kind` in the thesis's last listing (ties go to the earliest listed).
+- Each roll-up has count, closed count, Σ bought, Σ pnl, Σ vtiPnl, excess (dollars and % of Σ bought), the share of rows that beat VTI, and median days held.
+
+### Surfaces
+- **`get_track_record`** (agent, read-only MCP tool): the roll-ups and rows, newest first.
+- **Routine prompt:** read it in *Orient*, and weigh it when sizing in *Decide*. A few rows are noise; say so instead of over-fitting.
+- **Dashboard:** a *Track record* page.
+- **Operator:** `npm run scorecard:show -w @trader/core -- --env staging|production`.

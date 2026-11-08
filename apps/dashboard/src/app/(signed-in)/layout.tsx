@@ -6,6 +6,7 @@ const NAV = [
   ["/holdings", "Holdings"],
   ["/money", "Money"],
   ["/strategy", "Strategy"],
+  ["/track-record", "Track record"],
   ["/activity", "Activity"],
 ] as const;
 

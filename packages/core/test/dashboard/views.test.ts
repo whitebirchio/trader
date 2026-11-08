@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { syncBroker } from "../../src/broker/sync.js";
 import type { Db } from "../../src/db/client.js";
 import { benchmarkCloses, equitySnapshots } from "../../src/db/schema.js";
-import { activityView, holdingsView, moneyView, overviewView, performanceSeries, strategyHistory, strategyVersion, strategyView } from "../../src/dashboard/views.js";
+import { activityView, holdingsView, moneyView, overviewView, performanceSeries, strategyHistory, strategyVersion, strategyView, trackRecordView } from "../../src/dashboard/views.js";
 import { compareToBenchmark } from "../../src/portfolio/benchmark.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
 import { buildIndex } from "../../src/risk/equity-index.js";
@@ -132,6 +132,18 @@ describe("activityView", () => {
     await seedHoldings();
     const a = await activityView(db, NOW, 7);
     expect(a.events.map((e) => e.kind)).toContain("strategy.activated");
+  });
+});
+
+describe("trackRecordView", () => {
+  it("scores each thesis against the same dollars in VTI", async () => {
+    expect((await trackRecordView(db, NOW)).theses).toEqual([]);
+    await seedHoldings();
+    await db.insert(benchmarkCloses).values({ symbol: "VTI", tradingDate: "2026-10-28", close: "300" });
+    const t = await trackRecordView(db, NOW);
+    // $200 of AAPL, now $180; the same $200 in VTI at $300, still $300.
+    expect(t.theses).toEqual([expect.objectContaining({ ids: ["aapl-services"], ending: "open", pnl: "-20", vtiPnl: "0", excess: "-20", excessPct: "-10" })]);
+    expect(t.overall).toMatchObject({ theses: 1, beatVtiPct: "0" });
   });
 });
 

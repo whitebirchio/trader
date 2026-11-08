@@ -8,6 +8,7 @@ import {
   getPrices,
   getRules,
   getStrategy,
+  getTrackRecord,
   previewStrategy,
   submitStrategyTool,
 } from "@trader/core";
@@ -104,6 +105,15 @@ export const TOOLS: Tool[] = [
     inputSchema: schema({ days: { type: "integer", minimum: 1, maximum: 90, default: 14, description: "How far back to look." } }),
     readOnly: true,
     handler: (deps, args) => getActivity(deps, intArg(args, "days")),
+  },
+  {
+    name: "get_track_record",
+    title: "Track record",
+    description:
+      "Every thesis ever held, scored: its return on the dollars bought (realized, unrealized and dividends) vs the same dollars held in VTI over the same days (each buy buys VTI at that day's close, each sell sells the same fraction), with how it ended (open, removed, stopped, stale) and days held. Rolled up overall and by primary evidence kind (the most frequent kind in its evidence). Use it to see which kinds of signal have beaten VTI. A handful of theses held for days is noise, not a verdict.",
+    inputSchema: schema({}),
+    readOnly: true,
+    handler: (deps) => getTrackRecord(deps),
   },
   {
     name: "get_prices",
