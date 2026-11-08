@@ -212,6 +212,7 @@ describe("thesisChanges", () => {
       "review date dropped",
       "reasoning updated",
     ]);
+    expect(thesisChanges(t, { ...t, plainSummary: "Apple sells iPhones and the services on them." })).toEqual(["plain summary added"]);
     expect(thesisChanges(null, t)).toEqual(["added at 10%"]);
     expect(thesisChanges(t, null)).toEqual(["removed"]);
   });

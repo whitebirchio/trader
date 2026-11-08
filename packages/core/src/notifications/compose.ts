@@ -20,6 +20,11 @@ interface Described {
 
 const str = (v: unknown): string => (v === undefined || v === null ? "" : String(v));
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(str) : v === undefined || v === null ? [] : [str(v)]);
+/** The activation email's plain-language lines (#60), one per thesis that has a plainSummary. */
+const plainLines = (v: unknown): string[] => {
+  const rows = (Array.isArray(v) ? v : []) as { symbol?: unknown; targetWeightPct?: unknown; text?: unknown }[];
+  return rows.length ? ["In plain terms:", ...rows.map((t) => `• ${str(t.symbol)} (${str(t.targetWeightPct)}%): ${str(t.text)}`)] : [];
+};
 
 /** One sentence-level description per kind. Reasons already read as English (SPEC-risk). */
 export function describe(e: NotifiableEvent): Described {
@@ -70,6 +75,7 @@ export function describe(e: NotifiableEvent): Described {
         headline: `New strategy v${str(p.version)} by ${str(p.authoredBy)}`,
         lines: [
           str(p.summary),
+          ...plainLines(p.plain),
           `${str(p.theses)} conviction ${Number(p.theses) === 1 ? "thesis" : "theses"} (${str(p.convictionPct)}% of the account); systematic: top ${str(p.topN)} of ${str(p.universeSize)} symbols.`,
           "It takes effect at the next rebalance step.",
         ],
@@ -357,7 +363,8 @@ export interface WeeklyData {
     overall: { theses: number; scored: number; excess: string; excessPct: string | null; beatVtiPct: string | null };
     byKind: { kind: string; theses: number; excessPct: string | null }[];
   };
-  opened: { symbol: string; thesisId: string; primaryKind: string | null }[];
+  /** `plainSummary` from the latest version that lists the thesis (#60), when it has one. */
+  opened: { symbol: string; thesisId: string; primaryKind: string | null; plainSummary?: string }[];
   closed: { symbol: string; thesisId: string; ending: string; excessPct: string | null; daysHeld: number }[];
   /** Strategy versions activated this week, with their summaries' first line. */
   /** Versions that changed the strategy; resubmissions that only reaffirmed it are counted in `reaffirmed`. */
@@ -407,7 +414,12 @@ export function composeWeekly(data: WeeklyData, env: TradingEnv, at: Date = new 
         ...(data.reaffirmed ? [`Reaffirmed unchanged ${data.reaffirmed} ${data.reaffirmed === 1 ? "time" : "times"}`] : []),
       ],
     ],
-    ["Theses opened", data.opened.length ? data.opened.map((o) => `${o.symbol} (${o.thesisId}${o.primaryKind ? `, ${o.primaryKind}` : ""})`) : ["None"]],
+    [
+      "Theses opened",
+      data.opened.length
+        ? data.opened.flatMap((o) => [`${o.symbol} (${o.thesisId}${o.primaryKind ? `, ${o.primaryKind}` : ""})`, ...(o.plainSummary ? [`  ${o.plainSummary}`] : [])])
+        : ["None"],
+    ],
     [
       "Theses closed",
       data.closed.length ? data.closed.map((c) => `${c.symbol} (${c.thesisId}): ${c.ending} after ${c.daysHeld} days, ${pct(c.excessPct)} vs VTI`) : ["None"],

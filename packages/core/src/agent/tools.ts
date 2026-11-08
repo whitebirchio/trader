@@ -279,7 +279,7 @@ export async function getExposure({ db, broker, now, filings }: ToolDeps, candid
 export function getRules() {
   return {
     strategySchema: {
-      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required), reviewBy (optional YYYY-MM-DD; see lifecycle). Total ≤ 100%.`,
+      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required), reviewBy (optional YYYY-MM-DD; see lifecycle), plainSummary (optional, 20–600 characters: the thesis in plain language for the owner; write one for every thesis). Total ≤ 100%.`,
       systematic: "universe (1–100 symbols), lookbackDays (21–252), skipRecentDays (0–21, < lookback), topN (1–20, ≤ universe), trendFilterDays (50–250 or null), weighting (equal | inverse_volatility), volatilityDays (20–126), defensive (symbol or null).",
       drift: "relativePct (1–100), minTradeUsd (1–1000): a holding is traded back to target only when off by more than max(relativePct × target, minTradeUsd).",
     },
@@ -323,6 +323,8 @@ export async function previewStrategy({ db, broker, env, now }: ToolDeps, docume
   if (!parsed.ok) return { valid: false, errors: parsed.errors };
   const errors = await submissionErrors(db, parsed.strategy, now);
   if (errors.length) return { valid: false, errors };
+  const missing = parsed.strategy.conviction.filter((t) => !t.plainSummary).map((t) => t.id);
+  const warnings = missing.length ? [`No plainSummary on ${missing.join(", ")}: the owner reads it first, so add 2–4 plain sentences to each.`] : [];
   // Outside the session the mirror is hours old and risk would reject every
   // trade for staleness alone. Preview on the last-synced data instead and say
   // so: the real step runs after a fresh sync and re-checks the age.
@@ -331,11 +333,12 @@ export async function previewStrategy({ db, broker, env, now }: ToolDeps, docume
   const stale = ageMin !== null && ageMin > LIMITS.maxDataAgeMinutes;
   const limits = stale ? { ...LIMITS, maxDataAgeMinutes: Number.MAX_SAFE_INTEGER } : LIMITS;
   const plan = await runRebalance(db, broker, env, now, { force: true, dryRun: true, strategyOverride: parsed.strategy, limits });
-  if (plan.status === "skipped") return { valid: true, nextStep: plan.reason };
+  if (plan.status === "skipped") return { valid: true, warnings, nextStep: plan.reason };
   const { lots, held } = await holdingsWithLots(db);
   const price = new Map(held.map((p) => [p.symbol, p.currentPrice]));
   return {
     valid: true,
+    warnings,
     nextStep: {
       phase: plan.phase,
       dataNote: stale

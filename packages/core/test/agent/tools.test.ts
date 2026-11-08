@@ -209,7 +209,9 @@ describe("preview_strategy", () => {
   it("shows what the next step would do, through risk, recording nothing", async () => {
     const draft = strategy({ conviction: [thesis({ targetWeightPct: "20" })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } });
     const p = await previewStrategy(deps, draft);
-    expect(p).toMatchObject({ valid: true, nextStep: { phase: "buy" } });
+    expect(p).toMatchObject({ valid: true, warnings: ["No plainSummary on aapl-services: the owner reads it first, so add 2–4 plain sentences to each."], nextStep: { phase: "buy" } });
+    const withPlain = strategy({ ...draft, conviction: [thesis({ targetWeightPct: "20", plainSummary: "Apple sells iPhones and the services people pay for on them every month." })] });
+    expect(await previewStrategy(deps, withPlain)).toMatchObject({ valid: true, warnings: [] });
     const trades = (p as { nextStep: { trades: { symbol: string; size: string; risk: string }[] } }).nextStep.trades;
     expect(trades.map((t) => [t.symbol, t.size, t.risk])).toEqual([
       ["AAPL", "$200", "approved"],

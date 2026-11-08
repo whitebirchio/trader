@@ -235,6 +235,7 @@ export function thesisChanges(before: Thesis | null, after: Thesis | null): stri
   if (before.reviewBy !== after.reviewBy) changes.push(after.reviewBy ? `review by ${after.reviewBy}` : "review date dropped");
   if (JSON.stringify(before.evidence) !== JSON.stringify(after.evidence)) changes.push("evidence updated");
   if (before.thesis !== after.thesis) changes.push("reasoning updated");
+  if (before.plainSummary !== after.plainSummary) changes.push(after.plainSummary ? (before.plainSummary ? "plain summary updated" : "plain summary added") : "plain summary dropped");
   return changes.length ? changes : ["reaffirmed"];
 }
 

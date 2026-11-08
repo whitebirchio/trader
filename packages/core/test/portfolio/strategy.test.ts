@@ -40,6 +40,14 @@ describe("validateStrategy", () => {
     }
   });
 
+  it("takes an optional plain-language summary of 20–600 characters", () => {
+    expect(validateStrategy(strategy({ conviction: [thesis({ plainSummary: "Apple sells iPhones and the services people pay for on them every month." })] })).ok).toBe(true);
+    const short = validateStrategy(strategy({ conviction: [thesis({ plainSummary: "Buy it." })] }));
+    expect(short.ok ? [] : short.errors).toEqual(["conviction[0].plainSummary: needs at least a sentence"]);
+    const long = validateStrategy(strategy({ conviction: [thesis({ plainSummary: "x".repeat(601) })] }));
+    expect(long.ok ? [] : long.errors).toEqual(["conviction[0].plainSummary: keep it to 2–4 sentences (600 characters)"]);
+  });
+
   it("caps total conviction at 100% and forbids duplicate ids and symbols", () => {
     const many = Array.from({ length: 6 }, (_, i) => thesis({ id: `t-${i}`, symbol: `S${i}`, targetWeightPct: "20" }));
     expect(errorsOf(strategy({ conviction: many }))).toContain("conviction: target weights add up to 120%, more than 100%");
