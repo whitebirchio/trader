@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { Activity } from "../../src/broker/port.js";
+import { benchmarkCloses, brokerActivities, positions, strategies } from "../../src/db/schema.js";
 import {
   type ScorecardThesisEvent,
   type ScorecardVersion,
+  loadScorecard,
   primaryKind,
   rollUp,
   rollUps,
   scoreTheses,
   thesisWindows,
 } from "../../src/portfolio/scorecard.js";
+import { createTestDb } from "../helpers.js";
 import { strategy, thesis } from "./fixtures.js";
 
 const at = (iso: string) => new Date(iso);
@@ -218,5 +221,38 @@ describe("rollUp", () => {
 
   it("has nulls for an empty group", () => {
     expect(rollUp([])).toMatchObject({ theses: 0, bought: "0", excessPct: null, beatVtiPct: null, medianDaysHeld: null });
+  });
+});
+
+describe("loadScorecard", () => {
+  it("scores the stored history, newest first, from the database alone", async () => {
+    const { db } = await createTestDb();
+    const msft = thesis({ id: "msft-a", symbol: "MSFT", evidence: [{ kind: "insider", summary: "CEO bought" }] });
+    await db.insert(strategies).values([
+      { authoredBy: "claude", createdAt: at("2026-11-02T13:00:00Z"), summary: "v1", document: strategy({ conviction: [A] }) as unknown as Record<string, unknown> },
+      { authoredBy: "claude", createdAt: at("2026-11-03T13:00:00Z"), summary: "v2", document: strategy({ conviction: [A, msft] }) as unknown as Record<string, unknown> },
+    ]);
+    await db.insert(brokerActivities).values([
+      { id: "f1", type: "FILL", at: at("2026-11-02T14:45:00Z"), symbol: "AAPL", side: "buy", qty: "2", price: "100", raw: {} },
+      { id: "f2", type: "FILL", at: at("2026-11-03T14:45:00Z"), symbol: "MSFT", side: "buy", qty: "1", price: "300", raw: {} },
+      { id: "f3", type: "FILL", at: at("2026-11-02T14:50:00Z"), symbol: "VTI", side: "buy", qty: "1", price: "250", raw: {} },
+    ]);
+    const syncedAt = at("2026-11-06T21:15:00Z");
+    await db.insert(positions).values([
+      { symbol: "AAPL", qty: "2", avgEntryPrice: "100", marketValue: "240", costBasis: "200", currentPrice: "120", syncedAt },
+      { symbol: "MSFT", qty: "1", avgEntryPrice: "300", marketValue: "270", costBasis: "300", currentPrice: "270", syncedAt },
+      { symbol: "VTI", qty: "1", avgEntryPrice: "250", marketValue: "275", costBasis: "250", currentPrice: "275", syncedAt },
+    ]);
+    await db.insert(benchmarkCloses).values(closes.map((c) => ({ symbol: "VTI", ...c })));
+
+    const card = await loadScorecard(db, asOf);
+    expect(card.markedAt).toEqual(syncedAt);
+    expect(card.theses.map((r) => [r.ids[0], r.primaryKind, r.money?.pnl, r.money?.vtiPnl])).toEqual([
+      // $300 → 1 VTI at $300, now $275.
+      ["msft-a", "insider", "-30", "-25"],
+      ["aapl-a", "fundamental", "40", "20"],
+    ]);
+    expect(card.overall).toMatchObject({ theses: 2, scored: 2, bought: "500", excess: "15", excessPct: "3", beatVtiPct: "50" });
+    expect(card.byKind.map((k) => k.kind)).toEqual(["insider", "fundamental"]);
   });
 });

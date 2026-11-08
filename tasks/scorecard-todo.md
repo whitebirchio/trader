@@ -6,28 +6,28 @@
 ## Phase 1: Core
 
 ### S1: Thesis windows and fill attribution (pure)
-- [ ] `thesisWindows(versions, events, fills)`: per thesis id → `{ ids[], symbol, openedAt, leftAt?, closedAt?, ending: open | removed | stopped | stale, unscored? }`, with versions read leniently (id, symbol, targetWeightPct, evidence kinds)
-- [ ] Fills of the symbol from `openedAt` until flat after `leftAt` belong to the row; a same-symbol successor opened before flat merges into it
-- [ ] Unscored with a reason: symbol already held at open; a `buildLots` issue for the symbol
-- [ ] Fixtures: buy-and-hold open; resized twice; removed then sold the next day; stopped (event) then sold; stale unwind; successor id; inherited position; a version that fails today's schema; a fill outside every window is ignored
+- [x] `thesisWindows(versions, events, fills)`: per thesis id → `{ ids[], symbol, openedAt, leftAt?, closedAt?, ending: open | removed | stopped | stale, unscored? }`, with versions read leniently (id, symbol, targetWeightPct, evidence kinds)
+- [x] Fills of the symbol from `openedAt` until flat after `leftAt` belong to the row; a same-symbol successor opened before flat merges into it
+- [x] Unscored with a reason: symbol already held at open; a `buildLots` issue for the symbol
+- [x] Fixtures: buy-and-hold open; resized twice; removed then sold the next day; stopped (event) then sold; stale unwind; successor id; inherited position; a version that fails today's schema; a fill outside every window is ignored
 - **Files:** `packages/core/src/portfolio/scorecard.ts`, `packages/core/test/portfolio/scorecard.test.ts` · **Depends on:** — · **Scope:** M
 
 ### S2: Returns vs the VTI shadow, and roll-ups (pure)
-- [ ] `scoreTheses(windows, fills, dividends, marks, vtiCloses)`: bought, proceeds, dividends, marketValue, pnl, vtiPnl, excess, returnPct / vtiPct / excessPct, daysHeld, primaryKind
-- [ ] The shadow buys VTI at the buy day's close and sells the same fraction as each thesis sell; open rows marked at `markedAt`
-- [ ] `rollUp(rows)`: overall + by primary kind (count, closed, Σ bought, Σ pnl, Σ vtiPnl, excess $/%, beat-VTI share, median days held); unscored rows counted but excluded from sums
-- [ ] Tests: hand-computed examples to the cent (one up, one down, one with a dividend, a partial sell); primary-kind tie-break; all money is decimal strings
+- [x] `scoreTheses(windows, fills, dividends, marks, vtiCloses)`: bought, proceeds, dividends, marketValue, pnl, vtiPnl, excess, returnPct / vtiPct / excessPct, daysHeld, primaryKind
+- [x] The shadow buys VTI at the buy day's close and sells the same fraction as each thesis sell; open rows marked at `markedAt`
+- [x] `rollUp(rows)`: overall + by primary kind (count, closed, Σ bought, Σ pnl, Σ vtiPnl, excess $/%, beat-VTI share, median days held); unscored rows counted but excluded from sums
+- [x] Tests: hand-computed examples to the cent (one up, one down, one with a dividend, a partial sell); primary-kind tie-break; all money is decimal strings
 - **Files:** `packages/core/src/portfolio/scorecard.ts`, `packages/core/test/portfolio/scorecard.test.ts` · **Depends on:** S1 · **Scope:** M
 
 ### S3: `loadScorecard(db)` + `scorecard:show`
-- [ ] `loadScorecard(db)` reads `strategies`, `thesis_events`, `broker_activities` (FILL, DIV), `positions`, `benchmark_closes` and returns `{ markedAt, overall, byKind, theses }`; exported from `@trader/core`
-- [ ] PGlite test: seeded versions + fills + closes → the expected rows
-- [ ] `scripts/scorecard-show.ts` (`npm run scorecard:show -w @trader/core -- --env …`), read-only, through `withOps`
+- [x] `loadScorecard(db)` reads `strategies`, `thesis_events`, `broker_activities` (FILL, DIV), `positions`, `benchmark_closes` and returns `{ markedAt, overall, byKind, theses }`; exported from `@trader/core`
+- [x] PGlite test: seeded versions + fills + closes → the expected rows
+- [x] `scripts/scorecard-show.ts` (`npm run scorecard:show -w @trader/core -- --env …`), read-only, through `withOps`
 - **Files:** `src/portfolio/scorecard.ts`, `src/index.ts`, `scripts/scorecard-show.ts`, `package.json`, test · **Depends on:** S2 · **Scope:** S
 
 ## Checkpoint A: real numbers
-- [ ] Gate green
-- [ ] `scorecard:show --env production`: a row for every thesis in v1–v11; open-row qty = `get_holdings`; one row reconciled by hand against Alpaca fills
+- [x] Gate green
+- [x] `scorecard:show --env production` (2026-11-07): 7 rows = the 7 theses ever listed (v2–v11), all open, all `insider`; every qty = `get_holdings`; ROL reconciled by hand from its 4 fills and VTI closes (P&L −$1.53 vs VTI −$3.12, to the cent). No thesis has closed yet, so closed rows are covered by fixtures only
 - [ ] Scott reviews the numbers (and the plan's open questions) before Phase 2
 
 ## Phase 2: Surfaces

@@ -1,7 +1,11 @@
+import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { BENCHMARK } from "../broker/benchmark-closes.js";
 import { buildLots } from "../broker/lots.js";
 import type { Activity } from "../broker/port.js";
 import type { DailyBenchmarkClose } from "../capital/shadow.js";
+import type { Db } from "../db/client.js";
+import { benchmarkCloses, brokerActivities, positions, strategies, thesisEvents } from "../db/schema.js";
 import { add, compare, div, mul, round, sub } from "../money.js";
 import { marketDate } from "../time.js";
 
@@ -368,4 +372,31 @@ export function rollUps(rows: ScorecardRow[]): { overall: ScorecardRollUp; byKin
     .map((kind) => ({ kind, ...rollUp(rows.filter((r) => (r.primaryKind ?? "none") === kind)) }))
     .sort((a, b) => compare(b.bought, a.bought));
   return { overall: rollUp(rows), byKind };
+}
+
+export interface Scorecard {
+  /** When the marks were read (the last sync); null with no positions. */
+  markedAt: Date | null;
+  overall: ScorecardRollUp;
+  byKind: (ScorecardRollUp & { kind: string })[];
+  /** Newest first. */
+  theses: ScorecardRow[];
+}
+
+/** The scorecard from the database alone, so the dashboard's read-only role can serve it too. */
+export async function loadScorecard(db: Db, now: Date): Promise<Scorecard> {
+  const [versions, events, activityRows, held, closes] = await Promise.all([
+    db.select({ version: strategies.version, createdAt: strategies.createdAt, document: strategies.document }).from(strategies).orderBy(asc(strategies.version)),
+    db.select({ thesisId: thesisEvents.thesisId, kind: thesisEvents.kind, at: thesisEvents.at }).from(thesisEvents),
+    db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id)),
+    db.select().from(positions),
+    db.select({ tradingDate: benchmarkCloses.tradingDate, close: benchmarkCloses.close }).from(benchmarkCloses).where(eq(benchmarkCloses.symbol, BENCHMARK)).orderBy(asc(benchmarkCloses.tradingDate)),
+  ]);
+  const activities: Activity[] = activityRows.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null }));
+  const marks = Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice]));
+  const markedAt = held.reduce<Date | null>((latest, p) => (!latest || p.syncedAt > latest ? p.syncedAt : latest), null);
+
+  const rows = scoreTheses(thesisWindows(versions, events, activities), { activities, marks, vtiCloses: closes, vtiMark: marks[BENCHMARK], asOf: now });
+  rows.sort((a, b) => b.openedAt.getTime() - a.openedAt.getTime());
+  return { markedAt, ...rollUps(rows), theses: rows };
 }
