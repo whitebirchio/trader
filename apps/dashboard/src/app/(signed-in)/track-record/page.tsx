@@ -1,5 +1,5 @@
 import { trackRecordView } from "@trader/core";
-import { Badge, Card, Change, StatTile } from "@/components/ui";
+import { Badge, Card, Change, Signed, StatTile } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
 import { formatDays, formatEt, formatPct, formatPts, formatQty, formatSignedUsd, formatUsd } from "@/lib/format";
 
@@ -20,7 +20,8 @@ export default async function TrackRecordPage() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Theses" value={`${o.theses}`} detail={`${o.scored} scored, ${o.closed} closed`} />
-        <StatTile label="vs VTI" value={o.excessPct ? formatPts(o.excessPct) : "—"} detail={`${formatSignedUsd(o.excess)} on ${formatUsd(o.bought)} bought`} />
+        <StatTile label="vs VTI" value={o.excessPct ? <Signed value={o.excessPct}>{formatPts(o.excessPct)}</Signed> : "—"}
+          detail={<><Signed value={o.excess}>{formatSignedUsd(o.excess)}</Signed> on {formatUsd(o.bought)} bought</>} />
         <StatTile label="Beat VTI" value={o.beatVtiPct ? formatPct(o.beatVtiPct, 0, false) : "—"} detail="Share of scored theses" />
         <StatTile label="Held" value={o.medianDaysHeld === null ? "—" : formatDays(o.medianDaysHeld)} detail="Median" />
       </div>
@@ -47,9 +48,9 @@ export default async function TrackRecordPage() {
                     <td className="py-2 font-medium">{k.kind}</td>
                     <td className="text-right">{k.scored === k.theses ? k.theses : `${k.scored} of ${k.theses}`}</td>
                     <td className="text-right">{formatUsd(k.bought)}</td>
-                    <td className="text-right">{formatSignedUsd(k.pnl)}</td>
-                    <td className="text-right">{formatSignedUsd(k.vtiPnl)}</td>
-                    <td className="text-right">{k.excessPct ? formatPts(k.excessPct) : "—"}</td>
+                    <td className="text-right"><Signed value={k.pnl}>{formatSignedUsd(k.pnl)}</Signed></td>
+                    <td className="text-right"><Signed value={k.vtiPnl}>{formatSignedUsd(k.vtiPnl)}</Signed></td>
+                    <td className="text-right">{k.excessPct ? <Signed value={k.excessPct}>{formatPts(k.excessPct)}</Signed> : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -97,15 +98,15 @@ export default async function TrackRecordPage() {
                         <td className="text-right">{formatUsd(r.bought)}</td>
                         <td className="text-right">
                           <Change pct={r.returnPct} />
-                          <div className="text-xs text-[var(--muted)]">{formatSignedUsd(r.pnl)}</div>
+                          <div className="text-xs text-[var(--muted)]"><Signed value={r.pnl}>{formatSignedUsd(r.pnl)}</Signed></div>
                         </td>
                         <td className="text-right">
-                          {formatPct(r.vtiPct)}
-                          <div className="text-xs text-[var(--muted)]">{formatSignedUsd(r.vtiPnl)}</div>
+                          <Change pct={r.vtiPct} />
+                          <div className="text-xs text-[var(--muted)]"><Signed value={r.vtiPnl}>{formatSignedUsd(r.vtiPnl)}</Signed></div>
                         </td>
                         <td className="text-right font-medium">
-                          {formatPts(r.excessPct)}
-                          <div className="text-xs font-normal text-[var(--muted)]">{formatSignedUsd(r.excess)}</div>
+                          <Signed value={r.excessPct}>{formatPts(r.excessPct)}</Signed>
+                          <div className="text-xs font-normal text-[var(--muted)]"><Signed value={r.excess}>{formatSignedUsd(r.excess)}</Signed></div>
                         </td>
                       </>
                     ) : (
