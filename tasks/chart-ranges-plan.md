@@ -16,4 +16,4 @@
 - [x] R1: `dashboard/ranges.ts` (`rangeFrom`, `windowBase`, `rangeOptions`, `parseRange`) + tests
 - [x] R2: `performanceSeries` / `overviewView` and `thesisView` take a range; `CLOSES_LEAD_DAYS` 380 (tests)
 - [x] R3: `RangePicker` + both pages; SPEC-dashboard
-- [ ] R4: Gate; staging deploy; backfill staging closes and check the ranges on staging data
+- [x] R4: Gate; staging deploy; backfilled staging closes (530); checked both pages in Chrome (2026-11-08), which caught the clipped labels and uneven axis
