@@ -36,4 +36,4 @@
 
 ### B5: findings into the routine
 - [x] `agent/routine-prompt.md` and the MCP server instructions state the owner's direction
-- [ ] Merge → RemoteTrigger update of the routine
+- [x] Merge (#45) → RemoteTrigger update of the routine (2026-11-08)

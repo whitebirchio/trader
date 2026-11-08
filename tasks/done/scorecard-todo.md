@@ -1,6 +1,6 @@
 # Tasks: thesis scorecard (#27)
 
-> Plan: [scorecard-plan.md](scorecard-plan.md) · Spec: [SPEC-portfolio.md § Scorecard](../SPEC-portfolio.md)
+> Plan: [scorecard-plan.md](scorecard-plan.md) · Spec: [SPEC-portfolio.md § Scorecard](../../SPEC-portfolio.md)
 > **gate** = `npm run typecheck && npm test`. Focused: `npx vitest run scorecard` (in `packages/core`). One PR from `feat/scorecard`, cut from pulled `main`.
 
 ## Phase 1: Core
@@ -41,7 +41,7 @@
 ### S5: Routine prompt and server instructions
 - [x] `agent/routine-prompt.md`: *Orient* calls `get_track_record`; *Decide* weighs which signal kinds have beaten VTI, with a caution on small samples
 - [x] `apps/mcp/src/instructions.ts`: one line on the tool
-- [ ] After deploy: update the claude.ai routine with RemoteTrigger (the prompt there is a copy)
+- [x] After deploy: update the claude.ai routine with RemoteTrigger (the prompt there is a copy) (2026-11-07)
 - **Files:** `agent/routine-prompt.md`, `apps/mcp/src/instructions.ts` · **Depends on:** S4 · **Scope:** XS
 
 ### S6: Dashboard *Track record* page
@@ -52,8 +52,8 @@
 
 ## Checkpoint B: staging
 - [x] Gate green · `npm run synth` clean · push → staging deploy
-- [ ] `get_track_record` through the Trader Staging connector
-- [ ] The *Track record* page on trader-staging.whitebirch.io
+- [x] `get_track_record` on the staging MCP server (called directly; the connector's tool list was cached), same numbers as `scorecard:show`
+- [x] The *Track record* page on trader-staging.whitebirch.io (Scott's screenshot; follow-ups #41–#43)
 
 ## Phase 3: Ship
 
@@ -61,6 +61,6 @@
 - [x] SPEC-portfolio *Scorecard* status → Built; SPEC-agent tools table; SPEC-dashboard pages; `CLAUDE.md` portfolio line
 - **Depends on:** S4–S6 · **Scope:** XS
 
-- [ ] PR → **Scott merges** → production: tool on the production connector, page on trader.whitebirch.io
-- [ ] RemoteTrigger: routine prompt updated; the next routine run's summary cites the track record
-- [ ] Close #27
+- [x] PR #40 → Scott merged → production: `get_track_record` returns all 7 theses; the page on trader.whitebirch.io (Scott's screenshot)
+- [x] RemoteTrigger: routine prompt updated (the first run on it is in `tasks/live-checks-todo.md`)
+- [x] Close #27 (closed by #40)

@@ -1,6 +1,6 @@
 # Implementation Plan: thesis scorecard (#27)
 
-> Implements the *Scorecard* section of [SPEC-portfolio.md](../SPEC-portfolio.md) (approved 2026-11-07). Tasks are in [scorecard-todo.md](scorecard-todo.md).
+> Implements the *Scorecard* section of [SPEC-portfolio.md](../../SPEC-portfolio.md) (approved 2026-11-07). Tasks are in [scorecard-todo.md](scorecard-todo.md).
 > **Status: Approved** (Scott, 2026-11-07), with the open questions resolved as recommended.
 
 ## Context
