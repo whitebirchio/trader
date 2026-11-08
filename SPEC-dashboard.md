@@ -43,6 +43,72 @@ The owner controls stay on the command line (ADR-012).
 
 Staging shows a persistent **"STAGING · paper"** banner. Production shows nothing extra, matching the email convention.
 
+### Amendment 2 (2026-11-08): phones
+
+> **Status: Approved** (Scott, 2026-11-08, with the menu and sign-out answers below). Scott, 2026-11-08: "On mobile (using the PWA) in particular, I'm noticing some bad UX." Every page is used on the phone; the most used are Overview, Holdings, Track record and Activity, then Strategy. Device: iPhone 15 (393 × 852 CSS px), iOS 27, installed to the home screen from Chrome. That install runs on WebKit like a Safari install, so the iOS home-screen rules apply.
+
+**What's wrong today:**
+- **The page scrolls sideways.** The top menu (six links plus "Sign out" on one row that can't wrap) is about 500 px wide on a 393 px screen.
+- **Tables are wide:** Holdings, Track record (by kind and theses), Activity, Money and the thesis version history have fixed minimum widths of 384–704 px, so each scrolls sideways inside its card.
+- **Charts are cramped.** The thesis chart keeps about 100 px for its right-hand labels, leaving about 200 px of plot, and full ISO dates crowd the x-axis.
+- **Tap targets are small:** about 24 px for the range picker, "Sign out" and "Table view".
+- **Home-screen gaps:** no reload or pull-to-refresh exists in a home-screen app, so data goes stale; nothing pads for the home indicator; the status bar style doesn't match the dark theme; and a text field under 16 px makes iOS zoom in on focus.
+
+**Objective:** every page works one-handed on an iPhone 15 without sideways scrolling, and quick answers come first: how it's doing vs VTI, what's held, what changed. The laptop layout stays as it is.
+
+**Decisions:**
+- **One site that adapts to the screen** (Tailwind breakpoints), not a separate mobile app. Phone layouts apply below 640 px (`sm`). At 640 px and up, the layout is as today.
+- **The menu stays at the top.** On phones it's one row (about 44 px tall) that scrolls sideways inside itself, never the page. It's built so the extra items are obvious and easy to reach:
+  - the next item is visibly cut off at the edge, and that edge fades out;
+  - the current page is scrolled into view on load;
+  - it's ordinary swipe scrolling (`overflow-x: auto` with momentum), with no hidden gestures.
+  
+  On every screen size, the current page is highlighted (`aria-current`); today nothing marks it.
+- **Sign out stays available but out of the way.** On phones, it's a small link at the foot of every page, below the content. On wider screens, it stays in the header as today.
+- **Tables become cards on phones.** Each row becomes a compact card leading with the figures that matter. Holdings: symbol, value, weight vs target, gain, distance to stop. Track record: symbol, how it ended, return vs VTI. Activity: time, what happened, symbol and amount. Detail is a tap away: thesis cards open the thesis page (#39), and other cards expand in place. Tables stay as they are on wider screens.
+- **Charts fit:** shorter date labels on phones ("Nov 2"), fewer ticks, direct labels that fit inside the plot, and a tap that shows the tooltip. Range pickers wrap, with tap targets of at least 44 px.
+- **Home-screen fixes:**
+  - padding for the safe areas at the top and bottom;
+  - `black-translucent` status bar over the dark theme;
+  - text inputs at 16 px or more;
+  - a refresh control in the header;
+  - an automatic refresh (`router.refresh()`) when the app comes back to the foreground more than a minute after its last load.
+- **No change to data or behaviour.** Read models, the one write (Amendment 1's withdrawal commands, with every check), auth and headers stay as they are. Presentation only.
+- **New dev dependency:** **Playwright**, to drive the iPhone 15 device profile in a headless browser. It's local and on demand only, so CI time doesn't change.
+
+**Commands:**
+```sh
+npm run mobile:check -w trader-dashboard   # Playwright, iPhone 15 profile: every page against local next dev (staging read data, dev sign-in bypass); fails on sideways scroll or a tap target under 44 px; writes screenshots to apps/dashboard/.mobile/ (git-ignored)
+```
+
+**Testing:**
+- **Automated (`mobile:check`, on demand before each PR):** on every signed-in page (`/`, `/holdings`, `/money`, `/strategy`, `/strategy/[version]`, `/track-record`, `/activity`, `/theses/[id]` with each range) and on `/login`, at 393 × 852:
+  - `document.documentElement.scrollWidth` is at most the viewport width;
+  - the menu, range pickers, refresh control and card toggles are at least 44 × 44 px;
+  - no text input renders under 16 px.
+  
+  It also runs at 1280 px, to show the desktop is unchanged.
+- **Unit (vitest, apps/dashboard):** the short date formatter, and the card/table split of each converted table (where a component has logic).
+- **Live:** Scott checks staging on his iPhone from the home screen: no sideways scroll on any page, the menu works one-handed, cards read well, charts are legible, the refresh works, and nothing hides under the notch or home indicator.
+
+**Boundaries:**
+- **Always:** keep laptop layouts as they are (apart from the current-page highlight); keep logic in core read models; run `mobile:check` before opening each PR.
+- **Ask first:** dropping a column's data from the phone layout entirely (rather than moving it behind a tap); changing a read model's shape for layout's sake; anything touching the Money page's command flow beyond styling.
+- **Never:** a new write path; caching signed-in pages; weakening the CSP or frame-ancestors to make testing easier (`mobile:check` runs against local dev instead).
+
+**Success criteria (Amendment 2):**
+1. At 393 × 852, no page scrolls sideways, and `mobile:check` passes on every page listed above.
+2. On a phone, the menu never scrolls the page. Every page is reachable by swiping the menu row and tapping. The cut-off next item and the faded edge show there's more, the current page is marked and in view, and "Sign out" is at the foot of every page.
+3. On a phone, Holdings, Track record, Activity, Money and the thesis version history show cards, not wide tables, with every figure either shown or one tap away.
+4. Charts at 393 px have at least 280 px of plot, readable date labels, and tap-to-inspect.
+5. From the home screen: content clears the Dynamic Island and the home indicator; tapping the withdrawal amount doesn't zoom; the refresh control and the refresh on returning to the app both reload data.
+6. At 1280 px, every page looks as it does today, apart from the current-page highlight (checked against `mobile:check`'s desktop screenshots).
+7. Scott confirms on his iPhone, on staging, before merge.
+
+**Resolved (Scott, 2026-11-08):**
+1. **Menu:** one row that scrolls inside itself is fine, provided it's obvious there's more and it's easy to reach (the cut-off item, the faded edge, the current page in view).
+2. **Sign out:** keep it available somewhere unobtrusive. It goes at the foot of each page on phones.
+
 ## Tech stack
 
 Same as Fred's web app, so both projects share one set of conventions:
