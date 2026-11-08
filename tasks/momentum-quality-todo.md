@@ -10,10 +10,10 @@
 - [x] Tests on synthetic bars (hand-computed signals, decile edges, the month-first statistics, the split)
 
 ### M2: Script + report
-- [ ] `research:momentum` from the cached bars; report with decile tables per variant, top-minus-bottom, top vs VTI, by year, in-sample vs held out; hand-written summary
+- [x] `research:momentum` from the cached bars; report with decile tables per variant, top-minus-bottom, top vs VTI, by year, in-sample vs held out; hand-written summary (2026-11-08: no variant passes; the bottom decile keeps losing in both periods)
 
 ## Checkpoint A
-- [ ] Gate green; three (symbol, formation) signals recomputed by hand from cached bars
+- [x] Gate green; three (symbol, formation) signals recomputed independently in Python from the cached bars (AAPL 2025-06, LKQ 2024-03, NVDA 2023-05): signal and 20-day excess match exactly; TTMI 2022-10 correctly excluded (20-day ADV $8.9M < $10M)
 
 ### Q1: Quality core (needs the frames download approved)
 - [ ] Fetch + cache frames (annual durations `CY{yyyy}`, year-end instants `CY{yyyy}Q4I`) for the concepts in the plan
