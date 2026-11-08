@@ -21,7 +21,7 @@ export default async function TrackRecordPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Theses" value={`${o.theses}`} detail={`${o.scored} scored, ${o.closed} closed`} />
         <StatTile label="vs VTI" value={o.excessPct ? <Signed value={o.excessPct}>{formatPts(o.excessPct)}</Signed> : "—"}
-          detail={<><Signed value={o.excess}>{formatSignedUsd(o.excess)}</Signed> on {formatUsd(o.bought)} bought</>} />
+          detail={`${formatSignedUsd(o.excess)} on ${formatUsd(o.bought)} bought`} />
         <StatTile label="Beat VTI" value={o.beatVtiPct ? formatPct(o.beatVtiPct, 0, false) : "—"} detail="Share of scored theses" />
         <StatTile label="Held" value={o.medianDaysHeld === null ? "—" : formatDays(o.medianDaysHeld)} detail="Median" />
       </div>
