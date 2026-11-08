@@ -28,5 +28,5 @@
 
 ## Checkpoint B
 - [x] Staging v3 (paper) submitted with LLY `reviewBy` 2026-11-09; `get_strategy` shows it (`daysToReview` 1)
-- [ ] Tue 2026-11-10: LLY unwinds on paper; `thesis.review_overdue` queued (suppressed on staging)
-- [ ] PR → Scott merges → production → RemoteTrigger
+- [x] Tue 2026-11-10: LLY unwinds on paper (moved to `tasks/live-checks-todo.md`)
+- [x] PR #46 → Scott merged → production (`get_rules` serves the review-date rules) → RemoteTrigger (2026-11-08)

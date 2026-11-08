@@ -162,7 +162,7 @@ packages/core/src/portfolio/
 
 ## Scorecard (2026-11-07, #27)
 
-> **Status: Built** (approved by Scott 2026-11-07; #27). Plan: [tasks/scorecard-plan.md](tasks/scorecard-plan.md).
+> **Status: Built** (approved by Scott 2026-11-07; #27). Plan: [tasks/done/scorecard-plan.md](tasks/done/scorecard-plan.md).
 
 **Why.** Trader exists to find out whether Claude's research beats VTI, but nothing measures that one idea at a time. The account-level comparison (`compareToBenchmark`, `capitalSummary`) mixes every thesis with the idle VTI money. After the first week, all seven live theses are the same kind of bet (insider buying after a sell-off), and neither Claude nor Scott can see whether that signal pays.
 

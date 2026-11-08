@@ -1,6 +1,6 @@
 # Insider buys vs VTI, 2018–2026
 
-> Backtest for [#29](https://github.com/whitebirchio/trader/issues/29), run 2026-11-08 from SEC's Insider Transactions Data Sets (2018q1–2026q2) and Alpaca's adjusted daily bars. Method: [tasks/insider-backtest-plan.md](../../tasks/insider-backtest-plan.md). The summary is hand-written from the tables below, which `npm run research:insiders -w @trader/core -- --report ../../docs/research/insider-buys-vs-vti-2026-11.md` regenerates.
+> Backtest for [#29](https://github.com/whitebirchio/trader/issues/29), run 2026-11-08 from SEC's Insider Transactions Data Sets (2018q1–2026q2) and Alpaca's adjusted daily bars. Method: [tasks/done/insider-backtest-plan.md](../../tasks/done/insider-backtest-plan.md). The summary is hand-written from the tables below, which `npm run research:insiders -w @trader/core -- --report ../../docs/research/insider-buys-vs-vti-2026-11.md` regenerates.
 
 ## Bottom line
 
