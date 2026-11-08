@@ -15,4 +15,4 @@ The routine works out concentration by hand in its summaries ("industrials ~26%"
 - [x] E1: `FilingsPort.industry` + `SecFilings` (tests)
 - [x] E2: `agent/exposure.ts` (`sicSector`, `dailyReturns`, `correlation`, `exposureReport`) + `getExposure` (tests)
 - [x] E3: MCP tool, pinned list, instructions, SPEC-agent, routine prompt
-- [ ] E4: Gate; staging deploy; run it on staging data; after merge, update the routine (RemoteTrigger)
+- [x] E4: Gate; staging deploy; run it on staging data; after merge, update the routine (RemoteTrigger, 2026-11-08)
