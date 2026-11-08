@@ -46,7 +46,7 @@ describe("recordThesisCloses", () => {
       return getDailyBars(symbols);
     }) as typeof broker.getDailyBars;
     expect(await recordThesisCloses(db, broker, AFTER_CLOSE)).toBe(3);
-    expect(requests).toEqual([[["AAPL", "MSFT"], "2026-10-02T13:00:00.000Z"]]);
+    expect(requests).toEqual([[["AAPL", "MSFT"], "2025-10-17T13:00:00.000Z"]]); // 380 days before the first version
     broker.bars.AAPL = [bar("2026-10-29", "199.5"), bar("2026-10-30", "201.5")];
     await recordThesisCloses(db, broker, AFTER_CLOSE);
     expect(await stored()).toEqual([

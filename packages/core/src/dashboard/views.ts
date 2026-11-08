@@ -23,7 +23,7 @@ import {
 import type { TradingEnv } from "../env.js";
 import { add, compare, div, mul, sub } from "../money.js";
 import { getActivity, getHoldings, getStrategy, getTrackRecord } from "../agent/tools.js";
-import { CHART_LEAD_DAYS } from "../broker/thesis-closes.js";
+import { type ChartRange, OVERVIEW_RANGES, type RangeOption, THESIS_RANGES, rangeFrom, rangeOptions, windowBase } from "./ranges.js";
 import { compareToBenchmark } from "../portfolio/benchmark.js";
 import { loadScorecard } from "../portfolio/scorecard.js";
 import { activeStrategy, stoppedThesisIds } from "../portfolio/store.js";
@@ -53,16 +53,23 @@ export interface PerformancePoint {
   benchmark: string | null;
 }
 
+type Totals = { since: string; through: string; portfolioPct: string; benchmarkPct: string } | null;
+
 export interface PerformanceSeries {
+  /** The selected range's points, both rebased to 100 at its first point. */
   points: PerformancePoint[];
   /** Totals over the whole series, the same numbers the digest reports; null with fewer than two snapshots. */
-  totals: { since: string; through: string; portfolioPct: string; benchmarkPct: string } | null;
+  totals: Totals;
+  /** The range shown (a requested range the history doesn't reach falls back to "all"), its totals, and every range's availability (#59). */
+  range: ChartRange;
+  rangeTotals: Totals;
+  ranges: RangeOption[];
 }
 
-/** The portfolio's flow-adjusted index against VTI, from the daily snapshots and recorded closes. */
-export async function performanceSeries(db: Db): Promise<PerformanceSeries> {
+/** The portfolio's flow-adjusted index against VTI over a range, from the daily snapshots and recorded closes. */
+export async function performanceSeries(db: Db, requested: ChartRange = "all"): Promise<PerformanceSeries> {
   const { snapshots: snaps, flows } = await loadIndexInputs(db);
-  if (snaps.length === 0) return { points: [], totals: null };
+  if (snaps.length === 0) return { points: [], totals: null, range: "all", rangeTotals: null, ranges: rangeOptions(OVERVIEW_RANGES, [], "") };
   const index = buildIndex(snaps, flows);
   const closes = await db
     .select({ tradingDate: benchmarkCloses.tradingDate, close: benchmarkCloses.close })
@@ -71,19 +78,25 @@ export async function performanceSeries(db: Db): Promise<PerformanceSeries> {
     .orderBy(asc(benchmarkCloses.tradingDate));
   const closeOn = (date: string) => [...closes].reverse().find((c) => c.tradingDate <= date)?.close ?? null;
 
-  const first = index.points[0]!;
+  const dates = index.points.map((p) => p.tradingDate);
+  const end = dates.at(-1)!;
+  const ranges = rangeOptions(OVERVIEW_RANGES, dates, end);
+  const range = ranges.find((r) => r.range === requested)?.available ? requested : "all";
+  const window = index.points.slice(windowBase(dates, rangeFrom(range, end)) ?? 0);
+
+  const first = window[0]!;
   const firstClose = closeOn(first.tradingDate);
-  const points = index.points.map((p) => {
+  const points = window.map((p) => {
     const close = closeOn(p.tradingDate);
     return { date: p.tradingDate, portfolio: rebased(p.index, first.index), benchmark: close && firstClose ? rebased(close, firstClose) : null };
   });
   // Midday ET keeps marketDate() on the stored trading date.
   const bars = closes.map((c) => ({ t: new Date(`${c.tradingDate}T17:00:00Z`), c: c.close }));
-  return { points, totals: compareToBenchmark(index.points, bars, marketDate) };
+  return { points, totals: compareToBenchmark(index.points, bars, marketDate), range, rangeTotals: compareToBenchmark(window, bars, marketDate), ranges };
 }
 
-/** The first screen: account, guardrails, strategy and performance. */
-export async function overviewView(db: Db, env: TradingEnv, now: Date) {
+/** The first screen: account, guardrails, strategy and performance (over `range`). */
+export async function overviewView(db: Db, env: TradingEnv, now: Date, range: ChartRange = "all") {
   const [account] = await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1));
   const [state] = await db.select().from(riskState).where(eq(riskState.id, 1));
   const live = await currentIndex(db, account, now);
@@ -102,7 +115,7 @@ export async function overviewView(db: Db, env: TradingEnv, now: Date) {
       brokerBlockedReasons: account?.blockedReasons ?? ["the broker has never been synced"],
     },
     strategy: { version: active.version, authoredBy: active.authoredBy, createdAt: active.createdAt.toISOString(), summary: active.strategy.summary },
-    performance: await performanceSeries(db),
+    performance: await performanceSeries(db, range),
     capital: await capitalSummary(db),
   };
 }
@@ -243,9 +256,10 @@ export function thesisChanges(before: Thesis | null, after: Thesis | null): stri
  * One thesis's page (#39): its track-record row, the price around it with
  * its fills, cost and stop, its reasoning and evidence, and every version
  * that listed it. Found by any id in its chain; null if no version lists it.
- * A thesis not bought yet has no row but still has its versions.
+ * A thesis not bought yet has no row but still has its versions. The chart
+ * covers `range` (#59), "since first held" by default.
  */
-export async function thesisView(db: Db, id: string, now: Date) {
+export async function thesisView(db: Db, id: string, now: Date, requested: ChartRange = "held") {
   const card = await loadScorecard(db, now);
   const row = card.theses.find((r) => r.ids.includes(id)) ?? null;
   const ids = new Set(row?.ids ?? [id]);
@@ -272,11 +286,18 @@ export async function thesisView(db: Db, id: string, now: Date) {
   const events = await db.select().from(thesisEvents).where(inArray(thesisEvents.thesisId, [...ids])).orderBy(asc(thesisEvents.at));
   const opened = row?.openedAt ?? new Date(history[0]!.createdAt);
   const end = row?.closedAt ?? now;
-  const closes = await db
+  // Enough closes for the longest range, or back to the first buy if that's earlier.
+  const since = new Date(Math.min(opened.getTime(), end.getTime() - 380 * DAY_MS));
+  const stored = await db
     .select({ date: thesisCloses.tradingDate, close: thesisCloses.close })
     .from(thesisCloses)
-    .where(and(eq(thesisCloses.symbol, symbol), gte(thesisCloses.tradingDate, marketDate(new Date(opened.getTime() - CHART_LEAD_DAYS * DAY_MS))), lte(thesisCloses.tradingDate, marketDate(end))))
+    .where(and(eq(thesisCloses.symbol, symbol), gte(thesisCloses.tradingDate, marketDate(since)), lte(thesisCloses.tradingDate, marketDate(end))))
     .orderBy(asc(thesisCloses.tradingDate));
+  const dates = stored.map((c) => c.date);
+  const heldFrom = marketDate(opened);
+  const ranges = rangeOptions(THESIS_RANGES, dates, marketDate(end), heldFrom);
+  const range = ranges.find((r) => r.range === requested)?.available ? requested : "held";
+  const closes = stored.slice(windowBase(dates, rangeFrom(range, marketDate(end), heldFrom)) ?? 0);
 
   // Cost while held is the open lots' average (the stop's base, as holdings shows it); after, the average buy.
   const held = !!row && !row.closedAt;
@@ -314,6 +335,8 @@ export async function thesisView(db: Db, id: string, now: Date) {
     history: history.reverse(),
     events: events.map((e) => ({ kind: e.kind, thesisId: e.thesisId, reason: e.reason, at: e.at.toISOString() })),
     chart: {
+      range,
+      ranges,
       closes,
       fills: (row?.fills ?? []).map((f) => ({ at: f.at.toISOString(), date: marketDate(f.at), side: f.side!, qty: f.qty!, price: f.price! })),
       cost: cost === null ? null : div(cost, "1", 2, "half-even"),
