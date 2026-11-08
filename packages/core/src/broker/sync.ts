@@ -7,6 +7,7 @@ import type { TradingEnv } from "../env.js";
 import { compare } from "../money.js";
 import { marketDate } from "../time.js";
 import { recordBenchmarkCloses } from "./benchmark-closes.js";
+import { recordThesisCloses } from "./thesis-closes.js";
 import { buildLots, openQtyBySymbol } from "./lots.js";
 import { isOurClientOrderId } from "./orders.js";
 import type { Account, AccountConfig, Activity, BrokerAdapter, BrokerOrder } from "./port.js";
@@ -34,6 +35,7 @@ export type SyncResult =
         snapshot: boolean;
         /** Benchmark closes written (after the close and forced syncs), or null if skipped. */
         benchmarkCloses: number | null;
+        thesisCloses: number | null;
         tradingAllowed: boolean;
         blockedReasons: string[];
       };
@@ -74,9 +76,13 @@ export async function syncBroker(
 
   const snapshot = phase === "after_close" ? await writeSnapshot(db, broker, account, now) : false;
   // Market data for readers without broker keys. Best effort: a missing
-  // benchmark close never blocks the account verdict.
+  // benchmark or thesis close never blocks the account verdict.
   const benchmarkCloses = phase === "open" ? null : await recordBenchmarkCloses(db, broker, now).catch((e: unknown) => {
     console.error(JSON.stringify({ level: "error", message: "benchmark closes skipped", error: e instanceof Error ? e.message : String(e) }));
+    return null;
+  });
+  const thesisCloses = phase === "open" ? null : await recordThesisCloses(db, broker, now).catch((e: unknown) => {
+    console.error(JSON.stringify({ level: "error", message: "thesis closes skipped", error: e instanceof Error ? e.message : String(e) }));
     return null;
   });
 
@@ -117,6 +123,7 @@ export async function syncBroker(
       positions: positionCount,
       snapshot,
       benchmarkCloses,
+      thesisCloses,
       tradingAllowed: reasons.length === 0,
       blockedReasons: reasons,
     },

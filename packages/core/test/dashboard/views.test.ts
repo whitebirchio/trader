@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { syncBroker } from "../../src/broker/sync.js";
 import type { Db } from "../../src/db/client.js";
-import { benchmarkCloses, equitySnapshots } from "../../src/db/schema.js";
-import { activityView, holdingsView, moneyView, overviewView, performanceSeries, strategyHistory, strategyVersion, strategyView, trackRecordView } from "../../src/dashboard/views.js";
+import { benchmarkCloses, equitySnapshots, thesisCloses, thesisEvents } from "../../src/db/schema.js";
+import { activityView, holdingsView, moneyView, overviewView, performanceSeries, strategyHistory, strategyVersion, strategyView, thesisChanges, thesisView, trackRecordView } from "../../src/dashboard/views.js";
 import { compareToBenchmark } from "../../src/portfolio/benchmark.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
 import { buildIndex } from "../../src/risk/equity-index.js";
@@ -144,6 +144,76 @@ describe("trackRecordView", () => {
     // $200 of AAPL, now $180; the same $200 in VTI at $300, still $300.
     expect(t.theses).toEqual([expect.objectContaining({ ids: ["aapl-services"], ending: "open", pnl: "-20", vtiPnl: "0", excess: "-20", excessPct: "-10" })]);
     expect(t.overall).toMatchObject({ theses: 1, beatVtiPct: "0" });
+  });
+});
+
+describe("thesisView", () => {
+  const closes = (symbol: string, rows: [string, string][]) => db.insert(thesisCloses).values(rows.map(([tradingDate, close]) => ({ symbol, tradingDate, close })));
+
+  it("shows an open thesis: its row, closes around it, fills, cost, stop, evidence dates and versions", async () => {
+    await seedHoldings();
+    await db.insert(benchmarkCloses).values({ symbol: "VTI", tradingDate: "2026-10-28", close: "300" });
+    await closes("AAPL", [["2026-09-01", "150"], ["2026-10-27", "198"], ["2026-10-28", "200"], ["2026-10-30", "180"]]);
+    await closes("MSFT", [["2026-10-28", "400"]]);
+    const evidence = [{ kind: "insider" as const, summary: "CFO bought $2M on the open market", asOf: "2026-10-29" }];
+    await submitStrategy(db, strategy({ conviction: [thesis({ targetWeightPct: "10", stopLossPct: "15", reviewBy: "2026-12-01", evidence })] }), "claude", new Date("2026-10-30T12:00:00Z"));
+
+    const v = (await thesisView(db, "aapl-services", NOW))!;
+    expect(v).toMatchObject({ symbol: "AAPL", ids: ["aapl-services"], latestVersion: 2, thesis: { targetWeightPct: "10" } });
+    expect(v.score).toMatchObject({ ending: "open", closedAt: null, money: { excessPct: "-10" } });
+    expect(v.history.map((h) => [h.version, h.changes])).toEqual([
+      [2, ["weight 20% → 10%", "review by 2026-12-01", "evidence updated"]],
+      [1, ["added at 20%"]],
+    ]);
+    // 30 days before the first buy, through now; another symbol's closes stay out.
+    expect(v.chart.closes).toEqual([
+      { date: "2026-10-27", close: "198" },
+      { date: "2026-10-28", close: "200" },
+      { date: "2026-10-30", close: "180" },
+    ]);
+    expect(v.chart.fills).toEqual([{ at: "2026-10-28T15:00:00.000Z", date: "2026-10-28", side: "buy", qty: "1", price: "200" }]);
+    expect(v.chart).toMatchObject({ cost: "200", stopPrice: "170", evidence: [{ date: "2026-10-29", kind: "insider", summary: "CFO bought $2M on the open market" }] });
+  });
+
+  it("shows a removed, sold thesis: the version that dropped it, its average buy, no stop, and its events", async () => {
+    await seedHoldings();
+    await submitStrategy(db, strategy({ conviction: [] }), "claude", new Date("2026-10-30T12:00:00Z"));
+    broker.fill("o3", "AAPL", "sell", "1", "210", new Date("2026-10-30T15:00:00Z"));
+    broker.positions = broker.positions.filter((p) => p.symbol !== "AAPL");
+    await syncBroker(db, broker, "staging", NOW);
+    await db.insert(thesisEvents).values({ thesisId: "aapl-services", symbol: "AAPL", kind: "stale", strategyVersion: 1, reason: "not reaffirmed in 30 days", at: new Date("2026-10-29T15:00:00Z") });
+
+    const v = (await thesisView(db, "aapl-services", NOW))!;
+    expect(v.score).toMatchObject({ closedAt: "2026-10-30T15:00:00.000Z" });
+    expect(v.history.map((h) => [h.version, h.thesis?.id ?? null, h.changes])).toEqual([
+      [2, null, ["removed"]],
+      [1, "aapl-services", ["added at 20%"]],
+    ]);
+    expect(v.chart.fills.map((f) => f.side)).toEqual(["buy", "sell"]);
+    expect(v.chart).toMatchObject({ cost: "200", stopPrice: null });
+    expect(v.events).toEqual([{ kind: "stale", thesisId: "aapl-services", reason: "not reaffirmed in 30 days", at: "2026-10-29T15:00:00.000Z" }]);
+  });
+
+  it("shows a thesis not bought yet from its versions alone, and null for an id no version lists", async () => {
+    await submitStrategy(db, strategy({ conviction: [thesis({ id: "msft-ai", symbol: "MSFT" })] }), "claude", new Date("2026-10-30T12:00:00Z"));
+    const v = (await thesisView(db, "msft-ai", NOW))!;
+    expect(v).toMatchObject({ symbol: "MSFT", ids: ["msft-ai"], score: null, chart: { fills: [], cost: null, stopPrice: null } });
+    expect(await thesisView(db, "nope", NOW)).toBeNull();
+  });
+});
+
+describe("thesisChanges", () => {
+  it("names each change, or calls an unchanged listing a reaffirmation", () => {
+    const t = thesis({ reviewBy: "2026-12-01" });
+    expect(thesisChanges(t, t)).toEqual(["reaffirmed"]);
+    expect(thesisChanges(t, { ...t, id: "aapl-b", stopLossPct: "20", reviewBy: undefined, thesis: `${t.thesis} More.` })).toEqual([
+      "renamed aapl-services → aapl-b",
+      "stop 15% → 20%",
+      "review date dropped",
+      "reasoning updated",
+    ]);
+    expect(thesisChanges(null, t)).toEqual(["added at 10%"]);
+    expect(thesisChanges(t, null)).toEqual(["removed"]);
   });
 });
 

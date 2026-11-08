@@ -227,6 +227,8 @@ export interface ScorecardRow {
   unscored: string | null;
   /** Null when unscored. */
   money: ThesisMoney | null;
+  /** The window's fills, in time order. */
+  fills: Activity[];
 }
 
 export interface ScoreInputs {
@@ -298,7 +300,7 @@ export function scoreTheses(windows: ThesisWindow[], input: ScoreInputs): Scorec
     if (compare(bought, "0") <= 0) unscored ??= "no buys in the window";
 
     const daysHeld = Math.floor(((w.closedAt ?? input.asOf).getTime() - w.openedAt.getTime()) / DAY_MS);
-    const row = { ids: w.ids, symbol: w.symbol, primaryKind: primaryKind(w.kinds), kinds: w.kinds, openedAt: w.openedAt, leftAt: w.leftAt, closedAt: w.closedAt, ending: w.ending, daysHeld, qty };
+    const row = { ids: w.ids, symbol: w.symbol, primaryKind: primaryKind(w.kinds), kinds: w.kinds, openedAt: w.openedAt, leftAt: w.leftAt, closedAt: w.closedAt, ending: w.ending, daysHeld, qty, fills: w.fills };
     if (unscored) return { ...row, unscored, money: null };
 
     const marketValue = held ? mul(qty, mark!) : "0";

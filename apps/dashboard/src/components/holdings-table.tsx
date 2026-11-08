@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { HoldingRow } from "@trader/core";
 import { Change } from "@/components/ui";
 import { formatPct, formatQty, formatUsd } from "@/lib/format";
@@ -22,7 +23,7 @@ export function HoldingsTable({ rows, conviction }: { rows: HoldingRow[]; convic
           {rows.map((r) => (
             <tr key={r.symbol} className="border-t border-[var(--border)]">
               <td className="py-2 font-medium">
-                {r.symbol}
+                {r.thesis ? <Link href={`/theses/${r.thesis.id}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">{r.symbol}</Link> : r.symbol}
                 {r.thesis && r.thesis.state !== "active" && <span className="ml-2 text-xs text-[var(--warn)]">▲ {r.thesis.state}</span>}
               </td>
               <td className="text-right">{formatUsd(r.marketValue)}</td>

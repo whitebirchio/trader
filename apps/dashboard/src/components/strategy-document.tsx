@@ -1,4 +1,5 @@
-import type { Strategy } from "@trader/core";
+import Link from "next/link";
+import type { Strategy, Thesis } from "@trader/core";
 import { Badge, Card } from "@/components/ui";
 import { formatPct, safeHref } from "@/lib/format";
 
@@ -18,7 +19,10 @@ export function StrategyDocument({ document, states }: { document: Strategy; sta
           return (
             <Card key={t.id}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="font-semibold">{t.symbol} <span className="font-normal text-[var(--muted)]">· {t.id}</span></h3>
+                <h3 className="font-semibold">
+                  <Link href={`/theses/${t.id}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">{t.symbol}</Link>{" "}
+                  <span className="font-normal text-[var(--muted)]">· {t.id}</span>
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   <Badge>{formatPct(t.targetWeightPct, 1, false)} target</Badge>
                   <Badge>stop {formatPct(t.stopLossPct, 0, false)}</Badge>
@@ -27,24 +31,7 @@ export function StrategyDocument({ document, states }: { document: Strategy; sta
                 </div>
               </div>
               {st?.reason && <p className="mt-1 text-xs text-[var(--warn)]">{st.reason}</p>}
-              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed [overflow-wrap:anywhere]">{t.thesis}</p>
-              <ul className="mt-3 grid gap-1.5 text-sm">
-                {t.evidence.map((e, i) => {
-                  const href = safeHref(e.source);
-                  return (
-                    <li key={i} className="flex min-w-0 gap-2">
-                      <Badge>{e.kind}</Badge>
-                      <span className="min-w-0 [overflow-wrap:anywhere]">
-                        {e.summary}
-                        {e.asOf && <span className="text-[var(--muted)]"> ({e.asOf})</span>}
-                        {href && (
-                          <> · <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">{new URL(href).hostname}</a></>
-                        )}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ThesisBody thesis={t} />
             </Card>
           );
         })}
@@ -60,5 +47,31 @@ export function StrategyDocument({ document, states }: { document: Strategy; sta
         </dl>
       </Card>
     </div>
+  );
+}
+
+/** A thesis's reasoning and its evidence, with source links. */
+export function ThesisBody({ thesis: t }: { thesis: Thesis }) {
+  return (
+    <>
+      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed [overflow-wrap:anywhere]">{t.thesis}</p>
+      <ul className="mt-3 grid gap-1.5 text-sm">
+        {t.evidence.map((e, i) => {
+          const href = safeHref(e.source);
+          return (
+            <li key={i} className="flex min-w-0 gap-2">
+              <Badge>{e.kind}</Badge>
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                {e.summary}
+                {e.asOf && <span className="text-[var(--muted)]"> ({e.asOf})</span>}
+                {href && (
+                  <> · <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">{new URL(href).hostname}</a></>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

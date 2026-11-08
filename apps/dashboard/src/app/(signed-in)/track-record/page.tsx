@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { trackRecordView } from "@trader/core";
 import { Badge, Card, Change, Signed, StatTile } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
@@ -80,7 +81,7 @@ export default async function TrackRecordPage() {
                   <tr key={`${r.ids[0]}-${r.openedAt}`} className="border-t border-[var(--border)] align-top">
                     <td className="py-2">
                       <div className="flex gap-2">
-                        <span className="font-medium">{r.symbol}</span>
+                        <Link href={`/theses/${r.ids.at(-1)}`} className="font-medium underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">{r.symbol}</Link>
                         {r.primaryKind && <Badge>{r.primaryKind}</Badge>}
                       </div>
                       <div className="text-xs text-[var(--muted)]">{r.ids.join(" → ")}</div>

@@ -1,7 +1,7 @@
 import { capitalSummary } from "../capital/shadow.js";
 import { capitalOverview } from "../capital/overview.js";
 import { OPEN_STATUSES } from "../capital/withdrawals.js";
-import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, like, lte } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
 import { buildLots } from "../broker/lots.js";
 import type { Db } from "../db/client.js";
@@ -16,14 +16,18 @@ import {
   positions,
   riskState,
   strategies,
+  thesisCloses,
+  thesisEvents,
   withdrawals,
 } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
-import { compare, div, mul, sub } from "../money.js";
+import { add, compare, div, mul, sub } from "../money.js";
 import { getActivity, getHoldings, getStrategy, getTrackRecord } from "../agent/tools.js";
+import { CHART_LEAD_DAYS } from "../broker/thesis-closes.js";
 import { compareToBenchmark } from "../portfolio/benchmark.js";
+import { loadScorecard } from "../portfolio/scorecard.js";
 import { activeStrategy, stoppedThesisIds } from "../portfolio/store.js";
-import { VERSION_0, validateStrategy } from "../portfolio/strategy.js";
+import { type Thesis, VERSION_0, validateStrategy } from "../portfolio/strategy.js";
 import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
 import { buildIndex } from "../risk/equity-index.js";
 import { currentIndex, loadIndexInputs } from "../risk/gate.js";
@@ -208,6 +212,114 @@ export function activityView(db: Db, now: Date, days = 14) {
 /** The Track record page: every thesis's return vs the same dollars in VTI (the same view Claude reads, get_track_record). */
 export function trackRecordView(db: Db, now: Date) {
   return getTrackRecord({ db, now });
+}
+
+export interface ThesisVersion {
+  version: number;
+  createdAt: string;
+  authoredBy: string;
+  /** The thesis as this version lists it; null in the version that dropped it. */
+  thesis: Thesis | null;
+  /** What this version changed about the thesis ("added at 5%", "weight 6% → 8%", "reaffirmed", "removed"). */
+  changes: string[];
+}
+
+/** What a version changed about a thesis, against the version before that listed it. */
+export function thesisChanges(before: Thesis | null, after: Thesis | null): string[] {
+  if (!after) return ["removed"];
+  if (!before) return [`added at ${after.targetWeightPct}%`];
+  const changes: string[] = [];
+  if (before.id !== after.id) changes.push(`renamed ${before.id} → ${after.id}`);
+  if (compare(before.targetWeightPct, after.targetWeightPct) !== 0) changes.push(`weight ${before.targetWeightPct}% → ${after.targetWeightPct}%`);
+  if (compare(before.stopLossPct, after.stopLossPct) !== 0) changes.push(`stop ${before.stopLossPct}% → ${after.stopLossPct}%`);
+  if (before.reviewBy !== after.reviewBy) changes.push(after.reviewBy ? `review by ${after.reviewBy}` : "review date dropped");
+  if (JSON.stringify(before.evidence) !== JSON.stringify(after.evidence)) changes.push("evidence updated");
+  if (before.thesis !== after.thesis) changes.push("reasoning updated");
+  return changes.length ? changes : ["reaffirmed"];
+}
+
+/**
+ * One thesis's page (#39): its track-record row, the price around it with
+ * its fills, cost and stop, its reasoning and evidence, and every version
+ * that listed it. Found by any id in its chain; null if no version lists it.
+ * A thesis not bought yet has no row but still has its versions.
+ */
+export async function thesisView(db: Db, id: string, now: Date) {
+  const card = await loadScorecard(db, now);
+  const row = card.theses.find((r) => r.ids.includes(id)) ?? null;
+  const ids = new Set(row?.ids ?? [id]);
+
+  // Past documents are read leniently, as the scorecard reads them.
+  const versions = await db.select().from(strategies).orderBy(asc(strategies.version));
+  const listed = (document: unknown) => {
+    const conviction = (document as { conviction?: unknown } | null)?.conviction;
+    return Array.isArray(conviction) ? ((conviction as Thesis[]).find((t) => typeof t?.id === "string" && ids.has(t.id)) ?? null) : null;
+  };
+  const history: ThesisVersion[] = [];
+  let previous: Thesis | null = null;
+  for (const v of versions) {
+    const t = listed(v.document);
+    if (!t && !previous) continue;
+    history.push({ version: v.version, createdAt: v.createdAt.toISOString(), authoredBy: v.authoredBy, thesis: t, changes: thesisChanges(previous, t) });
+    previous = t;
+  }
+  const latest = [...history].reverse().find((h) => h.thesis);
+  if (!latest) return null;
+  const thesis = latest.thesis!;
+  const symbol = row?.symbol ?? thesis.symbol;
+
+  const events = await db.select().from(thesisEvents).where(inArray(thesisEvents.thesisId, [...ids])).orderBy(asc(thesisEvents.at));
+  const opened = row?.openedAt ?? new Date(history[0]!.createdAt);
+  const end = row?.closedAt ?? now;
+  const closes = await db
+    .select({ date: thesisCloses.tradingDate, close: thesisCloses.close })
+    .from(thesisCloses)
+    .where(and(eq(thesisCloses.symbol, symbol), gte(thesisCloses.tradingDate, marketDate(new Date(opened.getTime() - CHART_LEAD_DAYS * DAY_MS))), lte(thesisCloses.tradingDate, marketDate(end))))
+    .orderBy(asc(thesisCloses.tradingDate));
+
+  // Cost while held is the open lots' average (the stop's base, as holdings shows it); after, the average buy.
+  const held = !!row && !row.closedAt;
+  let cost: string | null = null;
+  if (held) {
+    const acts = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
+    cost = averageCost(buildLots(acts.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null }))).open, symbol);
+  } else if (row) {
+    const buys = row.fills.filter((f) => f.side === "buy");
+    const qty = buys.reduce((sum, f) => add(sum, f.qty!), "0");
+    cost = compare(qty, "0") > 0 ? div(buys.reduce((sum, f) => add(sum, mul(f.qty!, f.price!)), "0"), qty, 4, "half-even") : null;
+  }
+  const stopPrice = held && row.ending === "open" && cost ? div(mul(cost, sub("1", div(thesis.stopLossPct, "100", 12, "half-even"))), "1", 2, "half-even") : null;
+  const iso = (d: Date | null) => d?.toISOString() ?? null;
+
+  return {
+    symbol,
+    ids: row?.ids ?? [thesis.id],
+    thesis,
+    latestVersion: latest.version,
+    score: row
+      ? {
+          primaryKind: row.primaryKind,
+          ending: row.ending,
+          openedAt: row.openedAt.toISOString(),
+          leftAt: iso(row.leftAt),
+          closedAt: iso(row.closedAt),
+          daysHeld: row.daysHeld,
+          qty: row.qty,
+          money: row.money,
+          unscored: row.unscored,
+        }
+      : null,
+    markedAt: iso(card.markedAt),
+    history: history.reverse(),
+    events: events.map((e) => ({ kind: e.kind, thesisId: e.thesisId, reason: e.reason, at: e.at.toISOString() })),
+    chart: {
+      closes,
+      fills: (row?.fills ?? []).map((f) => ({ at: f.at.toISOString(), date: marketDate(f.at), side: f.side!, qty: f.qty!, price: f.price! })),
+      cost: cost === null ? null : div(cost, "1", 2, "half-even"),
+      stopPrice,
+      evidence: [...new Map(history.flatMap((h) => h.thesis?.evidence ?? []).filter((e) => e.asOf).map((e) => [`${e.asOf}|${e.summary}`, { date: e.asOf!, kind: e.kind, summary: e.summary }])).values()].sort((a, b) => a.date.localeCompare(b.date)),
+    },
+  };
 }
 
 /**
