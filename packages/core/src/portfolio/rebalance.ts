@@ -193,7 +193,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   return { status: "planned", phase: plan.phase, strategyVersion: active.version, planId, trades: results, notes };
 }
 
-/** Record each newly stopped or stale thesis once (thesis_events + an urgent audit event). */
+/** Record each newly stopped, stale or overdue thesis once (thesis_events + an urgent audit event). */
 async function recordThesisTransitions(db: Db, states: ReturnType<typeof thesisStates>, version: number, now: Date): Promise<void> {
   for (const s of states) {
     if (s.state === "stopped" && s.newlyStopped) {
@@ -208,6 +208,15 @@ async function recordThesisTransitions(db: Db, states: ReturnType<typeof thesisS
       if (seen.length > 0) continue;
       await db.insert(thesisEvents).values({ thesisId: s.thesis.id, symbol: s.thesis.symbol, kind: "stale", strategyVersion: version, reason: s.reason, at: now });
       await recordEvent(db, { actor: "system", kind: "thesis.stale", subject: s.thesis.symbol, payload: { thesisId: s.thesis.id, reason: s.reason } });
+    }
+    if (s.state === "overdue") {
+      const seen = await db
+        .select({ id: thesisEvents.id })
+        .from(thesisEvents)
+        .where(and(eq(thesisEvents.thesisId, s.thesis.id), eq(thesisEvents.kind, "overdue"), eq(thesisEvents.strategyVersion, version)));
+      if (seen.length > 0) continue;
+      await db.insert(thesisEvents).values({ thesisId: s.thesis.id, symbol: s.thesis.symbol, kind: "overdue", strategyVersion: version, reason: s.reason, at: now });
+      await recordEvent(db, { actor: "system", kind: "thesis.review_overdue", subject: s.thesis.symbol, payload: { thesisId: s.thesis.id, reason: s.reason } });
     }
   }
 }

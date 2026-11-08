@@ -35,6 +35,7 @@ const ROUTES: Record<AuditKind, Route> = {
   "strategy.rejected": "urgent", // Claude submitted something invalid: the old version stays
   "thesis.stopped_out": "urgent",
   "thesis.stale": "urgent", // the research loop may be down
+  "thesis.review_overdue": "urgent", // an automatic sale: the review date passed
   "rebalance.planned": "digest",
 
   "capital.deposit_received": "digest", // your own action; invested at the next rebalance step
@@ -76,6 +77,7 @@ export const SEVERITY: Partial<Record<AuditKind, number>> = {
   "job.failed": 8,
   "thesis.stopped_out": 7.5,
   "thesis.stale": 7.6,
+  "thesis.review_overdue": 7.65,
   "strategy.rejected": 7.7,
   "capital.withdrawal_ready": 7.8, // your turn: withdraw it in Alpaca
   "risk.resumed": 9,

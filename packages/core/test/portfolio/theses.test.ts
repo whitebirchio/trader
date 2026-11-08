@@ -79,3 +79,37 @@ describe("thesisStates", () => {
     expect(states[0]?.state).toBe("active");
   });
 });
+
+describe("review dates", () => {
+  const withReview = (reviewBy: string, o: { now: Date; close?: string; stopped?: string[]; createdAt?: Date }) =>
+    thesisStates({
+      active: { strategy: strategy({ conviction: [thesis({ reviewBy })] }), createdAt: o.createdAt ?? created },
+      stoppedIds: new Set(o.stopped ?? []),
+      lots: [lot("AAPL", "1", "200")],
+      lastClose: o.close ? { AAPL: o.close } : {},
+      now: o.now,
+    })[0];
+
+  it("stands through its review date (New York time) and is overdue the day after", () => {
+    // 11 PM ET on the review date is still that date in New York, though it's the next day in UTC.
+    expect(withReview("2026-11-03", { now: new Date("2026-11-04T04:00:00Z") })).toMatchObject({ state: "active" });
+    expect(withReview("2026-11-03", { now: new Date("2026-11-04T14:00:00Z") })).toMatchObject({
+      state: "overdue",
+      reason: "past its review date (2026-11-03) without a later one",
+    });
+  });
+
+  it("is overdue whatever the price, but staleness and a stop-out come first", () => {
+    const after = new Date("2026-11-10T15:00:00Z");
+    expect(withReview("2026-11-03", { now: after, close: "1" })).toMatchObject({ state: "overdue" });
+    expect(withReview("2026-11-03", { now: after, stopped: ["aapl-services"] })).toMatchObject({ state: "stopped" });
+    expect(withReview("2026-11-03", { now: new Date(created.getTime() + 30 * day) })).toMatchObject({ state: "stale" });
+  });
+
+  it("reaffirming doesn't clear an overdue thesis; only a later review date does", () => {
+    const now = new Date("2026-11-10T15:00:00Z");
+    expect(withReview("2026-11-03", { now, createdAt: new Date("2026-11-09T15:00:00Z") })).toMatchObject({ state: "overdue" });
+    expect(withReview("2026-12-01", { now, createdAt: new Date("2026-11-09T15:00:00Z") })).toMatchObject({ state: "active" });
+  });
+});
+

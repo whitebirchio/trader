@@ -1,5 +1,6 @@
 import type { OpenLot } from "../broker/lots.js";
 import { add, compare, div, mul, round, sub } from "../money.js";
+import { marketDate } from "../time.js";
 import type { Strategy, Thesis } from "./strategy.js";
 
 /** A thesis not reaffirmed in this long unwinds into the systematic sleeve (SPEC-portfolio). */
@@ -10,7 +11,9 @@ export type ThesisState =
   /** Hit its stop-loss. Sold, and stays stopped: re-entry needs a new thesis id. */
   | { state: "stopped"; thesis: Thesis; reason: string; newlyStopped: boolean; price?: string; averageCost?: string }
   /** Not reaffirmed for 30 days (the research loop may be down). Sold into systematic. */
-  | { state: "stale"; thesis: Thesis; reason: string };
+  | { state: "stale"; thesis: Thesis; reason: string }
+  /** Past its review date without a later one. Sold into systematic until a version moves the date on. */
+  | { state: "overdue"; thesis: Thesis; reason: string };
 
 export interface ThesisInputs {
   /**
@@ -41,15 +44,16 @@ export function averageCost(lots: OpenLot[], symbol: string): string | null {
 }
 
 /**
- * Each active-strategy thesis's state. Precedence: already stopped >
- * stale > stop-loss hit now > active. Staleness comes first because a stale
- * thesis unwinds whatever its price. A stop is only checked on held
- * positions with a known price.
+ * Each active-strategy thesis's state. Precedence: already stopped > stale >
+ * overdue > stop-loss hit now > active. Staleness and the review date come
+ * first because either unwinds a thesis whatever its price. A stop is only
+ * checked on held positions with a known price.
  */
 export function thesisStates(input: ThesisInputs): ThesisState[] {
   const age = input.now.getTime() - (input.active.reaffirmedAt ?? input.active.createdAt).getTime();
   const stale = age >= STALE_AFTER_MS;
   const days = Math.floor(age / 86_400_000);
+  const today = marketDate(input.now);
 
   return input.active.strategy.conviction.map((thesis): ThesisState => {
     if (input.stoppedIds.has(thesis.id)) {
@@ -57,6 +61,9 @@ export function thesisStates(input: ThesisInputs): ThesisState[] {
     }
     if (stale) {
       return { state: "stale", thesis, reason: `not reaffirmed for ${days} days (limit 30)` };
+    }
+    if (thesis.reviewBy && today > thesis.reviewBy) {
+      return { state: "overdue", thesis, reason: `past its review date (${thesis.reviewBy}) without a later one` };
     }
     const cost = averageCost(input.lots, thesis.symbol);
     const price = input.lastClose[thesis.symbol];

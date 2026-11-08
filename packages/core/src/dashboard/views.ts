@@ -115,7 +115,7 @@ export interface HoldingRow {
   gainPct: string;
   thesis: null | {
     id: string;
-    state: "active" | "stopped" | "stale";
+    state: "active" | "stopped" | "stale" | "overdue";
     targetPct: string;
     stopLossPct: string;
     /** The close at or below which the thesis is sold; null without open lots. */

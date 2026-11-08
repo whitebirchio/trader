@@ -31,6 +31,15 @@ describe("validateStrategy", () => {
     expect(errorsOf(strategy({ conviction: [noStop as never] })).join()).toMatch(/conviction\[0\]\.stopLossPct/);
   });
 
+  it("takes an optional review date, which must be a real date", () => {
+    expect(validateStrategy(strategy({ conviction: [thesis({ reviewBy: "2027-02-01" })] })).ok).toBe(true);
+    for (const bad of ["2027-02-30", "2027-13-01", "02/01/2027", "2027-2-1"]) {
+      const r = validateStrategy(strategy({ conviction: [thesis({ reviewBy: bad })] }));
+      expect(r.ok, bad).toBe(false);
+      if (!r.ok) expect(r.errors[0]).toMatch(/^conviction\[0\]\.reviewBy: must be (YYYY-MM-DD|a real date)$/);
+    }
+  });
+
   it("caps total conviction at 100% and forbids duplicate ids and symbols", () => {
     const many = Array.from({ length: 6 }, (_, i) => thesis({ id: `t-${i}`, symbol: `S${i}`, targetWeightPct: "20" }));
     expect(errorsOf(strategy({ conviction: many }))).toContain("conviction: target weights add up to 120%, more than 100%");

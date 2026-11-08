@@ -86,6 +86,11 @@ export function describe(e: NotifiableEvent): Described {
         headline: `Thesis unwound: ${str(e.subject)} (not reviewed)`,
         lines: [`Thesis ${str(p.thesisId)} was ${str(p.reason)}, so it's sold into the systematic sleeve.`, "If research is running, this means Claude's strategy hasn't been resubmitted in 30 days."],
       };
+    case "thesis.review_overdue":
+      return {
+        headline: `Thesis unwound: ${str(e.subject)} (review date passed)`,
+        lines: [`Thesis ${str(p.thesisId)} is ${str(p.reason)}, so it's sold into the systematic sleeve.`, "A later version can bring it back by moving the review date on with fresh, dated evidence."],
+      };
     case "capital.transfer_reversed":
       return {
         headline: `Transfer reversed: ${money(p.amount)}`,

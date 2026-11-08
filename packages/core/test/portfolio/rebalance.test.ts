@@ -228,6 +228,28 @@ describe("rebalance", () => {
     expect(await db.select().from(thesisEvents)).toHaveLength(1);
   });
 
+  it("sells a thesis the day after its review date, records it once, and emails it", async () => {
+    await submitStrategy(db, strategy({ conviction: [thesis({ targetWeightPct: "20", reviewBy: "2026-11-03" })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } }), "owner", clock);
+    await step();
+    await fillAll({ VTI: "300", AAPL: "200" });
+    await step();
+    expect(await db.select().from(thesisEvents)).toEqual([]); // the review date hasn't passed
+
+    // Wednesday: the day after the review date.
+    clock = new Date("2026-11-04T15:35:00Z");
+    broker.calendar.push({ date: "2026-11-04", open: new Date("2026-11-04T14:30:00Z"), close: new Date("2026-11-04T21:00:00Z") });
+    await sync();
+    expect(await step()).toMatchObject({ phase: "sell" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "AAPL", side: "sell" });
+    expect(await db.select().from(thesisEvents)).toEqual([expect.objectContaining({ thesisId: "aapl-services", kind: "overdue", reason: "past its review date (2026-11-03) without a later one" })]);
+
+    await fillAll({ VTI: "300", AAPL: "200" });
+    await step();
+    expect(await db.select().from(thesisEvents)).toHaveLength(1);
+    expect((await kinds()).filter((k) => k === "thesis.review_overdue")).toHaveLength(1);
+    expect(broker.orders.filter((o) => o.symbol === "AAPL" && o.side === "buy")).toHaveLength(1); // not bought back
+  });
+
   it("dry-run plans through risk without recording or ordering anything", async () => {
     const plan = await step({ dryRun: true });
     expect(plan).toMatchObject({ status: "planned", phase: "buy", planId: null });

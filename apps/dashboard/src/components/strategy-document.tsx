@@ -2,7 +2,7 @@ import type { Strategy } from "@trader/core";
 import { Badge, Card } from "@/components/ui";
 import { formatPct, safeHref } from "@/lib/format";
 
-type ThesisState = { id: string; state: "active" | "stopped" | "stale"; reason?: string };
+type ThesisState = { id: string; state: "active" | "stopped" | "stale" | "overdue"; reason?: string };
 
 export function StrategyDocument({ document, states }: { document: Strategy; states?: ThesisState[] }) {
   const stateOf = new Map(states?.map((s) => [s.id, s]));

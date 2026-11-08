@@ -135,7 +135,7 @@ export async function getHoldings({ db, now }: DbDeps) {
 const ACTIVITY_KINDS = [
   "order.submitted", "order.filled", "order.partially_filled", "order.canceled", "order.rejected", "order.external",
   "risk.order_clipped", "risk.order_rejected", "risk.halted", "risk.kill_switch_on", "risk.resumed", "risk.buys_paused",
-  "strategy.activated", "strategy.rejected", "thesis.stopped_out", "thesis.stale",
+  "strategy.activated", "strategy.rejected", "thesis.stopped_out", "thesis.stale", "thesis.review_overdue",
 ];
 
 /** What happened recently: rebalance steps with reasons, fills, risk decisions, strategy submissions. */
