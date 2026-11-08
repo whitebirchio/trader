@@ -53,6 +53,7 @@ interface Thesis {
 - **active:** it's in the current strategy.
 - **stopped:** its stop-loss was hit, so it's sold. It stays stopped until Claude re-submits it with a *new* id (a new decision, not an automatic re-entry).
 - **stale:** 30 days have passed since the last strategy that listed it. It's sold into the systematic sleeve. This is the backstop for a dead research loop (ADR-004); while Claude keeps reaffirming a thesis, it never goes stale.
+- **overdue** *(2026-11-08, #35)*: the market date is past the thesis's optional `reviewBy`. It's sold into the systematic sleeve, recorded once (`thesis_events` `overdue`) and emailed urgently (`thesis.review_overdue`). Reaffirming alone doesn't clear it. At submission (preview and submit alike): a new or changed `reviewBy` must be after today; a thesis keeps its review date once it has one; and moving the date later needs an evidence item dated after every evidence date the thesis had before. An unchanged date passes even once past, so the rest of a strategy can still be reaffirmed. Precedence: stopped > stale > overdue > stop-loss > active.
 - **closed:** it's no longer in the strategy, so it's sold.
 
 **Before Claude's first strategy,** a `system` version 0 runs: no theses, and a systematic universe of `["VTI"]` with `topN: 1` and no trend filter. That's the benchmark itself, so the account tracks VTI exactly until there's an actual idea to act on.
@@ -125,7 +126,7 @@ packages/core/src/portfolio/
 | Table | Purpose |
 |---|---|
 | `strategies` | `version` (serial), `authored_by`, `created_at`, `document` (jsonb, validated), `summary`. Insert-only. |
-| `thesis_events` | Thesis state changes (`stopped`, `stale`, `closed`, `reaffirmed`) with price and cost at the time. Insert-only. |
+| `thesis_events` | Thesis state changes (`stopped`, `stale`, `overdue`, `closed`, `reaffirmed`) with price and cost at the time. Insert-only. |
 | `rebalance_plans` | Per step: `trading_date`, `strategy_version`, `phase` (`sell` / `buy` / `none`), `targets`, `trades`, `skips` (jsonb), `gate_run_id`. One row per step. |
 
 ## Testing Strategy

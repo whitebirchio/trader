@@ -23,7 +23,7 @@
 - **Depends on:** R1 · **Scope:** M
 
 ### R4: Prompt and docs
-- [ ] `agent/routine-prompt.md`; SPEC-portfolio (lifecycle), SPEC-agent; CLAUDE.md portfolio line
+- [x] `agent/routine-prompt.md`; SPEC-portfolio (lifecycle), SPEC-agent; CLAUDE.md portfolio line
 - **Scope:** S
 
 ## Checkpoint B
