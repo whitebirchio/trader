@@ -33,6 +33,8 @@
     "scorecard:show": "tsx scripts/scorecard-show.ts",
     "research:insiders": "tsx scripts/research-insiders.ts",
     "research:earnings": "tsx scripts/research-earnings.ts",
+    "research:momentum": "tsx scripts/research-momentum.ts",
+    "research:quality": "tsx scripts/research-quality.ts",
     "rebalance:plan": "tsx scripts/rebalance.ts --mode plan",
     "rebalance:run": "tsx scripts/rebalance.ts --mode run",
     "db:dashboard-role": "tsx scripts/dashboard-role.ts",
