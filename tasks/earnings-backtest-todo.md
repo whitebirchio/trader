@@ -25,7 +25,7 @@
 - [x] Five releases checked against their filing pages on sec.gov (2026-11-08): NVDA ×2, META, AMD, MSFT; item 2.02 present, acceptance time matches SEC's ET stamp exactly (UTC handled right), after-close releases react the next session
 
 ### E4: Full run + report
-- [ ] `docs/research/earnings-reactions-vs-vti-2026-11.md` with a hand-written summary above the generated tables
+- [x] `docs/research/earnings-reactions-vs-vti-2026-11.md` with a hand-written summary above the generated tables (2026-11-08: 6,172 companies, 110,673 releases, 54,613 scored)
 - **Scope:** S
 
 ## Checkpoint B
