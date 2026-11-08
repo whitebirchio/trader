@@ -28,37 +28,37 @@
 ## Checkpoint A: real numbers
 - [x] Gate green
 - [x] `scorecard:show --env production` (2026-11-07): 7 rows = the 7 theses ever listed (v2–v11), all open, all `insider`; every qty = `get_holdings`; ROL reconciled by hand from its 4 fills and VTI closes (P&L −$1.53 vs VTI −$3.12, to the cent). No thesis has closed yet, so closed rows are covered by fixtures only
-- [ ] Scott reviews the numbers (and the plan's open questions) before Phase 2
+- [x] Scott reviews the numbers (and the plan's open questions) before Phase 2 (approved 2026-11-07)
 
 ## Phase 2: Surfaces
 
 ### S4: `get_track_record` MCP tool
-- [ ] `getTrackRecord({ db })` in `src/agent/tools.ts` (rows newest first; theses' full text left out)
-- [ ] Registered in `apps/mcp/src/tools.ts` as read-only, with a description that says what the numbers mean and that small samples are noise
-- [ ] The pinned tool list in `apps/mcp/test/server.test.ts` gains it; `submit_strategy` is still the only write
+- [x] `getTrackRecord({ db })` in `src/agent/tools.ts` (rows newest first; theses' full text left out)
+- [x] Registered in `apps/mcp/src/tools.ts` as read-only, with a description that says what the numbers mean and that small samples are noise
+- [x] The pinned tool list in `apps/mcp/test/server.test.ts` gains it; `submit_strategy` is still the only write
 - **Files:** `packages/core/src/agent/tools.ts`, `apps/mcp/src/tools.ts`, `apps/mcp/test/server.test.ts`, core tool test · **Depends on:** S3 · **Scope:** S
 
 ### S5: Routine prompt and server instructions
-- [ ] `agent/routine-prompt.md`: *Orient* calls `get_track_record`; *Decide* weighs which signal kinds have beaten VTI, with a caution on small samples
-- [ ] `apps/mcp/src/instructions.ts`: one line on the tool
+- [x] `agent/routine-prompt.md`: *Orient* calls `get_track_record`; *Decide* weighs which signal kinds have beaten VTI, with a caution on small samples
+- [x] `apps/mcp/src/instructions.ts`: one line on the tool
 - [ ] After deploy: update the claude.ai routine with RemoteTrigger (the prompt there is a copy)
 - **Files:** `agent/routine-prompt.md`, `apps/mcp/src/instructions.ts` · **Depends on:** S4 · **Scope:** XS
 
 ### S6: Dashboard *Track record* page
-- [ ] `trackRecordView(db)` in `src/dashboard/views.ts` (wraps `loadScorecard`)
-- [ ] `apps/dashboard/src/app/(signed-in)/track-record/page.tsx`: overall card, a by-kind table, and a theses table (symbol, ids, opened, days, ending, return, VTI, excess); a nav link in the signed-in layout
-- [ ] View test (PGlite); the page renders with no rows ("No theses yet")
+- [x] `trackRecordView(db)` in `src/dashboard/views.ts` (wraps `loadScorecard`)
+- [x] `apps/dashboard/src/app/(signed-in)/track-record/page.tsx`: overall card, a by-kind table, and a theses table (symbol, ids, opened, days, ending, return, VTI, excess); a nav link in the signed-in layout
+- [x] View test (PGlite); the page renders with no rows ("No theses yet")
 - **Files:** `src/dashboard/views.ts`, `apps/dashboard/src/app/(signed-in)/track-record/page.tsx`, `apps/dashboard/src/app/(signed-in)/layout.tsx`, test · **Depends on:** S3 · **Scope:** M
 
 ## Checkpoint B: staging
-- [ ] Gate green · `npm run synth` clean · push → staging deploy
+- [x] Gate green · `npm run synth` clean · push → staging deploy
 - [ ] `get_track_record` through the Trader Staging connector
 - [ ] The *Track record* page on trader-staging.whitebirch.io
 
 ## Phase 3: Ship
 
 ### S7: Docs
-- [ ] SPEC-portfolio *Scorecard* status → Built; SPEC-agent tools table; SPEC-dashboard pages; `CLAUDE.md` portfolio line
+- [x] SPEC-portfolio *Scorecard* status → Built; SPEC-agent tools table; SPEC-dashboard pages; `CLAUDE.md` portfolio line
 - **Depends on:** S4–S6 · **Scope:** XS
 
 - [ ] PR → **Scott merges** → production: tool on the production connector, page on trader.whitebirch.io
