@@ -13,6 +13,15 @@ export function formatUsd(value: string, dp = 2): string {
   return `${negative ? "−" : ""}$${group(int ?? "0")}${fraction}`;
 }
 
+/** A gain or loss: "+$12.50" / "−$3.40" / "$0.00". */
+export function formatSignedUsd(value: string, dp = 2): string {
+  const usd = formatUsd(value, dp);
+  return compare(round(value, dp, "half-even"), "0") > 0 ? `+${usd}` : usd;
+}
+
+/** "1 day" / "3 days" / "2.5 days". */
+export const formatDays = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+
 /** "+1.24%" / "−0.50%" / "0.00%". */
 export function formatPct(value: string, dp = 2, signed = true): string {
   const r = round(value, dp, "half-even");
