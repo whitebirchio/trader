@@ -125,6 +125,13 @@ describe("strategy and thesis emails", () => {
     );
     expect(email.subject).toBe("Trader: New strategy v3 by claude");
     expect(email.text).toContain("2 conviction theses (35% of the account); systematic: top 4 of 40 symbols.");
+    expect(email.text).not.toContain("In plain terms");
+  });
+
+  it("lists each thesis in plain terms when it has a plain summary", () => {
+    const plain = [{ symbol: "ROL", targetWeightPct: "5", text: "Rollins is the pest-control company behind Orkin." }];
+    const email = composeUrgent([ev("strategy.activated", { version: 4, authoredBy: "claude", summary: "Adds ROL.", theses: 1, convictionPct: "5", topN: 1, universeSize: 1, plain }, "v4")], "production");
+    expect(email.text).toContain("  In plain terms:\n  • ROL (5%): Rollins is the pest-control company behind Orkin.");
   });
 
   it("explains a rejection and what stays active", () => {

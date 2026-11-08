@@ -45,7 +45,14 @@ describe("submitStrategy", () => {
   it("stores a valid strategy and announces it", async () => {
     expect(await submitStrategy(db, strategy(), "claude", now)).toEqual({ status: "activated", version: 1 });
     const [event] = await events("strategy.activated");
-    expect(event).toMatchObject({ actor: "claude", subject: "v1", payload: { version: 1, theses: 1, convictionPct: "10", topN: 2, universeSize: 4 } });
+    expect(event).toMatchObject({ actor: "claude", subject: "v1", payload: { version: 1, theses: 1, convictionPct: "10", topN: 2, universeSize: 4, plain: [] } });
+  });
+
+  it("puts each thesis's plain summary in the announcement", async () => {
+    const plainSummary = "Apple sells iPhones and the services people pay for on them every month.";
+    await submitStrategy(db, strategy({ conviction: [thesis({ plainSummary })] }), "claude", now);
+    const [event] = await events("strategy.activated");
+    expect(event!.payload).toMatchObject({ plain: [{ symbol: "AAPL", targetWeightPct: "10", text: plainSummary }] });
   });
 
   it("rejects an invalid strategy, audits it, and leaves the active version alone", async () => {

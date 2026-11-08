@@ -50,10 +50,16 @@ export function StrategyDocument({ document, states }: { document: Strategy; sta
   );
 }
 
-/** A thesis's reasoning and its evidence, with source links. */
-export function ThesisBody({ thesis: t }: { thesis: Thesis }) {
+/** A thesis's plain-language summary (#60), then its reasoning and evidence, with source links. */
+export function ThesisBody({ thesis: t, plain = true }: { thesis: Thesis; plain?: boolean }) {
   return (
     <>
+      {plain && t.plainSummary && (
+        <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
+          <div className="text-xs font-medium text-[var(--muted)]">In plain terms</div>
+          <p className="mt-0.5 text-sm leading-relaxed [overflow-wrap:anywhere]">{t.plainSummary}</p>
+        </div>
+      )}
       <p className="mt-2 whitespace-pre-line text-sm leading-relaxed [overflow-wrap:anywhere]">{t.thesis}</p>
       <ul className="mt-3 grid gap-1.5 text-sm">
         {t.evidence.map((e, i) => {

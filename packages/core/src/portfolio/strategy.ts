@@ -59,6 +59,12 @@ const thesis = z.object({
    * fresh evidence (SPEC-portfolio).
    */
   reviewBy: isoDate.optional(),
+  /**
+   * The thesis in plain language for the owner (#60): what the company does,
+   * why it should beat the market, and what would prove it wrong. Optional so
+   * stored versions stay valid; the routine writes one for every thesis.
+   */
+  plainSummary: z.string().trim().min(20, "needs at least a sentence").max(600, "keep it to 2–4 sentences (600 characters)").optional(),
 });
 
 const systematic = z.object({

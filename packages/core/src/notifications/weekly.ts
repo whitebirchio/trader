@@ -49,6 +49,17 @@ export async function weeklyData(db: Db, broker: BrokerAdapter, today: string, a
   const sinceStart = compareToBenchmark(points, closes, marketDate);
 
   const card = await loadScorecard(db, at);
+  // Each thesis id's plain summary in the latest version that lists it (#60).
+  const plain = new Map<string, string>();
+  for (const v of await db.select({ document: strategies.document }).from(strategies).orderBy(asc(strategies.version))) {
+    const conviction = (v.document as { conviction?: { id?: unknown; plainSummary?: unknown }[] }).conviction;
+    for (const t of Array.isArray(conviction) ? conviction : []) {
+      if (typeof t?.id === "string") {
+        if (typeof t.plainSummary === "string") plain.set(t.id, t.plainSummary);
+        else plain.delete(t.id);
+      }
+    }
+  }
   const inWeek = (d: Date | null) => !!d && marketDate(d) >= weekOf && marketDate(d) <= today;
   const versions = await db.select().from(strategies).where(gte(strategies.createdAt, new Date(Date.parse(`${weekOf}T00:00:00Z`) - DAY_MS)));
   const events = await db.select().from(thesisEvents).where(gte(thesisEvents.at, new Date(Date.parse(`${weekOf}T00:00:00Z`) - DAY_MS)));
@@ -74,7 +85,12 @@ export async function weeklyData(db: Db, broker: BrokerAdapter, today: string, a
       overall: { theses: card.overall.theses, scored: card.overall.scored, excess: card.overall.excess, excessPct: card.overall.excessPct, beatVtiPct: card.overall.beatVtiPct },
       byKind: card.byKind.map((k) => ({ kind: k.kind, theses: k.theses, excessPct: k.excessPct })),
     },
-    opened: card.theses.filter((r) => inWeek(r.openedAt)).map((r) => ({ symbol: r.symbol, thesisId: r.ids.at(-1)!, primaryKind: r.primaryKind })),
+    opened: card.theses
+      .filter((r) => inWeek(r.openedAt))
+      .map((r) => {
+        const id = r.ids.at(-1)!;
+        return { symbol: r.symbol, thesisId: id, primaryKind: r.primaryKind, ...(plain.has(id) ? { plainSummary: plain.get(id)! } : {}) };
+      }),
     closed: card.theses
       .filter((r) => inWeek(r.closedAt))
       .map((r) => ({ symbol: r.symbol, thesisId: r.ids.at(-1)!, ending: r.ending, excessPct: r.money?.excessPct ?? null, daysHeld: r.daysHeld })),

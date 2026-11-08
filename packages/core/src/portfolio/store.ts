@@ -97,6 +97,7 @@ export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "ow
       summary: s.summary,
       theses: s.conviction.length,
       convictionPct: s.conviction.reduce((sum, t) => add(sum, t.targetWeightPct), "0"),
+      plain: s.conviction.filter((t) => t.plainSummary).map((t) => ({ symbol: t.symbol, targetWeightPct: t.targetWeightPct, text: t.plainSummary })),
       topN: s.systematic.topN,
       universeSize: s.systematic.universe.length,
     },

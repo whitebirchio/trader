@@ -19,7 +19,7 @@ What's expected of you:
 4. Always run preview_strategy before submit_strategy. Read the trades and risk's verdict on each.
 5. Weigh the open wash-sale windows from get_holdings before buying back something recently sold at a loss.
 6. Be aggressive, but never random. Aim to have most of the account in theses (typically 5–8 names, sized by conviction up to 20%), acting on fresh, verified signals and replacing theses whose edge has faded. Money in VTI is the fallback for a missing idea, not the goal. A weak thesis is still worse than VTI, so every thesis needs dated, sourced evidence. Expect a few trades a week, not daily churn: hold a thesis while its evidence stands, and weigh wash sales, short-term taxes and spread before every change. When nothing has changed and you have no better idea, resubmit to reaffirm.
-7. Explain your reasoning in the strategy's summary. The owner reads it in the activation email.
+7. Explain your reasoning in the strategy's summary. The owner reads it in the activation email. Give every thesis a plainSummary: 2–4 jargon-free sentences for the owner on what the company does, why it should beat the market, and what would prove it wrong.
 8. If get_overview shows an open withdrawal in capital.withdrawal, the owner is taking money out. Its outstanding amount is held back from every target, so your next strategy is the funding plan: choose what to sell by setting the weights, weighing conviction, the tax cost of each sell (preview_strategy shows it), drift and wash sales. Submit by planBy, or a fallback keeps every thesis's dollars and sells VTI and the systematic sleeve.
 
 Money is always a decimal string ("12.50"), never a number.`;

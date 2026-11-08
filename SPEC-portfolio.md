@@ -46,6 +46,8 @@ interface Thesis {
   evidence: { kind: "congress" | "insider" | "13f" | "fundamental" | "news" | "technical" | "other";
               summary: string; source?: string; asOf?: string }[];   // ≥ 1
   stopLossPct: string;                // 5–50: sell if the price falls this far below our average cost
+  reviewBy?: string;                  // YYYY-MM-DD (#35): unwinds the day after; see "overdue" below
+  plainSummary?: string;              // 20–600 chars (#60): the thesis in plain language for the owner
 }
 ```
 
@@ -54,6 +56,8 @@ interface Thesis {
 - **stopped:** its stop-loss was hit, so it's sold. It stays stopped until Claude re-submits it with a *new* id (a new decision, not an automatic re-entry).
 - **stale:** 30 days have passed since the last strategy that listed it. It's sold into the systematic sleeve. This is the backstop for a dead research loop (ADR-004); while Claude keeps reaffirming a thesis, it never goes stale.
 - **overdue** *(2026-11-08, #35)*: the market date is past the thesis's optional `reviewBy`. It's sold into the systematic sleeve, recorded once (`thesis_events` `overdue`) and emailed urgently (`thesis.review_overdue`). Reaffirming alone doesn't clear it. At submission (preview and submit alike): a new or changed `reviewBy` must be after today; a thesis keeps its review date once it has one; and moving the date later needs an evidence item dated after every evidence date the thesis had before. An unchanged date passes even once past, so the rest of a strategy can still be reaffirmed. Precedence: stopped > stale > overdue > stop-loss > active.
+
+**Plain summary** *(2026-11-08, #60)*: an optional `plainSummary` of 2–4 jargon-free sentences: what the company does, why it should beat the market, and what would prove it wrong. It's for the owner, and it changes nothing about execution. It leads each thesis on the dashboard (the strategy page and the thesis page), is listed under "In plain terms" in the activation email, and follows each thesis opened in the weekly letter. Optional, so stored versions stay valid; `preview_strategy` warns about every thesis without one, and the routine writes one for each.
 - **closed:** it's no longer in the strategy, so it's sold.
 
 **Before Claude's first strategy,** a `system` version 0 runs: no theses, and a systematic universe of `["VTI"]` with `topN: 1` and no trend filter. That's the benchmark itself, so the account tracks VTI exactly until there's an actual idea to act on.

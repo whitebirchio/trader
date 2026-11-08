@@ -74,6 +74,7 @@ Choose one:
 Standards for a thesis:
 - **Evidence:** dated, sourced items (`evidence[].source` is a URL, `asOf` a date) of at least two independent kinds, at least one neither an insider buy nor an earnings reaction (see the owner's direction).
 - **Why the market is wrong:** one sentence in the thesis naming what the price is missing.
+- **Plain summary (`plainSummary`):** 2–4 sentences the owner reads first, written for someone smart but outside finance: what the company does, why we think the stock beats the market from here, and what would tell us we're wrong (in words, beside the stop). No jargon: say "company directors bought shares with their own money", not "a Form 4 code-P cluster", and explain any term you must use. Write one for every thesis, add one this run to any thesis that lacks it, and update it when the reasoning changes. `preview_strategy` warns about any thesis without one.
 - **Weight:** proportional to conviction, up to 20%. 15–20% only for theses that meet the full bar with strong evidence; 5–10% for thinner ones and for any led by an insider buy or an earnings reaction. Aim for most of the account across 5–8 theses.
 - **Main signal:** name the thesis's main reason first in its evidence. An insider buy can't be the only substantive item.
 - **Recent big losers:** `check_eligibility`'s `signals.recentBigLoser` (the 12-1 month return at −30% or worse). If true, don't buy or add without a specific, dated reason the decline is over (see the owner's direction).

@@ -3,7 +3,7 @@ import { recordEvent } from "../../src/audit.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, benchmarkCloses, equitySnapshots, notifications, thesisEvents } from "../../src/db/schema.js";
+import { auditEvents, benchmarkCloses, brokerActivities, equitySnapshots, notifications, thesisEvents } from "../../src/db/schema.js";
 import type { TradingEnv } from "../../src/env.js";
 import type { JobDeps } from "../../src/jobs.js";
 import { notifyDigest, notifyUrgent, notifyWeekly } from "../../src/notifications/jobs.js";
@@ -162,7 +162,12 @@ describe("notify-weekly", () => {
       { symbol: "VTI", tradingDate: "2026-10-30", close: "300" },
       { symbol: "VTI", tradingDate: "2026-11-06", close: "306" },
     ]);
-    await submitStrategy(db, strategy({ summary: "Version 1: Change. Adds AAPL on services growth.\n\nMore detail.", conviction: [thesis({ reviewBy: "2026-11-12" })] }), "claude", new Date("2026-11-04T13:00:00Z"));
+    await submitStrategy(
+      db,
+      strategy({ summary: "Version 1: Change. Adds AAPL on services growth.\n\nMore detail.", conviction: [thesis({ reviewBy: "2026-11-12", plainSummary: "Apple sells iPhones and the services people pay for on them." })] }),
+      "claude",
+      new Date("2026-11-04T13:00:00Z"),
+    );
     await db.insert(thesisEvents).values({ thesisId: "lkq-a", symbol: "LKQ", kind: "overdue", strategyVersion: 1, reason: "past its review date (2026-11-04) without a later one", at: new Date("2026-11-05T15:00:00Z") });
   }
 
@@ -195,13 +200,22 @@ describe("notify-weekly", () => {
 
   it("counts a resubmission that only reaffirms the strategy rather than listing it", async () => {
     await week();
-    await submitStrategy(db, strategy({ summary: "Version 2: Keep. Reaffirmed: no material change.", conviction: [thesis({ reviewBy: "2026-11-12" })] }), "claude", new Date("2026-11-05T13:00:00Z"));
+    const v1 = thesis({ reviewBy: "2026-11-12", plainSummary: "Apple sells iPhones and the services people pay for on them." });
+    await submitStrategy(db, strategy({ summary: "Version 2: Keep. Reaffirmed: no material change.", conviction: [v1] }), "claude", new Date("2026-11-05T13:00:00Z"));
     clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
     await notifyWeekly(ctx());
     const text = mailer.sent[0]!.text;
     expect(text).toContain("v1 (claude): Version 1: Change.");
     expect(text).not.toContain("v2 (claude)");
     expect(text).toContain("Reaffirmed unchanged 1 time");
+  });
+
+  it("puts each thesis opened this week in plain terms", async () => {
+    await week();
+    await db.insert(brokerActivities).values({ id: "fill-aapl", type: "FILL", at: new Date("2026-11-04T15:00:00Z"), symbol: "AAPL", side: "buy", qty: "1", price: "200", raw: {} });
+    clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
+    await notifyWeekly(ctx());
+    expect(mailer.sent[0]!.text).toContain("  AAPL (aapl-services, fundamental)\n    Apple sells iPhones and the services people pay for on them.");
   });
 
   it("is written but not sent on staging", async () => {

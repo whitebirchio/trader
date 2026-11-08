@@ -43,6 +43,12 @@ export default async function ThesisPage({ params }: { params: Promise<{ id: str
         </span>
       </div>
 
+      {v.thesis.plainSummary && (
+        <Card title="In plain terms">
+          <p className="text-sm leading-relaxed [overflow-wrap:anywhere]">{v.thesis.plainSummary}</p>
+        </Card>
+      )}
+
       {m ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatTile label="Bought" value={formatUsd(m.bought)} detail={sign(m.proceeds) > 0 ? `${formatUsd(m.proceeds)} sold` : undefined} />
@@ -65,7 +71,7 @@ export default async function ThesisPage({ params }: { params: Promise<{ id: str
           <Badge>stop {formatPct(v.thesis.stopLossPct, 0, false)}</Badge>
           {v.thesis.reviewBy && <Badge>review by {v.thesis.reviewBy}</Badge>}
         </div>
-        <ThesisBody thesis={v.thesis} />
+        <ThesisBody thesis={v.thesis} plain={false} />
       </Card>
 
       <Card title="Version history, newest first">
