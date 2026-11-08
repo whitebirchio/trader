@@ -16,15 +16,16 @@
 - [x] Gate green; three (symbol, formation) signals recomputed independently in Python from the cached bars (AAPL 2025-06, LKQ 2024-03, NVDA 2023-05): signal and 20-day excess match exactly; TTMI 2022-10 correctly excluded (20-day ADV $8.9M < $10M)
 
 ### Q1: Quality core (needs the frames download approved)
-- [ ] Fetch + cache frames (annual durations `CY{yyyy}`, year-end instants `CY{yyyy}Q4I`) for the concepts in the plan
-- [ ] Pure: frames rows → per-CIK yearly metrics; market value at formation from shares × price; deciles per April cohort; outcomes at 21/63/126/252 days
-- [ ] Tests on trimmed real frames
+- [x] Fetch + cache frames (annual durations `CY{yyyy}`, year-end instants `CY{yyyy}Q4I`) for the concepts in the plan
+- [x] Pure: frames rows → per-CIK yearly metrics; market value at formation from shares × price; deciles per April cohort; outcomes at 21/63/126/252 days
+- [x] Tests on trimmed real frames
 
 ### Q2: Script + report
-- [ ] `research:quality`; report per metric and the combination, in-sample vs held out; hand-written summary
+- [x] `research:quality`; report per metric and the combination, in-sample vs held out; hand-written summary
 
 ## Checkpoint B
-- [ ] Gate green; five companies' figures checked against their 10-Ks on sec.gov
+- [x] Gate green; five companies' FY2022 figures (LKQ, LSTR, ROL, AN, INTC: net income, assets, equity) checked against SEC companyfacts' 10-K values: 14/15 exact, LKQ net income $1,150M vs $1,149M (a later filing's figure, the documented caveat)
+- [x] Found on the first run: a filing-year rule removed 75–86% of real figures (comparatives in later 10-Ks); dropped before reading results, documented in the report
 
 ## Checkpoint C
 - [ ] Scott reads both reports; any prompt change is its own decision

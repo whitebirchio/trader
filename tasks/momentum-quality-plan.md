@@ -43,6 +43,7 @@ The more signals we test, the likelier one looks good by chance. So:
   - a quality-plus-value combination (the average of the profitability and earnings-yield ranks).
 - **Outcome:** return minus VTI over 1, 3, 6 and 12 months from the first close after formation.
 - **Weakness:** annual formation gives only 5 in-sample and 2–3 held-out cohorts, and stocks within a cohort move together. The report will say so plainly.
+- **Promotion horizon (fixed 2026-11-08, after the momentum results but before any quality results):** the 250-trading-day excess, matching yearly formation. Held-out cohorts are 2024 and 2025; 2026's year isn't complete. Same 0.2% round-trip cost.
 
 ## Code
 
