@@ -32,7 +32,8 @@
 - **Depends on:** B3 · **Scope:** S
 
 ## Checkpoint B
-- [ ] Scott reads the report
+- [x] Scott reads the report (2026-11-08): insider buying becomes weak supporting evidence; mix signals; review insider-dip theses by about three months
 
 ### B5: findings into the routine
-- [ ] `agent/routine-prompt.md` states the findings (or the absence of an edge); merge → RemoteTrigger update
+- [x] `agent/routine-prompt.md` and the MCP server instructions state the owner's direction
+- [ ] Merge → RemoteTrigger update of the routine
