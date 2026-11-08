@@ -183,24 +183,27 @@ export function planTrades(input: PlanInput): Plan {
 
   // Risk's same-day round-trip guard: what can't trade today waits for tomorrow.
   const deferred: string[] = [];
+  const defer = (symbol: string, side: "buy" | "sell") =>
+    deferred.push(`${symbol}: ${side} waits until tomorrow (it was ${side === "sell" ? "bought" : "sold"} today, and same-day round trips are off)`);
   const allowed = (side: "buy" | "sell") => (t: PlannedTrade) => {
     if (!input.blocked?.[side].has(t.proposal.symbol)) return true;
-    deferred.push(`${t.proposal.symbol}: ${side} waits until tomorrow (it was ${side === "sell" ? "bought" : "sold"} today, and same-day round trips are off)`);
+    defer(t.proposal.symbol, side);
     return false;
   };
+  const plan = (phase: Plan["phase"], trades: PlannedTrade[]): Plan => (deferred.length > 0 ? { phase, trades, deferred } : { phase, trades });
+
   const sellsNow = sells.filter(allowed("sell"));
-  const extra = () => (deferred.length > 0 ? { deferred } : {});
-  if (sellsNow.length > 0) return { phase: "sell", trades: sellsNow, ...extra() };
-  for (const symbol of fundingBlocked) deferred.push(`${symbol}: sell waits until tomorrow (it was bought today, and same-day round trips are off)`);
-  if (funding && sellsNow.length === 0 && (fundingBlocked.length > 0 || sells.length > 0)) {
+  if (sellsNow.length > 0) return plan("sell", sellsNow);
+  for (const symbol of fundingBlocked) defer(symbol, "sell");
+  if (funding && (fundingBlocked.length > 0 || sells.length > 0)) {
     // The sells that would fund the conviction buys wait for tomorrow, so the buys do too.
     deferred.push(`the conviction buys wait for the sells that fund them ($${round(funding, 2, "up")} short in cash)`);
-    return { phase: "none", trades: [], ...extra() };
+    return plan("none", []);
   }
   const buysNow = buys.filter(allowed("buy"));
-  if (buysNow.length === 0) return { phase: "none", trades: [], ...extra() };
+  if (buysNow.length === 0) return plan("none", []);
   buysNow.sort((a, b) => (a.sleeve === b.sleeve ? compare(b.dollars, a.dollars) : a.sleeve === "conviction" ? -1 : 1));
-  return { phase: "buy", trades: buysNow.map(({ proposal, reason }) => ({ proposal, reason })), ...extra() };
+  return plan("buy", buysNow.map(({ proposal, reason }) => ({ proposal, reason })));
 }
 
 /**
