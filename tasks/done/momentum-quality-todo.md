@@ -28,4 +28,5 @@
 - [x] Found on the first run: a filing-year rule removed 75–86% of real figures (comparatives in later 10-Ks); dropped before reading results, documented in the report
 
 ## Checkpoint C
-- [ ] Scott reads both reports; any prompt change is its own decision
+- [x] Scott reads both reports (2026-11-08): no lead signal; add the avoid rule (no buying or adding at a 12-1 month return of −30% or worse without a specific, dated reason the decline is over; −30% ≈ the bottom-decile edge, median −31.4% over 95 months)
+- Merge → RemoteTrigger: tracked in `tasks/live-checks-todo.md`

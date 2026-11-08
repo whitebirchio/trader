@@ -1,7 +1,7 @@
 import { type DailyBar, HORIZONS, type Horizon, type Tradability, outcomeAt } from "./backtest.js";
 
 /**
- * The momentum backtest (#49, tasks/momentum-quality-plan.md): at each
+ * The momentum backtest (#49, tasks/done/momentum-quality-plan.md): at each
  * month-end, rank the tradable stocks by their past return and measure each
  * decile against VTI over the next 20 and 60 trading days. Pure: the script
  * loads bars and writes the report.

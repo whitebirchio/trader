@@ -1,7 +1,7 @@
 import type { DailyBar } from "./backtest.js";
 
 /**
- * The quality/value backtest (#49, tasks/momentum-quality-plan.md): yearly
+ * The quality/value backtest (#49, tasks/done/momentum-quality-plan.md): yearly
  * fundamentals from SEC's XBRL frames, scored at the end of each April, with
  * the momentum module's deciles and series statistics. Pure.
  *
