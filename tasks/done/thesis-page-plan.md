@@ -30,4 +30,4 @@ It links from the track record (the symbol), the strategy page (each thesis head
 - [x] T1: `thesis_closes` migration + `recordThesisCloses` in `sync-broker` (tests)
 - [x] T2: Scorecard rows carry fills; `thesisView` (tests: open thesis with stop, closed thesis, version history with weight change and removal, unknown id)
 - [x] T3: `/theses/[id]` page + chart; links from track record, strategy and holdings
-- [ ] T4: SPEC-dashboard (pages table), gate, staging deploy, look at it on staging
+- [x] T4: SPEC-dashboard (pages table), gate, staging deploy; data checked on staging (the owner's look at the page is in `tasks/live-checks-todo.md`)
