@@ -151,7 +151,7 @@ The `rebalance` job runs on `trader-rebalance-<env>`, every 15 min, 9:45–15:30
 |---|---|
 | `npm run notify:test -w @trader/core -- --env staging\|production` | queue a test email (send it now with `npm run invoke -- --env <env> --jobs notify-urgent`) |
 | `npm run notify:run -w @trader/core -- --env staging` | queue un-emailed urgent events now |
-| `npm run notify:preview -w @trader/core -- --env … [--digest]` | print the pending urgent email or today's digest; sends nothing |
+| `npm run notify:preview -w @trader/core -- --env … [--digest \| --weekly [--date YYYY-MM-DD]]` | print the pending urgent email, today's digest, or a week's letter; sends nothing |
 
 Staging queues everything but sends only test emails; its rows show `suppressed`. The outbox is the `notifications` table (`status`, `attempts`, `last_error`, `message_id`).
 

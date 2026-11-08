@@ -4,7 +4,7 @@ import { notificationItems, notifications } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import type { Mailer, OutgoingEmail } from "./port.js";
 
-export type NotificationType = "urgent" | "digest" | "test";
+export type NotificationType = "urgent" | "digest" | "weekly" | "test";
 export type NotificationRow = typeof notifications.$inferSelect;
 
 /** Retry delays after a failed send; after the last one the email is `failed`. */
@@ -21,14 +21,14 @@ class Duplicate extends Error {}
 
 /**
  * Queue an email covering `eventIds`. Idempotent: an event already covered for
- * this type, or a digest date that already has an email, gives `duplicate` and
+ * this type, or a digest date or letter week that already has an email, gives `duplicate` and
  * writes nothing. On staging everything except `test` is written `suppressed`
  * (SPEC-notifications resolved question 2): same path, no send.
  */
 export async function enqueue(
   db: Db,
   env: TradingEnv,
-  input: { type: NotificationType; email: OutgoingEmail; eventIds: string[]; digestDate?: string },
+  input: { type: NotificationType; email: OutgoingEmail; eventIds: string[]; digestDate?: string; weekOf?: string },
   now: Date,
 ): Promise<EnqueueResult> {
   const status = env === "staging" && input.type !== "test" ? "suppressed" : "pending";
@@ -39,6 +39,7 @@ export async function enqueue(
         .values({
           type: input.type,
           digestDate: input.digestDate ?? null,
+          weekOf: input.weekOf ?? null,
           subject: input.email.subject,
           text: input.email.text,
           html: input.email.html,
@@ -46,7 +47,8 @@ export async function enqueue(
           nextAttemptAt: now,
           createdAt: now,
         })
-        .onConflictDoNothing({ target: notifications.digestDate })
+        // Either unique key (digest date, letter week) makes it a duplicate.
+        .onConflictDoNothing()
         .returning();
       const notification = inserted[0];
       if (!notification) throw new Duplicate();

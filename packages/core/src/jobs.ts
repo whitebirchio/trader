@@ -6,7 +6,7 @@ import { processCapital } from "./capital/commands.js";
 import { recordCapitalFlows } from "./capital/ledger.js";
 import { checkDrawdown } from "./risk/gate.js";
 import type { Db } from "./db/client.js";
-import { notifyDigest, notifyUrgent } from "./notifications/jobs.js";
+import { notifyDigest, notifyUrgent, notifyWeekly } from "./notifications/jobs.js";
 import { rebalanceJob } from "./portfolio/rebalance.js";
 import type { Mailer } from "./notifications/port.js";
 import { jobRuns } from "./db/schema.js";
@@ -70,6 +70,7 @@ export const JOBS = {
   "process-capital": processCapitalJob,
   "notify-urgent": notifyUrgent,
   "notify-digest": notifyDigest,
+  "notify-weekly": notifyWeekly,
   // Not in TICK_JOBS: it has its own schedule, 5 minutes after each tick (SPEC-portfolio).
   rebalance: rebalanceJob,
 } satisfies Record<string, JobFn>;
@@ -144,7 +145,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "notify-urgent", "notify-digest"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);

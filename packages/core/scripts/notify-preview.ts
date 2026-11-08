@@ -1,14 +1,16 @@
 /**
- * Print what would be emailed, sending nothing: the pending urgent events, or
- * (with --digest) today's digest as it stands now.
+ * Print what would be emailed, sending nothing: the pending urgent events,
+ * (with --digest) today's digest as it stands now, or (with --weekly) the
+ * week's letter for --date (default today; it must have its after-close snapshot).
  *
- *   npm run notify:preview -w @trader/core -- --env staging|production [--digest]
+ *   npm run notify:preview -w @trader/core -- --env staging|production [--digest | --weekly [--date YYYY-MM-DD]]
  *   npm run notify:preview -w @trader/core -- --sample withdrawal   (sample emails; no database)
  */
 import { parseArgs } from "node:util";
 import { and, gte, inArray } from "drizzle-orm";
 import { auditEvents } from "../src/db/schema.js";
-import { composeDigest, composeUrgent } from "../src/notifications/compose.js";
+import { composeDigest, composeUrgent, composeWeekly } from "../src/notifications/compose.js";
+import { weeklyData } from "../src/notifications/weekly.js";
 import { coveredEventIds } from "../src/notifications/outbox.js";
 import { DIGEST_KINDS, URGENT_KINDS } from "../src/notifications/routing.js";
 import { loadSnapshot } from "../src/risk/gate.js";
@@ -16,7 +18,7 @@ import { LIMITS } from "../src/risk/limits.js";
 import { marketDate } from "../src/time.js";
 import { withOps } from "./ops.js";
 
-const { values } = parseArgs({ options: { env: { type: "string" }, digest: { type: "boolean" }, sample: { type: "string" } } });
+const { values } = parseArgs({ options: { env: { type: "string" }, digest: { type: "boolean" }, weekly: { type: "boolean" }, date: { type: "string" }, sample: { type: "string" } } });
 
 if (values.sample) {
   if (values.sample !== "withdrawal") throw new Error("--sample withdrawal is the only sample");
@@ -26,6 +28,12 @@ if (values.sample) {
 
 await withOps(values.env, async ({ env, db, broker }) => {
   const now = new Date();
+  if (values.weekly) {
+    const data = await weeklyData(db, broker, values.date ?? marketDate(now), now);
+    if ("skip" in data) return console.log(`No letter: ${data.skip}.`);
+    const email = composeWeekly(data, env, now);
+    return console.log(`SUBJECT: ${email.subject}\n\n${email.text}`);
+  }
   const since = new Date(now.getTime() - 7 * 86_400_000);
   const kinds = values.digest ? DIGEST_KINDS : URGENT_KINDS;
   const events = await db.select().from(auditEvents).where(and(inArray(auditEvents.kind, kinds), gte(auditEvents.at, since))).orderBy(auditEvents.at);

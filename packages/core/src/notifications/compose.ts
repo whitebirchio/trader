@@ -340,3 +340,89 @@ ${text}${f.text}`,
     html: `<h2>Trader daily summary for ${escapeHtml(shortDate(data.date))}</h2>${html}${f.html}`,
   };
 }
+
+/** What the Friday letter reports (#38): built by notifications/weekly.ts from existing readers. */
+export interface WeeklyData {
+  /** The week's Monday. */
+  weekOf: string;
+  /** The week's last session. */
+  through: string;
+  equity: string;
+  /** Flow-adjusted return vs VTI's over the week's sessions; null without two snapshots. */
+  week: { portfolioPct: string; benchmarkPct: string } | null;
+  /** Since the first snapshot (the digest's figures). */
+  sinceStart: { since: string; portfolioPct: string; benchmarkPct: string } | null;
+  /** The scorecard's roll-ups (portfolio/scorecard.ts). */
+  trackRecord: {
+    overall: { theses: number; scored: number; excess: string; excessPct: string | null; beatVtiPct: string | null };
+    byKind: { kind: string; theses: number; excessPct: string | null }[];
+  };
+  opened: { symbol: string; thesisId: string; primaryKind: string | null }[];
+  closed: { symbol: string; thesisId: string; ending: string; excessPct: string | null; daysHeld: number }[];
+  /** Strategy versions activated this week, with their summaries' first line. */
+  /** Versions that changed the strategy; resubmissions that only reaffirmed it are counted in `reaffirmed`. */
+  strategies: { version: number; authoredBy: string; headline: string }[];
+  reaffirmed: number;
+  /** Automatic exits this week (thesis_events). */
+  exits: { kind: string; symbol: string; thesisId: string; reason: string }[];
+  /** Review dates in the next 14 days. */
+  reviews: { symbol: string; thesisId: string; reviewBy: string }[];
+  state: { killSwitch: boolean; halted: boolean; haltReason: string | null; drawdownPct: string };
+}
+
+/** The Friday letter (#38): the week vs VTI, the track record, the week's decisions, and what's coming up. */
+export function composeWeekly(data: WeeklyData, env: TradingEnv, at: Date = new Date()): OutgoingEmail {
+  const vs = data.week ? `${signed(data.week.portfolioPct)}% vs VTI ${signed(data.week.benchmarkPct)}%` : "no full week yet";
+  const subject = `${prefix(env)}Trader weekly: ${vs} (week of ${shortDate(data.weekOf)})`;
+  const status = data.state.killSwitch
+    ? "KILL SWITCH ON: all trading blocked"
+    : data.state.halted
+      ? `HALTED: ${data.state.haltReason ?? "drawdown limit"}`
+      : `Normal: drawdown ${data.state.drawdownPct}% from peak`;
+  const t = data.trackRecord.overall;
+  const pct = (v: string | null) => (v === null ? "–" : `${signed(v)}%`);
+
+  const sections: [string, string[]][] = [
+    [
+      "Performance",
+      [
+        `This week (through ${shortDate(data.through)}): ${vs}, flow-adjusted`,
+        ...(data.sinceStart ? [`Since ${shortDate(data.sinceStart.since)}: ${signed(data.sinceStart.portfolioPct)}% vs VTI ${signed(data.sinceStart.benchmarkPct)}%`] : []),
+        `Equity $${data.equity}`,
+      ],
+    ],
+    [
+      "Track record (each thesis vs the same dollars in VTI)",
+      t.theses === 0
+        ? ["No theses yet"]
+        : [
+            `${t.theses} theses (${t.scored} scored): ${money(t.excess)} vs VTI (${pct(t.excessPct)}); ${t.beatVtiPct === null ? "–" : `${t.beatVtiPct}%`} beat VTI`,
+            ...data.trackRecord.byKind.map((k) => `${k.kind}: ${k.theses} ${k.theses === 1 ? "thesis" : "theses"}, ${pct(k.excessPct)} vs VTI`),
+          ],
+    ],
+    [
+      "This week's strategy changes",
+      [
+        ...(data.strategies.length ? data.strategies.map((s) => `v${s.version} (${s.authoredBy}): ${s.headline}`) : [data.reaffirmed ? "None" : "None: the strategy wasn't resubmitted this week"]),
+        ...(data.reaffirmed ? [`Reaffirmed unchanged ${data.reaffirmed} ${data.reaffirmed === 1 ? "time" : "times"}`] : []),
+      ],
+    ],
+    ["Theses opened", data.opened.length ? data.opened.map((o) => `${o.symbol} (${o.thesisId}${o.primaryKind ? `, ${o.primaryKind}` : ""})`) : ["None"]],
+    [
+      "Theses closed",
+      data.closed.length ? data.closed.map((c) => `${c.symbol} (${c.thesisId}): ${c.ending} after ${c.daysHeld} days, ${pct(c.excessPct)} vs VTI`) : ["None"],
+    ],
+    ...(data.exits.length ? ([["Automatic exits", data.exits.map((e) => `${e.symbol} (${e.thesisId}), ${e.kind}: ${e.reason}`)]] as [string, string[]][]) : []),
+    ["Review dates in the next 14 days", data.reviews.length ? data.reviews.map((r) => `${r.symbol} (${r.thesisId}): ${shortDate(r.reviewBy)}`) : ["None"]],
+    ["Guardrails", [status]],
+  ];
+
+  const text = sections.map(([h, lines]) => [h, ...lines.map((l) => `  ${l}`)].join("\n")).join("\n\n");
+  const html = sections.map(([h, lines]) => `<h3>${escapeHtml(h)}</h3><ul>${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`).join("");
+  const f = footer(env, at);
+  return {
+    subject,
+    text: `Trader weekly letter, week of ${shortDate(data.weekOf)}\n\n${text}${f.text}`,
+    html: `<h2>Trader weekly letter, week of ${escapeHtml(shortDate(data.weekOf))}</h2>${html}${f.html}`,
+  };
+}

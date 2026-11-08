@@ -56,3 +56,21 @@ const displayFmt = new Intl.DateTimeFormat("en-US", {
 export function formatMarketTime(instant: Date): string {
   return `${displayFmt.format(instant)} ET`;
 }
+
+/** The Monday (YYYY-MM-DD) of the Monday–Sunday week containing `date` (YYYY-MM-DD). */
+export function weekMonday(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  const back = (d.getUTCDay() + 6) % 7; // Monday → 0, Sunday → 6
+  return new Date(d.getTime() - back * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Whether `today` is its week's last trading session: the next session
+ * (ascending `sessions`, from the market calendar) falls in a later week, or
+ * there's none in the calendar given. A Friday holiday makes Thursday the last.
+ */
+export function isLastSessionOfWeek(today: string, sessions: string[]): boolean {
+  if (!sessions.includes(today)) return false;
+  const next = sessions.find((d) => d > today);
+  return !next || weekMonday(next) !== weekMonday(today);
+}

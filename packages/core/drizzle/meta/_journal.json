@@ -134,6 +134,13 @@
       "when": 1793804001347,
       "tag": "0018_equity_snapshots_seed_base",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794155236926,
+      "tag": "0019_notifications_week_of",
+      "breakpoints": true
     }
   ]
 }

@@ -8,8 +8,9 @@ import type { TradingEnv } from "../env.js";
 import type { JobFn } from "../jobs.js";
 import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS } from "../risk/limits.js";
-import { marketDate } from "../time.js";
-import { type NotifiableEvent, composeDigest, composeUrgent } from "./compose.js";
+import { isLastSessionOfWeek, marketDate, weekMonday } from "../time.js";
+import { type NotifiableEvent, composeDigest, composeUrgent, composeWeekly } from "./compose.js";
+import { weeklyData } from "./weekly.js";
 import { coveredEventIds, deliver, enqueue, foldEvents } from "./outbox.js";
 import { DIGEST_KINDS, URGENT_KINDS } from "./routing.js";
 
@@ -172,5 +173,36 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
   const result = await enqueue(db, env, { type: "digest", email, eventIds: events.map((e) => e.id), digestDate: today }, at);
   const delivery = await deliver(db, mailer, at);
   return { status: "succeeded", detail: { date: today, events: events.length, queued: result.status === "queued", ...delivery } };
+};
+
+/** The letter waits until today's after-close snapshot exists: the sync writes it within ~30 minutes of the close. */
+export const WEEKLY_DELAY_MS = 60 * 60_000;
+
+/**
+ * The Friday letter (#38): on the week's last trading session (Thursday in a
+ * Friday-holiday week), an hour after the close, once today's equity snapshot
+ * exists. Idempotent per week (the week_of unique key).
+ */
+export const notifyWeekly: JobFn = async ({ db, env, broker, mailer, now }) => {
+  const at = now();
+  const today = marketDate(at);
+  const weekOf = weekMonday(today);
+  const existing = await db.select({ id: notifications.id }).from(notifications).where(eq(notifications.weekOf, weekOf));
+  if (existing.length > 0) {
+    await deliver(db, mailer, at);
+    return { status: "skipped", reason: "this week's letter already queued" };
+  }
+  const ahead = new Date(at.getTime() + 10 * 86_400_000).toISOString().slice(0, 10);
+  const calendar = await broker.getCalendar(today, ahead);
+  const session = calendar.find((d) => d.date === today);
+  if (!session) return { status: "skipped", reason: "not a trading day" };
+  if (!isLastSessionOfWeek(today, calendar.map((d) => d.date))) return { status: "skipped", reason: "not the week's last session" };
+  if (at.getTime() < session.close.getTime() + WEEKLY_DELAY_MS) return { status: "skipped", reason: "before letter time" };
+
+  const data = await weeklyData(db, broker, today, at);
+  if ("skip" in data) return { status: "skipped", reason: data.skip };
+  const result = await enqueue(db, env, { type: "weekly", email: composeWeekly(data, env, at), eventIds: [], weekOf }, at);
+  const delivery = await deliver(db, mailer, at);
+  return { status: "succeeded", detail: { weekOf, queued: result.status === "queued", ...delivery } };
 };
 
