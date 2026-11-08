@@ -58,6 +58,8 @@ export interface InsiderPurchase {
   ceoOrCfo: boolean;
   /** Σ shares × price of the filing's purchases. */
   dollars: number;
+  /** A routine buyer's purchase (see classifyRoutine); null until classified, or without the history. */
+  routine: boolean | null;
 }
 
 const CEO_OR_CFO = /\b(ceo|cfo|chief executive|chief financial)\b/i;
@@ -123,9 +125,30 @@ export function purchasesFrom(data: DataSet): InsiderPurchase[] {
       tenPercentOwner,
       ceoOrCfo: people.some((p) => CEO_OR_CFO.test(p.RPTOWNER_TITLE ?? "")),
       dollars: f.dollars,
+      routine: null,
     });
   }
   return out;
+}
+
+/**
+ * Routine buyers (Cohen, Malloy & Pomorski, "Decoding Inside Information",
+ * 2012): one who bought the same issuer in the same calendar month in each
+ * of the two prior years, such as directors buying on a fixed schedule.
+ * Their buys carry little information; the others are opportunistic. Null
+ * when the data doesn't reach two years back (`historyFrom` is its first
+ * filing date).
+ */
+export function classifyRoutine(purchases: InsiderPurchase[], historyFrom: string): InsiderPurchase[] {
+  const months = new Set(purchases.map((p) => `${p.issuerCik}|${p.buyer}|${p.filedOn.slice(0, 7)}`));
+  const covered = (year: number, month: string) => `${year}-${month}-01` >= historyFrom.slice(0, 7) + "-01";
+  return purchases.map((p) => {
+    const year = Number(p.filedOn.slice(0, 4));
+    const month = p.filedOn.slice(5, 7);
+    if (!covered(year - 2, month)) return { ...p, routine: null };
+    const boughtIn = (y: number) => months.has(`${p.issuerCik}|${p.buyer}|${y}-${month}`);
+    return { ...p, routine: boughtIn(year - 1) && boughtIn(year - 2) };
+  });
 }
 
 /** Buys in one issuer filed within `windowDays` of the event's first filing. */
@@ -140,6 +163,8 @@ export interface InsiderEvent {
   ceoOrCfo: boolean;
   /** An officer or director bought (not only 10% owners). */
   insider: boolean;
+  /** Any buy was opportunistic (not routine); false if all were routine; null if unclassified. */
+  opportunistic: boolean | null;
   dollars: number;
   purchases: InsiderPurchase[];
 }
@@ -170,6 +195,7 @@ export function groupEvents(purchases: InsiderPurchase[], windowDays = 30): Insi
         buyers: new Set(current.map((p) => p.buyer)).size,
         ceoOrCfo: current.some((p) => p.ceoOrCfo),
         insider: current.some((p) => p.director || p.officer),
+        opportunistic: current.some((p) => p.routine === false) ? true : current.every((p) => p.routine === true) ? false : null,
         dollars: current.reduce((sum, p) => sum + p.dollars, 0),
         purchases: current,
       });
@@ -284,6 +310,13 @@ export const BREAKDOWNS: Record<string, (o: EventOutcome) => string | null> = {
   "Prior 60 trading days": (o) => (o.prior60 === null ? null : o.prior60 <= DIP ? "Down 20%+ (dip)" : "Not a dip"),
   "Like the live strategy": (o) =>
     o.event.insider && o.event.buyers >= 2 && o.prior60 !== null && o.prior60 <= DIP ? "2+ insiders after a 20%+ drop" : "Everything else",
+  "Routine or opportunistic (from 2020)": (o) => (o.event.opportunistic === null ? null : o.event.opportunistic ? "Opportunistic" : "Routine"),
+  "Like the live strategy, opportunistic only (from 2020)": (o) =>
+    o.event.opportunistic === null
+      ? null
+      : o.event.opportunistic && o.event.insider && o.event.buyers >= 2 && o.prior60 !== null && o.prior60 <= DIP
+        ? "2+ insiders after a 20%+ drop, opportunistic"
+        : "Everything else",
   "Year of entry": (o) => o.entryDate.slice(0, 4),
 };
 

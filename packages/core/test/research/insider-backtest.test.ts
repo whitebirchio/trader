@@ -8,8 +8,10 @@ import {
   type DataSet,
   type EventOutcome,
   type InsiderEvent,
+  type InsiderPurchase,
   breakdown,
   bucketStats,
+  classifyRoutine,
   eventOutcome,
   groupEvents,
   parseSecDate,
@@ -84,12 +86,40 @@ describe("groupEvents", () => {
   });
 });
 
+describe("classifyRoutine", () => {
+  const buy = (buyer: string, filedOn: string): InsiderPurchase => ({
+    accession: `${buyer}-${filedOn}`, issuerCik: "9", ticker: "SPG", filedOn, tradedOn: filedOn, buyer, buyerName: buyer,
+    director: true, officer: false, tenPercentOwner: false, ceoOrCfo: false, dollars: 10_000, routine: null,
+  });
+  const history = [buy("a", "2023-10-01"), buy("a", "2024-10-02"), buy("a", "2025-10-01"), buy("b", "2024-10-02"), buy("b", "2025-10-01"), buy("c", "2025-10-01")];
+
+  it("marks a buyer who bought in the same month in each of the two prior years as routine", () => {
+    const routine = Object.fromEntries(classifyRoutine(history, "2023-01-03").map((p) => [p.accession, p.routine]));
+    expect(routine["a-2025-10-01"]).toBe(true); // October 2023, 2024 and 2025
+    expect(routine["b-2025-10-01"]).toBe(false); // only October 2024 before
+    expect(routine["c-2025-10-01"]).toBe(false);
+  });
+
+  it("leaves a purchase unclassified when the data doesn't reach two years back", () => {
+    const routine = Object.fromEntries(classifyRoutine(history, "2023-01-03").map((p) => [p.accession, p.routine]));
+    expect(routine["a-2024-10-02"]).toBeNull(); // would need October 2022
+    expect(classifyRoutine(history, "2024-01-02").every((p) => p.routine === null || p.filedOn >= "2026")).toBe(true);
+  });
+
+  it("makes an event opportunistic if any buy was, and routine only if all were", () => {
+    const classified = classifyRoutine(history, "2023-01-03").filter((p) => p.filedOn === "2025-10-01");
+    expect(groupEvents(classified)[0]!.opportunistic).toBe(true);
+    expect(groupEvents(classified.filter((p) => p.buyer === "a"))[0]!.opportunistic).toBe(false);
+    expect(groupEvents([buy("z", "2025-10-01")])[0]!.opportunistic).toBeNull();
+  });
+});
+
 // Synthetic daily bars: one per calendar day from 2025-09-01 (index = trading day).
 const START = Date.parse("2025-09-01T00:00:00Z");
 const dateAt = (i: number) => new Date(START + i * 86_400_000).toISOString().slice(0, 10);
 const series = (n: number, close: number, volume = 2_000_000): DailyBar[] => Array.from({ length: n }, (_, i) => ({ date: dateAt(i), close, volume }));
 const event = (lastFiled: string, over: Partial<InsiderEvent> = {}): InsiderEvent => ({
-  issuerCik: "1", ticker: "XYZ", firstFiled: lastFiled, lastFiled, buyers: 2, ceoOrCfo: false, insider: true, dollars: 500_000, purchases: [], ...over,
+  issuerCik: "1", ticker: "XYZ", firstFiled: lastFiled, lastFiled, buyers: 2, ceoOrCfo: false, insider: true, opportunistic: true, dollars: 500_000, purchases: [], ...over,
 });
 const TRADABLE = { minPrice: 5, minAvgDollarVolume: 10_000_000, avgDollarVolumeDays: 20 };
 
