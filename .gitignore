@@ -19,3 +19,6 @@ coverage/
 
 # CDK
 cdk.out/
+
+# Research data caches (EDGAR zips, price bars)
+packages/core/.cache/
