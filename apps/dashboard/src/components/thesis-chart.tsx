@@ -24,6 +24,13 @@ const triangle = (up: boolean) =>
 
 const usd = (v: number) => `$${v.toFixed(2)}`;
 
+/** A round axis step (1, 2 or 5 × a power of ten) giving about four intervals over `span`. */
+function niceStep(span: number): number {
+  const raw = span / 4;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  return ([1, 2, 5, 10].find((m) => m * power >= raw) ?? 10) * power;
+}
+
 export function ThesisChart({ chart }: { chart: Chart }) {
   const data = chart.closes.map((c) => ({ date: c.date, close: Number(c.close) }));
   if (data.length < 2) {
@@ -43,18 +50,20 @@ export function ThesisChart({ chart }: { chart: Chart }) {
     if (d) evidenceOn.set(d, [...(evidenceOn.get(d) ?? []), e]);
   }
   const levels = [...data.map((d) => d.close), ...chart.fills.map((f) => Number(f.price)), ...(chart.cost ? [Number(chart.cost)] : []), ...(chart.stopPrice ? [Number(chart.stopPrice)] : [])];
-  const pad = (Math.max(...levels) - Math.min(...levels)) * 0.08 || 1;
-  const domain: [number, number] = [Math.max(0, Math.min(...levels) - pad), Math.max(...levels) + pad];
+  // Round the axis out to even steps, so its labels are round prices.
+  const step = niceStep(Math.max(...levels) - Math.min(...levels) || Math.max(...levels) * 0.1 || 1);
+  const domain: [number, number] = [Math.max(0, Math.floor(Math.min(...levels) / step) * step), Math.ceil(Math.max(...levels) / step) * step];
+  const ticks = Array.from({ length: Math.round((domain[1] - domain[0]) / step) + 1 }, (_, i) => domain[0] + i * step);
   const last = data.at(-1)!;
 
   return (
     <figure>
       <div className="h-64 w-full" role="img" aria-label={`Daily close from ${data[0]!.date} to ${last.date}, last ${usd(last.close)}${chart.cost ? `, cost ${usd(Number(chart.cost))}` : ""}${chart.stopPrice ? `, stop ${usd(Number(chart.stopPrice))}` : ""}`}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 72, bottom: 0, left: 0 }}>
+          <LineChart data={data} margin={{ top: 8, right: 104, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "var(--border)" }} minTickGap={32} />
-            <YAxis domain={domain} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => `$${v.toFixed(0)}`} />
+            <YAxis domain={domain} ticks={ticks} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} width={52} tickFormatter={(v: number) => `$${v.toFixed(step < 1 ? 2 : 0)}`} />
             {[...evidenceOn.keys()].map((d) => (
               <ReferenceLine key={`e-${d}`} x={d} stroke="var(--muted)" strokeOpacity={0.5} strokeDasharray="2 3" />
             ))}
