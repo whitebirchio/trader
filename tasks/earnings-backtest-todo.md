@@ -16,13 +16,13 @@
 - **Depends on:** E1 · **Scope:** M
 
 ### E3: Script
-- [ ] `scripts/research-earnings.ts`: SEC ticker list ∩ symbols with bars → submissions (cached, ≤ 5 req/s, SEC User-Agent format "Name email", resumable, stdin closed) → releases 2018–2026q2 → events → outcomes → report sections (reaction buckets, with/without a prior insider buy, by year, without 2020)
-- [ ] The insider script's User-Agent moves to SEC's documented format
+- [x] `scripts/research-earnings.ts`: SEC ticker list ∩ symbols with bars → submissions (cached, ≤ 5 req/s, SEC User-Agent format "Name email", resumable, stdin closed) → releases 2018–2026q2 → events → outcomes → report sections (reaction buckets, with/without a prior insider buy, by year, without 2020)
+- [x] The insider script's User-Agent moves to SEC's documented format
 - **Depends on:** E2 · **Scope:** M
 
 ## Checkpoint A
-- [ ] Gate green
-- [ ] Five releases checked against their 8-Ks on sec.gov (item 2.02, acceptance time, reaction day)
+- [x] Gate green
+- [x] Five releases checked against their filing pages on sec.gov (2026-11-08): NVDA ×2, META, AMD, MSFT; item 2.02 present, acceptance time matches SEC's ET stamp exactly (UTC handled right), after-close releases react the next session
 
 ### E4: Full run + report
 - [ ] `docs/research/earnings-reactions-vs-vti-2026-11.md` with a hand-written summary above the generated tables
