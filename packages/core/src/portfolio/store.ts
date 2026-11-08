@@ -3,7 +3,9 @@ import { recordEvent } from "../audit.js";
 import type { Db } from "../db/client.js";
 import { strategies, thesisEvents } from "../db/schema.js";
 import { add } from "../money.js";
+import { marketDate } from "../time.js";
 import { type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
+import { reviewDateErrors } from "./theses.js";
 
 export interface ActiveStrategy {
   version: number;
@@ -58,15 +60,21 @@ export type SubmitStrategyResult = { status: "activated"; version: number } | { 
  * `system` (a withdrawal's fallback funding, SPEC-capital).
  * A rejection is audited (urgent email) and leaves the active version alone.
  */
+/**
+ * What a valid document must also meet against the stored history: no
+ * stopped thesis id reused, and the review-date rules. preview_strategy and
+ * submitStrategy both check it, so a preview never passes what submit rejects.
+ */
+export async function submissionErrors(db: Db, s: Strategy, now: Date): Promise<string[]> {
+  const stopped = await stoppedThesisIds(db);
+  const errors = s.conviction.flatMap((t, i) => (stopped.has(t.id) ? [`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`] : []));
+  const active = await activeStrategy(db, now);
+  return [...errors, ...reviewDateErrors(s, active.strategy, marketDate(now))];
+}
+
 export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner" | "system", now: Date): Promise<SubmitStrategyResult> {
   const parsed = validateStrategy(doc);
-  const errors = parsed.ok ? [] : parsed.errors;
-  if (parsed.ok) {
-    const stopped = await stoppedThesisIds(db);
-    parsed.strategy.conviction.forEach((t, i) => {
-      if (stopped.has(t.id)) errors.push(`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`);
-    });
-  }
+  const errors = parsed.ok ? await submissionErrors(db, parsed.strategy, now) : parsed.errors;
   if (!parsed.ok || errors.length > 0) {
     const active = await activeStrategy(db, now);
     await recordEvent(db, { actor, kind: "strategy.rejected", payload: { authoredBy: actor, errors, activeVersion: active.version } });

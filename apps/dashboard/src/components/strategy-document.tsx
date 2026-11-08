@@ -2,7 +2,7 @@ import type { Strategy } from "@trader/core";
 import { Badge, Card } from "@/components/ui";
 import { formatPct, safeHref } from "@/lib/format";
 
-type ThesisState = { id: string; state: "active" | "stopped" | "stale"; reason?: string };
+type ThesisState = { id: string; state: "active" | "stopped" | "stale" | "overdue"; reason?: string };
 
 export function StrategyDocument({ document, states }: { document: Strategy; states?: ThesisState[] }) {
   const stateOf = new Map(states?.map((s) => [s.id, s]));
@@ -22,6 +22,7 @@ export function StrategyDocument({ document, states }: { document: Strategy; sta
                 <div className="flex flex-wrap gap-2">
                   <Badge>{formatPct(t.targetWeightPct, 1, false)} target</Badge>
                   <Badge>stop {formatPct(t.stopLossPct, 0, false)}</Badge>
+                  {t.reviewBy && <Badge>review by {t.reviewBy}</Badge>}
                   {st && <Badge>{st.state === "active" ? "● active" : `▲ ${st.state}`}</Badge>}
                 </div>
               </div>

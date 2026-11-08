@@ -61,6 +61,11 @@ describe("read tools", () => {
     expect(s).toMatchObject({ version: 1, authoredBy: "claude", daysSinceReaffirmed: 0, staleAfterDays: 30, theses: [{ id: "aapl-services", symbol: "AAPL", state: "active" }] });
   });
 
+  it("get_strategy: each thesis's review date and the days left until it", async () => {
+    await submitStrategyTool(deps, strategy({ conviction: [thesis({ reviewBy: "2026-11-30" })] }));
+    expect((await getStrategy(deps)).theses).toEqual([{ id: "aapl-services", symbol: "AAPL", state: "active", reviewBy: "2026-11-30", daysToReview: 28 }]);
+  });
+
   it("get_holdings: wash-sale windows and stopped ids", async () => {
     broker.fill("o1", "AAPL", "buy", "1", "200", new Date("2026-10-20T15:00:00Z"));
     broker.fill("o2", "AAPL", "sell", "1", "180", new Date("2026-10-25T15:00:00Z"));
@@ -121,7 +126,8 @@ describe("read tools", () => {
     const r = getRules();
     expect(r.risk.positionCapPct).toBe("20");
     expect(r.risk.capExempt.cashEquivalents).toContain("SGOV");
-    expect(r.allocation.join(" ")).toContain("never cash");
+    expect(r.allocation.join(" ")).toContain("never cash");    expect(r.lifecycle.join(" ")).toContain("moving it later needs an evidence item dated (asOf) after every evidence date");
+    expect(r.strategySchema.conviction).toContain("reviewBy");
   });
 });
 
@@ -187,6 +193,16 @@ describe("preview_strategy", () => {
     });
     await deps.db.insert(thesisEvents).values({ thesisId: "aapl-services", symbol: "AAPL", kind: "stopped", strategyVersion: 1, reason: "stop" });
     expect(await previewStrategy(deps, strategy())).toMatchObject({ valid: false, errors: [expect.stringContaining("was stopped out")] });
+  });
+});
+
+describe("preview_strategy and the review-date rules", () => {
+  it("reports what submit would reject, before planning anything", async () => {
+    await submitStrategyTool(deps, strategy({ conviction: [thesis({ reviewBy: "2026-12-01" })] }));
+    expect(await previewStrategy(deps, strategy())).toEqual({
+      valid: false,
+      errors: ['conviction[0].reviewBy: thesis "aapl-services" had a review date (2026-12-01); keep one, and move it later only with fresh evidence'],
+    });
   });
 });
 

@@ -10,7 +10,7 @@ import { benchmarkSince } from "../portfolio/benchmark.js";
 import { loadScorecard } from "../portfolio/scorecard.js";
 import { WASH_SALE_DAYS, washSaleWindow } from "../portfolio/planner.js";
 import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.js";
-import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submitStrategy } from "../portfolio/store.js";
+import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submissionErrors, submitStrategy } from "../portfolio/store.js";
 import { EVIDENCE_KINDS, validateStrategy } from "../portfolio/strategy.js";
 import { IDLE_SYMBOL } from "../portfolio/systematic.js";
 import { STALE_AFTER_MS, thesisStates } from "../portfolio/theses.js";
@@ -37,6 +37,11 @@ export interface ToolDeps {
 export type DbDeps = Pick<ToolDeps, "db" | "now">;
 
 const MAX_SYMBOLS = 25;
+
+/** Whole calendar days from today's market date to `date` (negative once past). */
+function daysUntil(date: string, now: Date): number {
+  return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${marketDate(now)}T00:00:00Z`)) / 86_400_000);
+}
 const MAX_PRICE_DAYS = 730;
 
 async function holdingsWithLots(db: Db) {
@@ -107,7 +112,13 @@ export async function getStrategy({ db, now }: DbDeps, version?: number) {
     daysSinceReaffirmed: daysSince,
     staleAfterDays: STALE_AFTER_MS / 86_400_000,
     document: active.strategy,
-    theses: states.map((s) => ({ id: s.thesis.id, symbol: s.thesis.symbol, state: s.state, ...(s.state === "active" ? {} : { reason: s.reason }) })),
+    theses: states.map((s) => ({
+      id: s.thesis.id,
+      symbol: s.thesis.symbol,
+      state: s.state,
+      ...(s.state === "active" ? {} : { reason: s.reason }),
+      ...(s.thesis.reviewBy ? { reviewBy: s.thesis.reviewBy, daysToReview: daysUntil(s.thesis.reviewBy, now) } : {}),
+    })),
   };
 }
 
@@ -135,7 +146,7 @@ export async function getHoldings({ db, now }: DbDeps) {
 const ACTIVITY_KINDS = [
   "order.submitted", "order.filled", "order.partially_filled", "order.canceled", "order.rejected", "order.external",
   "risk.order_clipped", "risk.order_rejected", "risk.halted", "risk.kill_switch_on", "risk.resumed", "risk.buys_paused",
-  "strategy.activated", "strategy.rejected", "thesis.stopped_out", "thesis.stale",
+  "strategy.activated", "strategy.rejected", "thesis.stopped_out", "thesis.stale", "thesis.review_overdue",
 ];
 
 /** What happened recently: rebalance steps with reasons, fills, risk decisions, strategy submissions. */
@@ -218,7 +229,7 @@ export async function checkEligibility({ broker, now }: ToolDeps, symbols: strin
 export function getRules() {
   return {
     strategySchema: {
-      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required). Total ≤ 100%.`,
+      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required), reviewBy (optional YYYY-MM-DD; see lifecycle). Total ≤ 100%.`,
       systematic: "universe (1–100 symbols), lookbackDays (21–252), skipRecentDays (0–21, < lookback), topN (1–20, ≤ universe), trendFilterDays (50–250 or null), weighting (equal | inverse_volatility), volatilityDays (20–126), defensive (symbol or null).",
       drift: "relativePct (1–100), minTradeUsd (1–1000): a holding is traded back to target only when off by more than max(relativePct × target, minTradeUsd).",
     },
@@ -233,6 +244,7 @@ export function getRules() {
     lifecycle: [
       "A thesis whose price closes at or below average cost × (1 − stopLossPct) is sold and stays stopped; re-entry needs a new id.",
       `A thesis not resubmitted for ${STALE_AFTER_MS / 86_400_000} days unwinds into the systematic sleeve. Resubmitting the strategy reaffirms every thesis in it.`,
+      "reviewBy (optional, YYYY-MM-DD): the last market date a thesis stands without review. After it the thesis is overdue and unwinds into the systematic sleeve; resubmitting unchanged doesn't bring it back. A new or changed reviewBy must be after today; once a thesis has one it must keep one; and moving it later needs an evidence item dated (asOf) after every evidence date the thesis had before. preview_strategy reports these errors.",
     ],
     risk: {
       positionCapPct: LIMITS.positionCapPct,
@@ -259,9 +271,8 @@ export function getRules() {
 export async function previewStrategy({ db, broker, env, now }: ToolDeps, document: unknown) {
   const parsed = validateStrategy(document);
   if (!parsed.ok) return { valid: false, errors: parsed.errors };
-  const stopped = await stoppedThesisIds(db);
-  const reused = parsed.strategy.conviction.flatMap((t, i) => (stopped.has(t.id) ? [`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`] : []));
-  if (reused.length) return { valid: false, errors: reused };
+  const errors = await submissionErrors(db, parsed.strategy, now);
+  if (errors.length) return { valid: false, errors };
   // Outside the session the mirror is hours old and risk would reject every
   // trade for staleness alone. Preview on the last-synced data instead and say
   // so: the real step runs after a fresh sync and re-checks the age.

@@ -34,6 +34,18 @@ const evidence = z.object({
 /** The most one thesis may target, % of investable equity. */
 export const MAX_THESIS_WEIGHT_PCT = "20";
 
+/** A real calendar date, YYYY-MM-DD. */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD")
+  .refine(
+    (v) => {
+      const d = new Date(`${v}T00:00:00Z`);
+      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+    },
+    { message: "must be a real date" },
+  );
+
 const thesis = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/, "must be a lowercase slug like aapl-services-2026q4"),
   symbol,
@@ -41,6 +53,12 @@ const thesis = z.object({
   thesis: z.string().trim().min(20, "needs at least a sentence of reasoning").max(5000),
   evidence: z.array(evidence).min(1, "needs at least one piece of evidence").max(20),
   stopLossPct: decimalIn("5", "50"),
+  /**
+   * The last market date the thesis stands without review. After it, the
+   * thesis is overdue and unwinds, until a later version moves it on with
+   * fresh evidence (SPEC-portfolio).
+   */
+  reviewBy: isoDate.optional(),
 });
 
 const systematic = z.object({

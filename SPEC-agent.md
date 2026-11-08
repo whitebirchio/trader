@@ -13,7 +13,7 @@ Give Claude its seat at the table (ADR-003, ADR-004): a remote **MCP server** wh
 | Tool | Kind | What it gives Claude |
 |---|---|---|
 | `get_overview` | read | Equity, cash, today's change, drawdown, **vs VTI**, guardrail state (kill switch, halt, buys paused, broker verdict), active strategy version, holdings with sleeve and thesis state |
-| `get_strategy` | read | The active strategy (or version N) in full, with each thesis's state (active / stopped / stale, with reasons) and days since it was last reaffirmed |
+| `get_strategy` | read | The active strategy (or version N) in full, with each thesis's state (active / stopped / stale, with reasons) and days since it was last reaffirmed; each thesis's `reviewBy` and `daysToReview` (2026-11-08, #35) |
 | `get_holdings` | read | Positions, FIFO lots (average cost, opened), **open wash-sale windows**, and **stopped thesis ids** (which can't be reused) |
 | `get_activity` | read | Recent fills and orders, rebalance plans with each trade's reason, `risk` clips and rejections, and strategy submissions (default 14 days) |
 | `get_track_record` | read | The thesis scorecard (SPEC-portfolio § Scorecard, 2026-11-07): every thesis ever held, its return on the dollars bought vs the same dollars in VTI, how it ended, days held; rolled up overall and by primary evidence kind |

@@ -80,6 +80,15 @@ describe("thesisWindows", () => {
     expect(reaffirmed).toMatchObject({ ending: "open", leftAt: null, closedAt: null });
   });
 
+  it("ends an overdue thesis at its event, like a stale one", () => {
+    const [w] = thesisWindows(
+      [version(1, "2026-11-02T13:00:00Z", A)],
+      [{ thesisId: "aapl-a", kind: "overdue", at: at("2026-12-02T15:00:00Z") }],
+      [buy("AAPL", "1", "100", "2026-11-02T14:45:00Z"), sell("AAPL", "1", "110", "2026-12-02T15:45:00Z")],
+    );
+    expect(w).toMatchObject({ ending: "overdue", leftAt: at("2026-12-02T15:00:00Z"), closedAt: at("2026-12-02T15:45:00Z") });
+  });
+
   it("continues the row when a new id takes over shares still held", () => {
     const windows = thesisWindows(
       [version(1, "2026-11-02T13:00:00Z", A), version(2, "2026-11-03T13:00:00Z", B)],

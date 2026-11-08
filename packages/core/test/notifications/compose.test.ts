@@ -145,6 +145,12 @@ describe("strategy and thesis emails", () => {
     expect(email.subject).toBe("Trader: Stop-loss: selling OXY (+1 more)");
     expect(email.text).toContain("Thesis lmt-congress was not reaffirmed for 31 days (limit 30), so it's sold into the systematic sleeve.");
   });
+
+  it("reports a thesis unwound at its review date", () => {
+    const email = composeUrgent([ev("thesis.review_overdue", { thesisId: "lkq-director-cluster-2026q4", reason: "past its review date (2027-01-28) without a later one" }, "LKQ")], "production");
+    expect(email.subject).toBe("Trader: Thesis unwound: LKQ (review date passed)");
+    expect(email.text).toContain("Thesis lkq-director-cluster-2026q4 is past its review date (2027-01-28) without a later one, so it's sold into the systematic sleeve.");
+  });
 });
 
 describe("digest benchmark line", () => {
