@@ -10,7 +10,6 @@ const facts = (symbol: string, overrides: Partial<AssetFacts> = {}): AssetFacts 
   name: `${symbol} Inc. Common Stock`,
   tradable: true,
   fractionable: true,
-  marginRequirementLong: "30",
   lastClose: "100",
   avgDollarVolume: "500000000",
   historyDays: 3000,
@@ -34,7 +33,7 @@ function snapshot(overrides: Partial<RiskSnapshot> = {}): RiskSnapshot {
       AAPL: facts("AAPL"),
       MSFT: facts("MSFT"),
       NVDA: facts("NVDA"),
-      TQQQ: facts("TQQQ", { name: "ProShares UltraPro QQQ", marginRequirementLong: "75" }),
+      TQQQ: facts("TQQQ", { name: "ProShares UltraPro QQQ" }),
     },
     ...overrides,
   };
@@ -154,7 +153,7 @@ describe("buy eligibility", () => {
   it("rejects leveraged funds with a readable reason", () => {
     expect(run(snapshot(), buy("TQQQ", "20", "conviction"))[0]).toMatchObject({
       verdict: "rejected",
-      reasons: ["TQQQ is leveraged or inverse (margin requirement 75%)."],
+      reasons: ['TQQQ is leveraged or inverse: ProShares makes leveraged, inverse and volatility funds ("ProShares UltraPro QQQ").'],
     });
   });
 

@@ -42,8 +42,10 @@ Sells are never blocked by eligibility, position or sleeve rules: you can always
 1. **Limits live in code** (`packages/core/src/risk/limits.ts`), the same for both environments. Changing one is a PR, so it soaks on paper first and the change is reviewed and versioned. Runtime state (kill switch, halt) lives in the database.
 2. **Broad-ETF list.** "Broad" is an owner-maintained list in `limits.ts`. Default: VTI, VOO, SPY, IVV, ITOT, SCHB, VT, VXUS, IXUS, VEA, VWO, IEFA, IEMG, BND, AGG, BNDX, SCHZ. Anything not listed gets the 20% cap. Claude can't relabel a holding as broad.
 3. **Leveraged/inverse detection** has two layers, and either one blocks:
-   - **Margin requirement:** Alpaca's `margin_requirement_long` is ≥ 50. That catches TQQQ, SQQQ, SPXL, UVXY and SOXL, which show 75–100 against 30 for VTI, QQQ and AAPL (checked 2026-10-31).
-   - **Name:** the fund name matches Ultra / UltraPro / Bull / Bear / 2x / 3x / Inverse / Leveraged / "Short" (but not "Short-Term" or "Short Duration"). This catches 1× inverse funds like SH, whose margin requirement is a normal 30.
+   - **Sponsor:** the name contains a sponsor that specialises in leveraged, inverse and volatility funds, from an owner-maintained list in `limits.ts` (ProShares, Direxion, GraniteShares, Leverage Shares, Tradr, Defiance, T-Rex, REX Shares, MicroSectors, Volatility Shares). It catches those sponsors' funds whatever they're called.
+   - **Name:** the fund name matches Ultra / UltraPro / Bull / Bear / 2x / 3x / Inverse / Leveraged / VIX / Volatility / "Short" (but not "Short-Term" or "Short Duration"). This catches 1× inverse funds like SH and leveraged funds from sponsors not on the list.
+
+   *Revised 2026-11-07 (#33):* the first layer was Alpaca's `margin_requirement_long` ≥ 50. That number moves with Alpaca's volatility adjustments, so it blocked plain stocks (UPBD and HGV at 50, BRK.B at 75 on the live account) and passed VXX (30). Alpaca doesn't mark which assets are funds (all are `us_equity`), so the sponsor list replaced it.
 
    False positives (blocking a fund that's actually fine) are acceptable. False negatives aren't.
 4. **Sleeve membership** of each holding and proposal is supplied by `portfolio`. `risk` defines the input shape (`sleeve: "core" | "satellite"`). Holdings it can't attribute count as satellite, which is the conservative side of the cap.
@@ -104,7 +106,7 @@ const RULES: Rule[] = [killSwitch, drawdownHalt, brokerVerdict, freshData, daily
   noShorting, eligibility, positionCap, sleeveCap, cashAvailable, runawayGuard];
 ```
 
-Every reason is a sentence a person can read in an email ("TQQQ is leveraged or inverse (margin requirement 75%)"), because these reasons become notification text.
+Every reason is a sentence a person can read in an email ("TQQQ is leveraged or inverse: ProShares makes leveraged, inverse and volatility funds"), because these reasons become notification text.
 
 ## Testing Strategy
 

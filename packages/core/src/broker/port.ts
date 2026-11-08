@@ -94,7 +94,10 @@ export interface Asset {
   status: string;
   tradable: boolean;
   fractionable: boolean;
-  /** Alpaca's long margin requirement, percent as a decimal string ("30", "75"). Leveraged funds run ≥ 50. */
+  /**
+   * Alpaca's long margin requirement, percent as a decimal string ("30", "75").
+   * Not a leveraged-fund test: Alpaca raises it on volatile stocks (SPEC-risk).
+   */
   marginRequirementLong: string | null;
 }
 

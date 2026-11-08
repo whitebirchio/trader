@@ -36,8 +36,19 @@ export const LIMITS = {
   minAvgDollarVolume: "10000000",
   avgDollarVolumeDays: 20,
   minHistoryDays: 90,
-  /** Alpaca margin requirement at or above this marks a leveraged/volatility product. */
-  leveragedMarginPct: "50",
+  /**
+   * Fund sponsors that specialise in leveraged, inverse and volatility
+   * products: a name containing one is blocked whatever the fund is called.
+   * Owner-maintained; it blocks some plain funds too (e.g. a ProShares
+   * spot-bitcoin ETF), which is the accepted side (SPEC-risk). Replaced
+   * Alpaca's margin requirement as the second layer on 2026-11-07 (#33): that
+   * number moves with Alpaca's volatility adjustments, and it blocked plain
+   * stocks (UPBD, HGV at 50; BRK.B at 75) while passing VXX (30).
+   */
+  leveragedFundSponsors: [
+    "ProShares", "Direxion", "GraniteShares", "Leverage Shares", "Tradr",
+    "Defiance", "T-Rex", "REX Shares", "MicroSectors", "Volatility Shares",
+  ],
 
   /**
    * Cash kept back from buys: the larger of a floor and a share of equity.
