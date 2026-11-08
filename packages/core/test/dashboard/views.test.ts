@@ -69,9 +69,34 @@ describe("performanceSeries", () => {
   });
 
   it("is empty before the first snapshot, and has no benchmark until closes are recorded", async () => {
-    expect(await performanceSeries(db)).toEqual({ points: [], totals: null });
+    expect(await performanceSeries(db)).toMatchObject({ points: [], totals: null, range: "all", rangeTotals: null });
     await db.insert(equitySnapshots).values({ tradingDate: "2026-10-28", equity: "1000", cash: "0", longMarketValue: "1000" });
-    expect(await performanceSeries(db)).toEqual({ points: [{ date: "2026-10-28", portfolio: "100", benchmark: null }], totals: null });
+    expect(await performanceSeries(db)).toMatchObject({ points: [{ date: "2026-10-28", portfolio: "100", benchmark: null }], totals: null });
+  });
+
+  it("shows a range rebased to 100 at its first point, with its own totals; a range the history doesn't reach falls back to all", async () => {
+    await db.insert(equitySnapshots).values([
+      { tradingDate: "2026-09-01", equity: "1000", cash: "0", longMarketValue: "1000" },
+      { tradingDate: "2026-10-01", equity: "1100", cash: "0", longMarketValue: "1100" },
+      { tradingDate: "2026-10-30", equity: "1210", cash: "0", longMarketValue: "1210" },
+    ]);
+    await db.insert(benchmarkCloses).values([
+      { symbol: "VTI", tradingDate: "2026-09-01", close: "300" },
+      { symbol: "VTI", tradingDate: "2026-10-01", close: "300" },
+      { symbol: "VTI", tradingDate: "2026-10-30", close: "330" },
+    ]);
+    const s = await performanceSeries(db, "4w"); // from Oct 2: the base is the Oct 1 close
+    expect(s.range).toBe("4w");
+    expect(s.points).toEqual([
+      { date: "2026-10-01", portfolio: "100", benchmark: "100" },
+      { date: "2026-10-30", portfolio: "110", benchmark: "110" },
+    ]);
+    expect(s.rangeTotals).toMatchObject({ since: "2026-10-01", portfolioPct: "10", benchmarkPct: "10" });
+    expect(s.totals).toMatchObject({ since: "2026-09-01", portfolioPct: "21", benchmarkPct: "10" });
+    expect(s.ranges.filter((r) => r.available).map((r) => r.range)).toEqual(["4w", "all"]);
+    const fallback = await performanceSeries(db, "6m");
+    expect(fallback.range).toBe("all");
+    expect(fallback.points).toHaveLength(3);
   });
 });
 
@@ -165,12 +190,17 @@ describe("thesisView", () => {
       [2, ["weight 20% → 10%", "review by 2026-12-01", "evidence updated"]],
       [1, ["added at 20%"]],
     ]);
-    // 30 days before the first buy, through now; another symbol's closes stay out.
+    // Since first held by default, through now; another symbol's closes stay out.
+    expect(v.chart.range).toBe("held");
     expect(v.chart.closes).toEqual([
-      { date: "2026-10-27", close: "198" },
       { date: "2026-10-28", close: "200" },
       { date: "2026-10-30", close: "180" },
     ]);
+    // 4 weeks back from now (Oct 5) starts at the last close before it; a year back is before the history, so it falls back.
+    expect((await thesisView(db, "aapl-services", NOW, "4w"))!.chart.closes.map((c) => c.date)).toEqual(["2026-09-01", "2026-10-27", "2026-10-28", "2026-10-30"]);
+    const year = (await thesisView(db, "aapl-services", NOW, "1y"))!.chart;
+    expect(year.range).toBe("held");
+    expect(year.ranges.find((r) => r.range === "1y")).toMatchObject({ available: false, reason: "history starts 2026-09-01" });
     expect(v.chart.fills).toEqual([{ at: "2026-10-28T15:00:00.000Z", date: "2026-10-28", side: "buy", qty: "1", price: "200" }]);
     expect(v.chart).toMatchObject({ cost: "200", stopPrice: "170", evidence: [{ date: "2026-10-29", kind: "insider", summary: "CFO bought $2M on the open market" }] });
   });

@@ -1,14 +1,15 @@
-import { overviewView, sub } from "@trader/core";
+import { OVERVIEW_RANGES, overviewView, parseRange, sub } from "@trader/core";
 import { PerformanceChart } from "@/components/performance-chart";
+import { RangePicker } from "@/components/range-picker";
 import { Card, Change, StatTile, Status } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
 import { formatEt, formatPct, formatPts, formatUsd, sign } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function OverviewPage() {
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const { config, db } = await signedIn();
-  const o = await overviewView(db, config.env, new Date());
+  const o = await overviewView(db, config.env, new Date(), parseRange((await searchParams).range, OVERVIEW_RANGES, "all"));
   const g = o.guardrails;
   const totals = o.performance.totals;
   return (
@@ -43,10 +44,11 @@ export default async function OverviewPage() {
       </Card>
 
       <Card title="Performance (both from 100)">
+        <RangePicker options={o.performance.ranges} selected={o.performance.range} path="/" />
         <PerformanceChart points={o.performance.points} />
-        {totals && (
+        {o.performance.rangeTotals && (
           <p className="mt-3 text-sm">
-            Since {totals.since}: Trader <Change pct={totals.portfolioPct} />, VTI <Change pct={totals.benchmarkPct} />
+            Since {o.performance.rangeTotals.since}: Trader <Change pct={o.performance.rangeTotals.portfolioPct} />, VTI <Change pct={o.performance.rangeTotals.benchmarkPct} />
           </p>
         )}
       </Card>
@@ -55,7 +57,7 @@ export default async function OverviewPage() {
         <Card title="Your money">
           {o.capital.since && o.capital.startValue && o.capital.value ? (
             <p className="text-sm">
-              From the {o.capital.since} close (the start of the chart) to the {o.capital.through} close: started with {formatUsd(o.capital.startValue)}
+              From the {o.capital.since} close (the first snapshot) to the {o.capital.through} close: started with {formatUsd(o.capital.startValue)}
               {sign(o.capital.addedSince) !== 0 && <>, net transfers {formatUsd(o.capital.addedSince)}</>}, worth {formatUsd(o.capital.value)}.
               {o.capital.sameFlowsInVti && <> The same money held in VTI over those days would be worth {formatUsd(o.capital.sameFlowsInVti)}.</>}
             </p>

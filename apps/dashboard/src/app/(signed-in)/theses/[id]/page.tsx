@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { thesisView } from "@trader/core";
+import { THESIS_RANGES, parseRange, thesisView } from "@trader/core";
 import { ThesisBody } from "@/components/strategy-document";
+import { RangePicker } from "@/components/range-picker";
 import { ThesisChart } from "@/components/thesis-chart";
 import { Badge, Card, Change, Signed, StatTile } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
@@ -11,11 +12,11 @@ export const dynamic = "force-dynamic";
 
 const ENDING = { open: "held", removed: "removed", stopped: "stopped out", stale: "went stale", overdue: "review date passed" } as const;
 
-export default async function ThesisPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ThesisPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string }> }) {
   const { db } = await signedIn();
   const { id } = await params;
   if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(id)) notFound();
-  const v = await thesisView(db, id, new Date());
+  const v = await thesisView(db, id, new Date(), parseRange((await searchParams).range, THESIS_RANGES, "held"));
   if (!v) notFound();
   const s = v.score;
   const m = s?.money ?? null;
@@ -62,6 +63,7 @@ export default async function ThesisPage({ params }: { params: Promise<{ id: str
       {m && s && !s.closedAt && v.markedAt && <p className="-mt-2 text-xs text-[var(--muted)]">Marked at the {formatEt(v.markedAt)} sync.</p>}
 
       <Card title="Price">
+        <RangePicker options={v.chart.ranges} selected={v.chart.range} path={`/theses/${id}`} />
         <ThesisChart chart={v.chart} />
       </Card>
 

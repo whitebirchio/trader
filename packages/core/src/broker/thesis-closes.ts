@@ -4,8 +4,8 @@ import { strategies, thesisCloses } from "../db/schema.js";
 import { marketDate } from "../time.js";
 import type { BrokerAdapter } from "./port.js";
 
-/** How far before a symbol's first thesis its chart starts. */
-export const CHART_LEAD_DAYS = 30;
+/** How far before a symbol's first thesis its closes are kept: the thesis chart's longest range is a year (#59). */
+export const CLOSES_LEAD_DAYS = 380;
 const DAY_MS = 86_400_000;
 /** Rows per insert, well inside Postgres's bind-parameter limit. */
 const CHUNK = 1000;
@@ -27,7 +27,7 @@ export function thesisSymbols(versions: { createdAt: Date; document: unknown }[]
 }
 
 /**
- * Re-read the adjusted daily closes of every thesis symbol, from CHART_LEAD_DAYS
+ * Re-read the adjusted daily closes of every thesis symbol, from CLOSES_LEAD_DAYS
  * before the first version that held any of them, and upsert them. One bars
  * request; re-reading the whole window keeps each symbol's closes on one
  * adjustment basis. Returns the number of closes written.
@@ -36,7 +36,7 @@ export async function recordThesisCloses(db: Db, broker: BrokerAdapter, now: Dat
   const symbols = thesisSymbols(await db.select({ createdAt: strategies.createdAt, document: strategies.document }).from(strategies).orderBy(asc(strategies.version)));
   if (symbols.size === 0) return 0;
   const earliest = Math.min(...[...symbols.values()].map((d) => d.getTime()));
-  const bars = await broker.getDailyBars([...symbols.keys()], new Date(earliest - CHART_LEAD_DAYS * DAY_MS), now);
+  const bars = await broker.getDailyBars([...symbols.keys()], new Date(earliest - CLOSES_LEAD_DAYS * DAY_MS), now);
   const rows = Object.entries(bars).flatMap(([symbol, list]) => list.map((b) => ({ symbol, tradingDate: marketDate(b.t), close: b.c, recordedAt: now })));
   for (let i = 0; i < rows.length; i += CHUNK) {
     await db

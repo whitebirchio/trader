@@ -30,8 +30,8 @@ export function ThesisChart({ chart }: { chart: Chart }) {
     return <p className="text-sm text-[var(--muted)]">The chart starts once two daily closes are recorded (after each close).</p>;
   }
   const dates = data.map((d) => d.date);
-  // Markers sit on chart dates: a fill or evidence date with no close moves to the next session shown.
-  const onChart = (date: string) => dates.find((d) => d >= date) ?? null;
+  // Markers sit on chart dates: a fill or evidence date with no close moves to the next session shown; one before the range isn't drawn.
+  const onChart = (date: string) => (date < dates[0]! ? null : (dates.find((d) => d >= date) ?? null));
   const fillsOn = new Map<string, Fill[]>();
   for (const f of chart.fills) {
     const d = onChart(f.date);
