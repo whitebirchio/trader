@@ -338,6 +338,18 @@ export const strategies = pgTable("strategies", {
   document: jsonb().$type<Record<string, unknown>>().notNull(),
 });
 
+/** Daily adjusted closes for every symbol a strategy has held as a thesis, for the thesis page's chart (#39). */
+export const thesisCloses = pgTable(
+  "thesis_closes",
+  {
+    symbol: text().notNull(),
+    tradingDate: date({ mode: "string" }).notNull(),
+    close: numeric().notNull(),
+    recordedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.tradingDate] })],
+);
+
 /** Thesis lifecycle transitions. `stopped` is permanent: re-entry needs a new thesis id. */
 export const thesisEvents = pgTable(
   "thesis_events",

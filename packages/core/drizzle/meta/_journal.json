@@ -141,6 +141,13 @@
       "when": 1794155236926,
       "tag": "0019_notifications_week_of",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794156969820,
+      "tag": "0020_thesis_closes",
+      "breakpoints": true
     }
   ]
 }

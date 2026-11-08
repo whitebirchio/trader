@@ -15,4 +15,4 @@
 - [x] C2: `sec.ts` + tests with a fake fetch (ticker map, submissions, the 404 and failure paths)
 - [x] C3: `checkEligibility` wiring + tool test (fake broker and filings); `apps/mcp` wires `SecFilings`
 - [x] C4: Prompt, instructions, SPEC-agent; gate; staging check through the staging MCP server (2026-11-08: ROL, LKQ, TTMI, INTC, VTI with live SEC lookups from Lambda; reactions match the theses' records)
-- [ ] Merge → production → RemoteTrigger
+- [x] Merge → production → RemoteTrigger (2026-11-08)
