@@ -2,7 +2,7 @@ import type { DailyBar, EventOutcome } from "./backtest.js";
 import type { InsiderEvent } from "./insider-backtest.js";
 
 /**
- * The earnings-reaction backtest (tasks/earnings-backtest-plan.md): earnings
+ * The earnings-reaction backtest (tasks/done/earnings-backtest-plan.md): earnings
  * releases (8-K item 2.02) from SEC's per-company filing index, the market's
  * reaction to each against VTI, and what happened after (via backtest.ts).
  * Pure: the script fetches and caches.

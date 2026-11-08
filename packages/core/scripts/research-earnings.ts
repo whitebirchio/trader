@@ -1,5 +1,5 @@
 /**
- * The earnings-reaction backtest (tasks/earnings-backtest-plan.md): earnings
+ * The earnings-reaction backtest (tasks/done/earnings-backtest-plan.md): earnings
  * releases (8-K item 2.02) from SEC's per-company filing index, the market's
  * reaction against VTI, and the returns after it, with and without an insider
  * buy before. Read-only: no database, no orders. Downloads are cached under

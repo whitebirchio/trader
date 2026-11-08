@@ -7,7 +7,7 @@ import {
 } from "./backtest.js";
 
 /**
- * The insider-buy backtest (#29, tasks/insider-backtest-plan.md): open-market
+ * The insider-buy backtest (#29, tasks/done/insider-backtest-plan.md): open-market
  * purchases from SEC's Insider Transactions Data Sets, grouped into events,
  * and each event's return against VTI over the same days.
  *

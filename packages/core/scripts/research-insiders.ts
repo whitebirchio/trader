@@ -1,5 +1,5 @@
 /**
- * The insider-buy backtest (#29, tasks/insider-backtest-plan.md): download
+ * The insider-buy backtest (#29, tasks/done/insider-backtest-plan.md): download
  * SEC's quarterly Insider Transactions Data Sets, fetch daily bars from
  * Alpaca (paper keys; market data only), and write the report. Read-only:
  * no database, no orders. Everything downloaded is cached under

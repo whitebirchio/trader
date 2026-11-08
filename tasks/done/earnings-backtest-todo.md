@@ -33,5 +33,5 @@
 
 ### E5: Into Trader
 - [x] Routine prompt and MCP instructions: the higher bar (two kinds of evidence, why the market is wrong, review dates on every thesis, no buying into a fresh earnings-day crash, sizing to the evidence)
-- [ ] Merge → RemoteTrigger
-- [ ] #15 rescoped to an earnings screen, or closed with the reason
+- [x] Merge (#48) → RemoteTrigger (2026-11-08)
+- [x] #15 closed with the reason (no screen for a signal that hasn't paid); research continues in #49
