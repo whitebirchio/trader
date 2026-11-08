@@ -6,7 +6,7 @@
 // and it fails closed: no usable secret means no access, and bad config means
 // no tools.
 
-import { type BrokerAdapter, type Config, type Db, type ToolDeps, parseConfig } from "@trader/core";
+import { type BrokerAdapter, type Config, type Db, type FilingsPort, type ToolDeps, parseConfig } from "@trader/core";
 import {
   type AuthEnv,
   authSecrets,
@@ -42,6 +42,8 @@ export interface ServerDeps {
   loadEnv(): Promise<Record<string, unknown>>;
   openDb(config: Config): Promise<{ db: Db; close(): Promise<void> }>;
   makeBroker(config: Config): BrokerAdapter;
+  /** SEC filings for check_eligibility's earnings screen (optional). */
+  filings?: FilingsPort;
   now(): Date;
   log(level: "info" | "error", message: string, detail?: Record<string, unknown>): void;
 }
@@ -222,7 +224,7 @@ export function createServer(deps: ServerDeps) {
       let session: { db: Db; close(): Promise<void> } | null = null;
       const toolDeps = async (): Promise<ToolDeps> => {
         session ??= await deps.openDb(config);
-        return { db: session.db, broker: deps.makeBroker(config), env: config.tradingEnv, now: deps.now() };
+        return { db: session.db, broker: deps.makeBroker(config), env: config.tradingEnv, now: deps.now(), filings: deps.filings };
       };
       const methods = rpcMethods(async (name, args) => {
         const started = Date.now();

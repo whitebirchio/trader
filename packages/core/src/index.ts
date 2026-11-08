@@ -35,5 +35,6 @@ export * from "./portfolio/rebalance.js";
 export * from "./portfolio/benchmark.js";
 export * from "./portfolio/scorecard.js";
 export * from "./agent/tools.js";
+export * from "./agent/sec.js";
 export * from "./dashboard/views.js";
 export * from "./capital/withdrawals.js";

@@ -127,7 +127,7 @@ export const TOOLS: Tool[] = [
     name: "check_eligibility",
     title: "Risk eligibility",
     description:
-      "Risk's verdict on buying each symbol, with the reasons for any rejection (leveraged or inverse, price, liquidity, listing age, not fractionable). It also says whether a symbol is exempt from the 20% per-name cap. Check candidates before drafting.",
+      "Risk's verdict on buying each symbol, with the reasons for any rejection (leveraged or inverse, price, liquidity, listing age, not fractionable), and whether it's exempt from the 20% per-name cap. Its `signals` are the owner's screens: the 12-1 month return (`momentum12to1Pct`; `recentBigLoser` at −30% or worse) and the last earnings release from SEC filings (`lastEarnings`: reaction vs VTI and sessions since; `freshEarningsCrash` at −10% or worse within 10 sessions). Check candidates before drafting.",
     inputSchema: schema({ symbols: symbolsProp }, ["symbols"]),
     readOnly: true,
     handler: (deps, args) => checkEligibility(deps, symbolsArg(args)),

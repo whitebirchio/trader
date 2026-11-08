@@ -1,4 +1,5 @@
 import { asc, desc, gte, inArray } from "drizzle-orm";
+import { BENCHMARK } from "../broker/benchmark-closes.js";
 import { buildLots, estimateSale } from "../broker/lots.js";
 import { capitalOverview } from "../capital/overview.js";
 import type { BrokerAdapter } from "../broker/port.js";
@@ -18,6 +19,8 @@ import { assetFacts, ineligibleReasons } from "../risk/eligibility.js";
 import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS, capExempt } from "../risk/limits.js";
 import { marketDate } from "../time.js";
+import { candidateSignals } from "./candidate.js";
+import type { FilingsPort } from "./sec.js";
 
 /**
  * The MCP tools' implementations (SPEC-agent), in core so they're tested
@@ -31,6 +34,8 @@ export interface ToolDeps {
   broker: BrokerAdapter;
   env: TradingEnv;
   now: Date;
+  /** SEC filings for check_eligibility's earnings screen; without it, that screen reports the gap. */
+  filings?: FilingsPort;
 }
 
 /** What the DB-only tools need; the dashboard calls them too, with no broker. */
@@ -212,15 +217,24 @@ export async function getPrices({ broker, now }: ToolDeps, symbols: string[], da
 }
 
 /** risk's verdict on buying each symbol, so a strategy doesn't propose what will be rejected. */
-export async function checkEligibility({ broker, now }: ToolDeps, symbols: string[]) {
+export async function checkEligibility({ broker, now, filings }: ToolDeps, symbols: string[]) {
   const { ok, error } = cleanSymbols(symbols);
   if (error) return { error };
-  const bars = await broker.getDailyBars(ok, new Date(now.getTime() - 120 * 86_400_000), now);
+  // Over a year of sessions, for the 12-1 month return; VTI for the earnings reaction.
+  const bars = await broker.getDailyBars([...new Set([...ok, BENCHMARK])], new Date(now.getTime() - 400 * 86_400_000), now);
   const out = [];
   for (const symbol of ok) {
     const facts = assetFacts(symbol, await broker.getAsset(symbol), bars[symbol] ?? [], now, LIMITS);
     const reasons = ineligibleReasons(symbol, facts, LIMITS);
-    out.push({ symbol, eligible: reasons.length === 0, reasons, capExempt: capExempt(symbol, LIMITS), lastClose: facts?.lastClose ?? null });
+    const releases = filings ? await filings.earningsReleases(symbol) : null;
+    out.push({
+      symbol,
+      eligible: reasons.length === 0,
+      reasons,
+      capExempt: capExempt(symbol, LIMITS),
+      lastClose: facts?.lastClose ?? null,
+      signals: candidateSignals(bars[symbol] ?? [], bars[BENCHMARK] ?? [], releases),
+    });
   }
   return out;
 }
