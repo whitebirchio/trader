@@ -20,6 +20,7 @@ import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS, capExempt } from "../risk/limits.js";
 import { marketDate } from "../time.js";
 import { candidateSignals } from "./candidate.js";
+import { CORRELATION_SESSIONS, SECTOR_FUNDS, exposureReport } from "./exposure.js";
 import type { FilingsPort } from "./sec.js";
 
 /**
@@ -34,7 +35,7 @@ export interface ToolDeps {
   broker: BrokerAdapter;
   env: TradingEnv;
   now: Date;
-  /** SEC filings for check_eligibility's earnings screen; without it, that screen reports the gap. */
+  /** SEC filings for check_eligibility's earnings screen and get_exposure's industries; without it, both report the gap. */
   filings?: FilingsPort;
 }
 
@@ -237,6 +238,41 @@ export async function checkEligibility({ broker, now, filings }: ToolDeps, symbo
     });
   }
   return out;
+}
+
+/**
+ * How concentrated the account is (#31): each holding's industry and sector,
+ * the sector weights, and which names move together. Active theses not bought
+ * yet and the given candidates are measured alongside, so a draft can be
+ * checked before it's submitted.
+ */
+export async function getExposure({ db, broker, now, filings }: ToolDeps, candidates: string[] = []) {
+  const extra: { ok: string[]; error?: string } = candidates.length ? cleanSymbols(candidates) : { ok: [] };
+  if (extra.error) return { error: extra.error };
+  const [account] = await db.select({ equity: brokerAccount.equity }).from(brokerAccount);
+  const held = await db.select().from(positions).orderBy(desc(positions.marketValue));
+  const active = await activeStrategy(db, now);
+  const thesisOf = new Map(active.strategy.conviction.map((t) => [t.symbol, t.id]));
+  const heldSymbols = new Set(held.map((p) => p.symbol));
+  const others = [...new Set([...active.strategy.conviction.map((t) => t.symbol), ...extra.ok])].filter((s) => !heldSymbols.has(s));
+  const symbols = [...heldSymbols, ...others];
+
+  // Calendar days for CORRELATION_SESSIONS sessions, with room for holidays.
+  const bars = await broker.getDailyBars([...new Set([...symbols, BENCHMARK])], new Date(now.getTime() - (CORRELATION_SESSIONS * 1.6 + 10) * 86_400_000), now);
+  const industries = new Map<string, { sic: string | null; description: string | null } | null>();
+  // One at a time: SEC asks for at most 10 requests a second.
+  for (const s of symbols) if (s !== BENCHMARK && !SECTOR_FUNDS[s]) industries.set(s, filings ? await filings.industry(s) : null);
+
+  return {
+    asOf: now.toISOString(),
+    ...exposureReport({
+      equity: account?.equity ?? "0",
+      holdings: held.map((p) => ({ symbol: p.symbol, marketValue: p.marketValue, thesisId: thesisOf.get(p.symbol) ?? null })),
+      candidates: others.map((s) => ({ symbol: s, thesisId: thesisOf.get(s) ?? null })),
+      industries,
+      bars,
+    }),
+  };
 }
 
 /** The contract strategies are written against. */

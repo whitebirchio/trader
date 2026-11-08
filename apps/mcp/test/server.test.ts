@@ -230,6 +230,7 @@ describe("tools", () => {
       "get_track_record",
       "get_prices",
       "check_eligibility",
+      "get_exposure",
       "get_rules",
       "preview_strategy",
       "submit_strategy",

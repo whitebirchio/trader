@@ -37,6 +37,15 @@ describe("SecFilings", () => {
     expect(await sec.earningsReleases("VTI")).toEqual([]);
   });
 
+  it("reads a company's SIC industry from the same index; nulls for a symbol SEC doesn't list, null when SEC can't be read", async () => {
+    const withSic = JSON.stringify({ ...JSON.parse(lkq), sic: "5013", sicDescription: "WHOLESALE-MOTOR VEHICLE SUPPLIES & NEW PARTS" });
+    const sec = new SecFilings(fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response(withSic) }).fn);
+    expect(await sec.industry("LKQ")).toEqual({ sic: "5013", description: "WHOLESALE-MOTOR VEHICLE SUPPLIES & NEW PARTS" });
+    expect(await sec.industry("VTI")).toEqual({ sic: null, description: null });
+    const down = new SecFilings(fakeFetch({ company_tickers: () => new Response("", { status: 503 }) }).fn);
+    expect(await down.industry("LKQ")).toBeNull();
+  });
+
   it("is null when SEC can't be read, and tries the ticker map again next time", async () => {
     let fail = true;
     const { fn } = fakeFetch({ company_tickers: () => (fail ? new Response("", { status: 503 }) : new Response(TICKERS)), CIK0001065696: () => new Response(lkq) });

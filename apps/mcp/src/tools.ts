@@ -3,6 +3,7 @@ import {
   type ToolDeps,
   checkEligibility,
   getActivity,
+  getExposure,
   getHoldings,
   getOverview,
   getPrices,
@@ -131,6 +132,15 @@ export const TOOLS: Tool[] = [
     inputSchema: schema({ symbols: symbolsProp }, ["symbols"]),
     readOnly: true,
     handler: (deps, args) => checkEligibility(deps, symbolsArg(args)),
+  },
+  {
+    name: "get_exposure",
+    title: "Concentration",
+    description:
+      "How concentrated the account is: each holding's weight, SEC industry (SIC) and an approximate sector; the sector weights (VTI counts as the broad market); and the 60-session daily-return correlations among single names, listing pairs at 0.5 or more, with `oneBet` at 0.7 or more (largely one bet), and each name's correlation with VTI. Active theses not bought yet are measured too; pass `symbols` to add candidates and check a draft before you submit it.",
+    inputSchema: schema({ symbols: { ...symbolsProp, description: "Candidates to measure alongside the holdings (optional, at most 25)." } }),
+    readOnly: true,
+    handler: (deps, args) => getExposure(deps, args.symbols === undefined ? [] : symbolsArg(args)),
   },
   {
     name: "get_rules",

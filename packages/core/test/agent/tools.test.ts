@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   checkEligibility,
   getActivity,
+  getExposure,
   getHoldings,
   getOverview,
   getPrices,
@@ -102,6 +103,30 @@ describe("read tools", () => {
     ]);
   });
 
+  it("get_exposure: holdings, active theses not bought yet and candidates, with their industries", async () => {
+    await submitStrategyTool(deps, strategy({ conviction: [thesis({ id: "msft-a", symbol: "MSFT" })] }));
+    await deps.db.delete(positions);
+    await deps.db.insert(positions).values([
+      { symbol: "VTI", qty: "2", avgEntryPrice: "300", marketValue: "600", costBasis: "600", currentPrice: "300", syncedAt: NOW },
+      { symbol: "AAPL", qty: "1", avgEntryPrice: "200", marketValue: "200", costBasis: "200", currentPrice: "200", syncedAt: NOW },
+    ]);
+    const asked: string[] = [];
+    const filings = {
+      earningsReleases: async () => [],
+      industry: async (s: string) => (asked.push(s), s === "AAPL" ? { sic: "3571", description: "ELECTRONIC COMPUTERS" } : { sic: null, description: null }),
+    };
+    const e = await getExposure({ ...deps, filings }, ["nvda"]);
+    if ("error" in e) throw new Error(e.error);
+    expect(e.holdings.map((h) => [h.symbol, h.weightPct, h.sector, h.industry])).toEqual([
+      ["VTI", "60", "Broad market (VTI)", null],
+      ["AAPL", "20", "Information Technology", "ELECTRONIC COMPUTERS"],
+    ]);
+    expect(e.candidates.map((c) => [c.symbol, c.thesisId])).toEqual([["MSFT", "msft-a"], ["NVDA", null]]);
+    expect(asked).toEqual(["AAPL", "MSFT", "NVDA"]); // never VTI
+    expect(await getExposure(deps, ["??"])).toEqual({ error: "Give at least one ticker, like AAPL or VTI." });
+    expect(await getExposure(deps)).toMatchObject({ notes: expect.arrayContaining(["Couldn't read SEC for AAPL: sector unknown."]) });
+  });
+
   it("get_track_record: each thesis's return vs the same dollars in VTI", async () => {
     expect(await getTrackRecord(deps)).toMatchObject({ overall: { theses: 0, excessPct: null }, byKind: [], theses: [] });
 
@@ -132,7 +157,7 @@ describe("read tools", () => {
     });
     // The fourth bar from the end is at 11:35 ET: a release then reacts the next session, the drop to $102.
     const filedAt = daysBack(4).toISOString();
-    const filings = { earningsReleases: async (s: string) => (s === "AAPL" ? [{ accession: "a", filedOn: filedAt.slice(0, 10), acceptedAt: filedAt }] : s === "VTI" ? [] : null) };
+    const filings = { earningsReleases: async (s: string) => (s === "AAPL" ? [{ accession: "a", filedOn: filedAt.slice(0, 10), acceptedAt: filedAt }] : s === "VTI" ? [] : null), industry: async () => null };
     const e = await checkEligibility({ ...deps, filings }, ["AAPL", "VTI", "TQQQ"]);
     if (!Array.isArray(e)) throw new Error(e.error);
     expect(e[0]!.signals).toMatchObject({ momentum12to1Pct: "-40", recentBigLoser: true, lastEarnings: { reactionVsVtiPct: "-15.0", sessionsSince: 2 }, freshEarningsCrash: true });
