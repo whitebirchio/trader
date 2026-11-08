@@ -29,8 +29,9 @@
 - **Scope:** S
 
 ## Checkpoint B
-- [ ] Scott reads the report
+- [x] Scott reads the report (2026-11-08): stay aggressive with a higher bar (option a), plus a momentum/quality research track (option c)
 
 ### E5: Into Trader
-- [ ] Routine prompt per the finding; merge → RemoteTrigger
+- [x] Routine prompt and MCP instructions: the higher bar (two kinds of evidence, why the market is wrong, review dates on every thesis, no buying into a fresh earnings-day crash, sizing to the evidence)
+- [ ] Merge → RemoteTrigger
 - [ ] #15 rescoped to an earnings screen, or closed with the reason

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { Activity } from "../../src/broker/port.js";
+import type { Db } from "../../src/db/client.js";
 import { benchmarkCloses, brokerActivities, positions, strategies } from "../../src/db/schema.js";
 import {
   type ScorecardThesisEvent,
@@ -234,8 +235,14 @@ describe("rollUp", () => {
 });
 
 describe("loadScorecard", () => {
+  // In a hook (10s timeout), like every other database test: the file's first
+  // createTestDb also migrates the template, which can take seconds on CI.
+  let db: Db;
+  beforeEach(async () => {
+    ({ db } = await createTestDb());
+  });
+
   it("scores the stored history, newest first, from the database alone", async () => {
-    const { db } = await createTestDb();
     const msft = thesis({ id: "msft-a", symbol: "MSFT", evidence: [{ kind: "insider", summary: "CEO bought" }] });
     await db.insert(strategies).values([
       { authoredBy: "claude", createdAt: at("2026-11-02T13:00:00Z"), summary: "v1", document: strategy({ conviction: [A] }) as unknown as Record<string, unknown> },
