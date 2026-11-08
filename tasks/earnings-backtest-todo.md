@@ -4,15 +4,15 @@
 > **gate** = `npm run typecheck && npm test` (check each exit code directly). Focused: `npx vitest run research` (in `packages/core`). One PR from `feat/earnings-backtest`, cut from pulled `main`.
 
 ### E1: Generic backtest code
-- [ ] `src/research/backtest.ts`: `eventOutcome` over any `{ ticker, publicOn }` event, `Tradability`, `HORIZONS`, `bucketStats`, `breakdown`
-- [ ] The insider module and script use it; insider tests pass unchanged
+- [x] `src/research/backtest.ts`: `eventOutcome` over any `{ ticker, publicOn }` event, `Tradability`, `HORIZONS`, `bucketStats`, `breakdown`
+- [x] The insider module and script use it; insider tests pass unchanged
 - **Scope:** S
 
 ### E2: Earnings releases → reaction events (pure)
-- [ ] `earningsReleases(submissions)`: 8-Ks with item 2.02 → `{ cik, ticker, acceptedAt, filedOn }`, from both the recent array and older pages
-- [ ] `reactionEvent(release, bars, vti)`: the reaction day (before 9:30 ET → same session, else the next), the reaction vs VTI, and the event's public date for entry (the day after the reaction day)
-- [ ] `insiderBefore(event, insiderEvents, 90)`: whether an insider bought in the 90 days before
-- [ ] Tests: real submissions JSON trimmed (an after-close and a pre-open release), a weekend filing, a missing bar
+- [x] `earningsReleases(submissions)`: 8-Ks with item 2.02 → `{ cik, ticker, acceptedAt, filedOn }`, from both the recent array and older pages
+- [x] `reactionEvent(release, bars, vti)`: the reaction day (before 9:30 ET → same session, else the next), the reaction vs VTI, and the event's public date for entry (the day after the reaction day)
+- [x] `insiderBefore(event, insiderEvents, 90)`: whether an insider bought in the 90 days before
+- [x] Tests: real submissions JSON trimmed (an after-close and a pre-open release), a weekend filing, a missing bar
 - **Depends on:** E1 · **Scope:** M
 
 ### E3: Script

@@ -39,6 +39,21 @@ export interface Tradability {
   avgDollarVolumeDays: number;
 }
 
+/** The close on `date`, or the last one before it (binary search; `bars` ascending). */
+export function closeOnOrBefore(bars: DailyBar[], date: string): number | undefined {
+  let lo = 0;
+  let hi = bars.length - 1;
+  let found: number | undefined;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (bars[mid]!.date <= date) {
+      found = bars[mid]!.close;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return found;
+}
+
 /**
  * Enter at the first close after `after` (a date: when the news became public,
  * or a later day the strategy could act on), if the stock passes risk's price
@@ -57,10 +72,7 @@ export function outcomeAfter<E>(event: E, after: string, bars: DailyBar[], vti: 
     return { skip: "untradable", event, detail: `close ${e.close.toFixed(2)}, ${window.length}-day ADV ${Math.round(adv)}` };
   }
 
-  const vtiOn = (date: string) => {
-    for (let i = vti.length - 1; i >= 0; i--) if (vti[i]!.date <= date) return vti[i]!.close;
-    return undefined;
-  };
+  const vtiOn = (date: string) => closeOnOrBefore(vti, date);
   const vtiEntry = vtiOn(e.date);
   if (vtiEntry === undefined) return { skip: "no VTI", event };
 
