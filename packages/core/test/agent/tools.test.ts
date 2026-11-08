@@ -122,6 +122,24 @@ describe("read tools", () => {
     ]);
   });
 
+  it("check_eligibility: the routine's screens for each candidate (12-1 return, last earnings reaction)", async () => {
+    // AAPL: 300 flat daily bars at $200, then a −40% 12-1 return; a release mid-session 4 bars before the end, and a −15% reaction the next session.
+    const daysBack = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
+    broker.bars.AAPL = bars("200").map((b, i, all) => {
+      const fromEnd = all.length - 1 - i;
+      const c = fromEnd <= 2 ? "102" : fromEnd <= 21 ? "120" : "200";
+      return { ...b, c };
+    });
+    // The fourth bar from the end is at 11:35 ET: a release then reacts the next session, the drop to $102.
+    const filedAt = daysBack(4).toISOString();
+    const filings = { earningsReleases: async (s: string) => (s === "AAPL" ? [{ accession: "a", filedOn: filedAt.slice(0, 10), acceptedAt: filedAt }] : s === "VTI" ? [] : null) };
+    const e = await checkEligibility({ ...deps, filings }, ["AAPL", "VTI", "TQQQ"]);
+    if (!Array.isArray(e)) throw new Error(e.error);
+    expect(e[0]!.signals).toMatchObject({ momentum12to1Pct: "-40", recentBigLoser: true, lastEarnings: { reactionVsVtiPct: "-15.0", sessionsSince: 2 }, freshEarningsCrash: true });
+    expect(e[1]!.signals).toMatchObject({ recentBigLoser: false, lastEarnings: null, freshEarningsCrash: false });
+    expect(e[2]!.signals).toMatchObject({ freshEarningsCrash: null, notes: [expect.stringContaining("Couldn't read SEC filings")] });
+  });
+
   it("get_rules: the contract, with the real limits", () => {
     const r = getRules();
     expect(r.risk.positionCapPct).toBe("20");
