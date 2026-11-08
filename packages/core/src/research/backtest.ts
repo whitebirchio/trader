@@ -64,7 +64,13 @@ export function outcomeAfter<E>(event: E, after: string, bars: DailyBar[], vti: 
   if (bars.length === 0) return { skip: "no bars", event };
   const entry = bars.findIndex((b) => b.date > after);
   if (entry < 0) return { skip: "no entry", event };
-  const e = bars[entry]!;
+  return outcomeAt(event, bars, entry, vti, t);
+}
+
+/** outcomeAfter with the entry bar's index already known (for callers scoring many dates per symbol). */
+export function outcomeAt<E>(event: E, bars: DailyBar[], entry: number, vti: DailyBar[], t: Tradability): EventOutcome<E> | OutcomeSkip<E> {
+  const e = bars[entry];
+  if (!e) return { skip: "no entry", event };
 
   const window = bars.slice(Math.max(0, entry - t.avgDollarVolumeDays), entry);
   const adv = window.length > 0 ? window.reduce((s, b) => s + b.close * b.volume, 0) / window.length : 0;
