@@ -61,7 +61,7 @@ Run `check_eligibility` on every candidate before drafting. Besides risk's verdi
 
 **Verify before you commit money.** For every new thesis, and for any figure that drives a resize, open at least one primary source with `WebFetch`: the SEC filing (8-K, 10-Q, Form 4 or 13F on sec.gov), or the company's own release. Confirm the numbers you cite there. Search snippets and aggregator pages are leads, not evidence. If you can't confirm a figure, leave it out or size the thesis down.
 
-**Watch concentration.** Two theses in the same industry, or driven by the same catalyst, are largely one bet. Keep any one sector under about 40% of equity unless you can say why.
+**Watch concentration.** Two theses in the same industry, or driven by the same catalyst, are largely one bet. Keep any one sector under about 40% of equity unless you can say why. Before drafting, run `get_exposure` with your candidates: it gives the sector weights and flags pairs whose daily returns move together (`oneBet`, correlation 0.7 or more). Size a flagged pair as one bet, and mention it in the summary.
 
 ## 3. Decide
 

@@ -1,14 +1,22 @@
 import { type EarningsRelease, type FilingColumns, earningsReleases } from "../research/earnings-backtest.js";
 
 /**
- * Read-only access to SEC EDGAR for check_eligibility's earnings screen
- * (#54): a company's earnings releases (8-K item 2.02) from its submissions
- * index. Fail-soft: null when SEC can't be read, so the tool reports the gap
- * instead of failing.
+ * Read-only access to SEC EDGAR, from a company's submissions index: its
+ * earnings releases (8-K item 2.02) for check_eligibility's earnings screen
+ * (#54), and its SIC industry for get_exposure (#31). Fail-soft: null when
+ * SEC can't be read, so the tool reports the gap instead of failing.
  */
 export interface FilingsPort {
   /** Earnings releases, oldest first; [] for a symbol SEC doesn't list (an ETF, say); null if SEC couldn't be read. */
   earningsReleases(symbol: string): Promise<EarningsRelease[] | null>;
+  /** The company's SIC code and SEC's description of it; sic null for a symbol SEC doesn't list or classify; null if SEC couldn't be read. */
+  industry(symbol: string): Promise<{ sic: string | null; description: string | null } | null>;
+}
+
+interface Submissions {
+  sic?: string;
+  sicDescription?: string;
+  filings?: { recent?: FilingColumns };
 }
 
 /** SEC asks automated clients to identify themselves as "name email"; data.sec.gov refuses others. */
@@ -48,12 +56,26 @@ export class SecFilings implements FilingsPort {
     return this.tickers;
   }
 
+  /** A symbol's submissions index; null for a symbol SEC doesn't list. Throws if SEC can't be read. */
+  private async submissions(symbol: string): Promise<Submissions | null> {
+    const cik = (await this.cikMap()).get(symbol);
+    if (!cik) return null;
+    return (await this.json(`https://data.sec.gov/submissions/CIK${cik}.json`)) as Submissions | null;
+  }
+
   async earningsReleases(symbol: string): Promise<EarningsRelease[] | null> {
     try {
-      const cik = (await this.cikMap()).get(symbol);
-      if (!cik) return [];
-      const doc = (await this.json(`https://data.sec.gov/submissions/CIK${cik}.json`)) as { filings?: { recent?: FilingColumns } } | null;
+      const doc = await this.submissions(symbol);
       return doc?.filings?.recent ? earningsReleases(doc.filings.recent) : [];
+    } catch {
+      return null;
+    }
+  }
+
+  async industry(symbol: string): Promise<{ sic: string | null; description: string | null } | null> {
+    try {
+      const doc = await this.submissions(symbol);
+      return { sic: doc?.sic || null, description: doc?.sicDescription || null };
     } catch {
       return null;
     }
