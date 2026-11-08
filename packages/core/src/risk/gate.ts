@@ -195,8 +195,12 @@ async function ordersToday(db: Db, now: Date): Promise<RiskSnapshot["today"]> {
   const fills = (await db.select({ symbol: brokerActivities.symbol, side: brokerActivities.side, at: brokerActivities.at }).from(brokerActivities).where(gte(brokerActivities.at, since)))
     .filter((a) => a.symbol && marketDate(a.at) === today);
   const mayFill = todays.filter((o) => o.status !== "rejected" && !(NO_FILL_ENDS.has(o.status) && compare(o.filledQty ?? "0", "0") <= 0));
-  const traded = (side: "buy" | "sell") =>
-    [...new Set([...fills.filter((f) => f.side === side).map((f) => f.symbol!), ...mayFill.filter((o) => o.side === side).map((o) => o.symbol)])].sort();
+  const traded = (side: "buy" | "sell") => {
+    const symbols = new Set<string>();
+    for (const f of fills) if (f.side === side) symbols.add(f.symbol!);
+    for (const o of mayFill) if (o.side === side) symbols.add(o.symbol);
+    return [...symbols].sort();
+  };
   return {
     orderCount: todays.length,
     buyNotional: todays.filter((o) => o.side === "buy").reduce((sum, o) => add(sum, o.notional ?? "0"), "0"),
