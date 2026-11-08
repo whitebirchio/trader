@@ -227,6 +227,7 @@ describe("tools", () => {
       "get_strategy",
       "get_holdings",
       "get_activity",
+      "get_track_record",
       "get_prices",
       "check_eligibility",
       "get_rules",

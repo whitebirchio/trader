@@ -7,6 +7,7 @@ import { auditEvents, brokerAccount, brokerActivities, orders, positions, rebala
 import type { TradingEnv } from "../env.js";
 import { compare, round, sub } from "../money.js";
 import { benchmarkSince } from "../portfolio/benchmark.js";
+import { loadScorecard } from "../portfolio/scorecard.js";
 import { WASH_SALE_DAYS, washSaleWindow } from "../portfolio/planner.js";
 import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.js";
 import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submitStrategy } from "../portfolio/store.js";
@@ -153,6 +154,33 @@ export async function getActivity({ db, now }: DbDeps, days = 14) {
     rebalanceSteps: plans.map((p) => ({ at: p.createdAt.toISOString(), strategyVersion: p.strategyVersion, phase: p.phase, trades: p.trades, notes: p.notes })),
     orders: recentOrders.map((o) => ({ at: o.createdAt.toISOString(), symbol: o.symbol, side: o.side, notional: o.notional, qty: o.qty, status: o.status, filledQty: o.filledQty, filledAvgPrice: o.filledAvgPrice, strategyRef: o.strategyRef, rejectReason: o.rejectReason })),
     events: events.filter((e) => e.at >= since).map((e) => ({ at: e.at.toISOString(), kind: e.kind, actor: e.actor, subject: e.subject, payload: e.payload })),
+  };
+}
+
+/**
+ * Every thesis ever held: its return on the dollars bought vs the same dollars
+ * held in VTI, rolled up overall and by primary evidence kind (SPEC-portfolio § Scorecard).
+ */
+export async function getTrackRecord({ db, now }: DbDeps) {
+  const card = await loadScorecard(db, now);
+  const iso = (d: Date | null) => d?.toISOString() ?? null;
+  return {
+    markedAt: iso(card.markedAt),
+    overall: card.overall,
+    byKind: card.byKind,
+    theses: card.theses.map((r) => ({
+      ids: r.ids,
+      symbol: r.symbol,
+      primaryKind: r.primaryKind,
+      kinds: r.kinds,
+      ending: r.ending,
+      openedAt: iso(r.openedAt),
+      leftAt: iso(r.leftAt),
+      closedAt: iso(r.closedAt),
+      daysHeld: r.daysHeld,
+      qty: r.qty,
+      ...(r.money ?? { unscored: r.unscored }),
+    })),
   };
 }
 

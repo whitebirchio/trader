@@ -7,13 +7,14 @@ import {
   getPrices,
   getRules,
   getStrategy,
+  getTrackRecord,
   previewStrategy,
   submitStrategyTool,
   type ToolDeps,
 } from "../../src/agent/tools.js";
 import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
-import { auditEvents, capitalCommands, orders, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
+import { auditEvents, benchmarkCloses, brokerActivities, capitalCommands, orders, positions, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { WINDOW_CLOSE, WINDOW_OPEN } from "../../src/portfolio/rebalance.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
@@ -93,6 +94,26 @@ describe("read tools", () => {
       ["TQQQ", false, false],
       ["VTI", true, true],
       ["NOPE", false, false],
+    ]);
+  });
+
+  it("get_track_record: each thesis's return vs the same dollars in VTI", async () => {
+    expect(await getTrackRecord(deps)).toMatchObject({ overall: { theses: 0, excessPct: null }, byKind: [], theses: [] });
+
+    await submitStrategyTool(deps, strategy({ conviction: [thesis()] }));
+    const filledAt = new Date(NOW.getTime() + 60_000);
+    await deps.db.insert(brokerActivities).values({ id: "fill-aapl", type: "FILL", at: filledAt, symbol: "AAPL", side: "buy", qty: "1", price: "200", raw: {} });
+    await deps.db.delete(positions);
+    await deps.db.insert(positions).values([
+      { symbol: "AAPL", qty: "1", avgEntryPrice: "200", marketValue: "220", costBasis: "200", currentPrice: "220", syncedAt: filledAt },
+      { symbol: "VTI", qty: "1", avgEntryPrice: "300", marketValue: "330", costBasis: "300", currentPrice: "330", syncedAt: filledAt },
+    ]);
+    await deps.db.insert(benchmarkCloses).values({ symbol: "VTI", tradingDate: "2026-11-02", close: "300" }).onConflictDoNothing();
+
+    const record = await getTrackRecord(deps);
+    expect(record.overall).toMatchObject({ theses: 1, scored: 1, bought: "200", pnl: "20", vtiPnl: "20", excess: "0" });
+    expect(record.theses).toEqual([
+      expect.objectContaining({ ids: ["aapl-services"], symbol: "AAPL", primaryKind: "fundamental", ending: "open", openedAt: filledAt.toISOString(), closedAt: null, qty: "1", pnl: "20", excessPct: "0" }),
     ]);
   });
 
