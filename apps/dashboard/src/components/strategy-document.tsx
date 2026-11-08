@@ -22,6 +22,7 @@ export function StrategyDocument({ document, states }: { document: Strategy; sta
                 <div className="flex flex-wrap gap-2">
                   <Badge>{formatPct(t.targetWeightPct, 1, false)} target</Badge>
                   <Badge>stop {formatPct(t.stopLossPct, 0, false)}</Badge>
+                  {t.reviewBy && <Badge>review by {t.reviewBy}</Badge>}
                   {st && <Badge>{st.state === "active" ? "● active" : `▲ ${st.state}`}</Badge>}
                 </div>
               </div>

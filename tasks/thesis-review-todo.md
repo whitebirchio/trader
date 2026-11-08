@@ -19,7 +19,7 @@
 - [ ] Gate green; `rebalance:plan --env staging` with a sample strategy carrying `reviewBy`
 
 ### R3: Surfaces
-- [ ] `get_strategy` (`reviewBy`, `daysToReview`), `get_rules` (lifecycle + rules); scorecard ending `overdue`; dashboard state labels and review dates
+- [x] `get_strategy` (`reviewBy`, `daysToReview`), `get_rules` (lifecycle + rules); scorecard ending `overdue`; dashboard state labels and review dates
 - **Depends on:** R1 · **Scope:** M
 
 ### R4: Prompt and docs
