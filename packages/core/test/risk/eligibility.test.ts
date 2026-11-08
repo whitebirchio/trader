@@ -26,7 +26,6 @@ function healthy(symbol: string): AssetFacts {
     name: a.name,
     tradable: a.tradable,
     fractionable: a.fractionable,
-    marginRequirementLong: a.margin_requirement_long,
     lastClose: "100",
     avgDollarVolume: "500000000",
     historyDays: 3000,
@@ -39,18 +38,48 @@ describe("leveraged and inverse funds (recorded assets)", () => {
   });
 
   it.each([
-    ["TQQQ", "margin requirement 75%"],
-    ["SQQQ", "margin requirement 75%"],
-    ["SPXL", "margin requirement 100%"],
-    ["UVXY", "margin requirement 100%"],
-    ["SOXL", "margin requirement 75%"],
-    ["SH", 'by name ("ProShares Short S&P500")'], // 1× inverse: normal margin, caught by name
-    ["TBF", 'by name ("ProShares Short 20+ Year Treasury ETF")'], // inverse Treasuries: normal margin, caught by name
+    ["TQQQ", "ProShares makes"],
+    ["SQQQ", "ProShares makes"],
+    ["SPXL", "Direxion makes"],
+    ["UVXY", "ProShares makes"],
+    ["SOXL", "Direxion makes"],
+    ["SH", "ProShares makes"], // 1× inverse with a normal margin requirement
+    ["TBF", "ProShares makes"], // inverse Treasuries
   ])("%s is rejected (%s)", (symbol, why) => {
     const reasons = ineligibleReasons(symbol, healthy(symbol), LIMITS);
     expect(reasons).toHaveLength(1);
     expect(reasons[0]).toContain(why);
     expect(reasons[0]).toContain("leveraged or inverse");
+  });
+
+  // Names from the live account, 2026-11-07: plain stocks the old margin-requirement
+  // rule blocked (Alpaca had them at 50–75%), and funds it missed.
+  const named = (symbol: string, name: string): AssetFacts => ({ ...healthy("VTI"), symbol, name });
+
+  it.each([
+    ["UPBD", "Upbound Group, Inc. Common Stock"],
+    ["HGV", "Hilton Grand Vacations Inc. Common Stock"],
+    ["BRK.B", "BERKSHIRE HATHAWAY Class B"],
+    ["BA", "Boeing Company"],
+    ["FRT", "Federal Realty Investment Trust"],
+  ])("%s, a plain stock, is eligible", (symbol, name) => {
+    expect(ineligibleReasons(symbol, named(symbol, name), LIMITS)).toEqual([]);
+  });
+
+  it("catches a volatility product by name", () => {
+    expect(ineligibleReasons("VXX", named("VXX", "iPath Series B S&P 500 VIX Short-Term Futures ETN"), LIMITS)).toEqual([
+      'VXX looks leveraged or inverse by name ("iPath Series B S&P 500 VIX Short-Term Futures ETN").',
+    ]);
+  });
+
+  it("catches a leveraged fund from an unlisted sponsor by its name alone", () => {
+    expect(ineligibleReasons("XYZL", named("XYZL", "Acme Funds Daily 2X Long XYZ ETF"), LIMITS)[0]).toContain("by name");
+  });
+
+  it("catches a listed sponsor's fund whatever it's called, and says so once", () => {
+    const reasons = ineligibleReasons("NVDL", named("NVDL", "GraniteShares ETF Trust GraniteShares 2x Long NVDA Daily ETF"), LIMITS);
+    expect(reasons).toEqual(['NVDL is leveraged or inverse: GraniteShares makes leveraged, inverse and volatility funds ("GraniteShares ETF Trust GraniteShares 2x Long NVDA Daily ETF").']);
+    expect(ineligibleReasons("NEWF", named("NEWF", "Direxion Shares ETF Trust Something New"), LIMITS)[0]).toContain("Direxion makes");
   });
 });
 
@@ -82,8 +111,8 @@ describe("other eligibility rules", () => {
 
   it("fails closed on missing facts", () => {
     expect(ineligibleReasons("VTI", undefined, LIMITS)).toEqual(["Couldn't verify VTI's eligibility (no asset data)."]);
-    const unknown = ineligibleReasons("VTI", { ...vti, marginRequirementLong: null, lastClose: null, avgDollarVolume: null, historyDays: null }, LIMITS);
-    expect(unknown).toHaveLength(4);
+    const unknown = ineligibleReasons("VTI", { ...vti, lastClose: null, avgDollarVolume: null, historyDays: null }, LIMITS);
+    expect(unknown).toHaveLength(3);
     expect(unknown.every((r) => r.startsWith("Couldn't verify"))).toBe(true);
   });
 });
@@ -106,7 +135,6 @@ describe("assetFacts", () => {
       lastClose: "300",
       avgDollarVolume: "30000000",
       historyDays: 119,
-      marginRequirementLong: "30",
     });
   });
 

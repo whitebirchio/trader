@@ -4,11 +4,12 @@ import type { Limits } from "./limits.js";
 import type { AssetFacts } from "./types.js";
 
 /**
- * Fund-name markers of leveraged or inverse products. "Short" counts unless it
- * means duration (Short-Term / Short Duration / Short Maturity). False
- * positives are acceptable here; false negatives are not (SPEC-risk).
+ * Fund-name markers of leveraged, inverse or volatility products. "Short"
+ * counts unless it means duration (Short-Term / Short Duration / Short
+ * Maturity). False positives are acceptable here; false negatives are not
+ * (SPEC-risk).
  */
-const LEVERAGED_NAME = /\b(ultra\w*|bull|bear|inverse|leveraged|\d+(\.\d+)?x)\b/i;
+const LEVERAGED_NAME = /\b(ultra\w*|bull|bear|inverse|leveraged|\d+(\.\d+)?x|vix|volatility)\b/i;
 const SHORT_NAME = /\bshort\b(?![\s-]*(term|duration|maturity))/i;
 
 /** Why a symbol may not be bought; empty when eligible. Sells never consult this. */
@@ -19,10 +20,10 @@ export function ineligibleReasons(symbol: string, facts: AssetFacts | undefined,
   if (!facts.tradable) reasons.push(`${symbol} isn't tradable at Alpaca.`);
   if (!facts.fractionable) reasons.push(`${symbol} can't be traded in fractional shares.`);
 
-  if (facts.marginRequirementLong === null) {
-    reasons.push(`Couldn't verify whether ${symbol} is leveraged (no margin requirement).`);
-  } else if (compare(facts.marginRequirementLong, limits.leveragedMarginPct) >= 0) {
-    reasons.push(`${symbol} is leveraged or inverse (margin requirement ${facts.marginRequirementLong}%).`);
+  // Two independent layers (SPEC-risk): the sponsor, then the fund's own name.
+  const sponsor = limits.leveragedFundSponsors.find((sp) => new RegExp(`\\b${sp}\\b`, "i").test(facts.name));
+  if (sponsor) {
+    reasons.push(`${symbol} is leveraged or inverse: ${sponsor} makes leveraged, inverse and volatility funds ("${facts.name}").`);
   }
   if (LEVERAGED_NAME.test(facts.name) || SHORT_NAME.test(facts.name)) {
     reasons.push(`${symbol} looks leveraged or inverse by name ("${facts.name}").`);
@@ -71,7 +72,6 @@ export function assetFacts(
     name: asset.name,
     tradable: asset.tradable && asset.status === "active",
     fractionable: asset.fractionable,
-    marginRequirementLong: asset.marginRequirementLong,
     lastClose: last?.c ?? null,
     avgDollarVolume: recent.length > 0 ? div(total, String(recent.length), 0, "down") : null,
     historyDays: first ? Math.floor((now.getTime() - first.t.getTime()) / 86_400_000) : null,

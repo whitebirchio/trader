@@ -33,7 +33,6 @@ export interface AssetFacts {
   name: string;
   tradable: boolean;
   fractionable: boolean;
-  marginRequirementLong: string | null;
   lastClose: string | null;
   avgDollarVolume: string | null;
   /** Calendar days since the first daily bar we could find (bars are fetched 120 days back). */

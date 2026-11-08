@@ -78,7 +78,7 @@ describe("riskGate", () => {
 
     expect(await events("risk.order_clipped")).toHaveLength(1);
     const [rejected] = await events("risk.order_rejected");
-    expect(rejected).toMatchObject({ subject: "TQQQ", payload: { reasons: ["TQQQ is leveraged or inverse (margin requirement 75%)."] } });
+    expect(rejected).toMatchObject({ subject: "TQQQ", payload: { reasons: ['TQQQ is leveraged or inverse: ProShares makes leveraged, inverse and volatility funds ("ProShares UltraPro QQQ").'] } });
   });
 
   it("rejects everything when the last sync is stale", async () => {
