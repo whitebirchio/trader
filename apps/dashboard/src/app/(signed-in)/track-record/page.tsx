@@ -21,7 +21,7 @@ export default async function TrackRecordPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Theses" value={`${o.theses}`} detail={`${o.scored} scored, ${o.closed} closed`} />
         <StatTile label="vs VTI" value={o.excessPct ? <Signed value={o.excessPct}>{formatPts(o.excessPct)}</Signed> : "—"}
-          detail={<><Signed value={o.excess}>{formatSignedUsd(o.excess)}</Signed> on {formatUsd(o.bought)} bought</>} />
+          detail={`${formatSignedUsd(o.excess)} on ${formatUsd(o.bought)} bought`} />
         <StatTile label="Beat VTI" value={o.beatVtiPct ? formatPct(o.beatVtiPct, 0, false) : "—"} detail="Share of scored theses" />
         <StatTile label="Held" value={o.medianDaysHeld === null ? "—" : formatDays(o.medianDaysHeld)} detail="Median" />
       </div>
@@ -98,15 +98,15 @@ export default async function TrackRecordPage() {
                         <td className="text-right">{formatUsd(r.bought)}</td>
                         <td className="text-right">
                           <Change pct={r.returnPct} />
-                          <div className="text-xs text-[var(--muted)]"><Signed value={r.pnl}>{formatSignedUsd(r.pnl)}</Signed></div>
+                          <div className="text-xs text-[var(--muted)]">{formatSignedUsd(r.pnl)}</div>
                         </td>
                         <td className="text-right">
                           <Change pct={r.vtiPct} />
-                          <div className="text-xs text-[var(--muted)]"><Signed value={r.vtiPnl}>{formatSignedUsd(r.vtiPnl)}</Signed></div>
+                          <div className="text-xs text-[var(--muted)]">{formatSignedUsd(r.vtiPnl)}</div>
                         </td>
                         <td className="text-right font-medium">
                           <Signed value={r.excessPct}>{formatPts(r.excessPct)}</Signed>
-                          <div className="text-xs font-normal text-[var(--muted)]"><Signed value={r.excess}>{formatSignedUsd(r.excess)}</Signed></div>
+                          <div className="text-xs font-normal text-[var(--muted)]">{formatSignedUsd(r.excess)}</div>
                         </td>
                       </>
                     ) : (
