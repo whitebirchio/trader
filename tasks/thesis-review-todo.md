@@ -16,7 +16,7 @@
 - **Depends on:** R1 · **Scope:** M
 
 ## Checkpoint A
-- [ ] Gate green; `rebalance:plan --env staging` with a sample strategy carrying `reviewBy`
+- [x] Gate green; on the staging deploy (2026-11-08), `preview_strategy` through the staging MCP server: a past date, a dropped date and an extension without newer evidence are rejected with the expected messages; a valid date and an extension with newer dated evidence pass
 
 ### R3: Surfaces
 - [x] `get_strategy` (`reviewBy`, `daysToReview`), `get_rules` (lifecycle + rules); scorecard ending `overdue`; dashboard state labels and review dates
@@ -27,5 +27,6 @@
 - **Scope:** S
 
 ## Checkpoint B
-- [ ] Staging: a paper strategy with `reviewBy` = the next trading day unwinds the session after; email queued (suppressed)
+- [x] Staging v3 (paper) submitted with LLY `reviewBy` 2026-11-09; `get_strategy` shows it (`daysToReview` 1)
+- [ ] Tue 2026-11-10: LLY unwinds on paper; `thesis.review_overdue` queued (suppressed on staging)
 - [ ] PR → Scott merges → production → RemoteTrigger
