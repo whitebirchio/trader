@@ -34,6 +34,14 @@ Email you about what Trader does, without you having to look. Every meaningful a
 
 It goes out **every trading day**, quiet days included (Scott, 2026-10-31), so its arrival doubles as "Trader is alive". There's no digest on weekends and market holidays: nothing trades and nothing syncs. `portfolio` adds a vs-VTI line later.
 
+**The weekly letter** (#38, `tasks/weekly-letter-plan.md`) says whether the strategy is working. `notify-weekly` sends it on the week's last session (the next session is in a later week, from Alpaca's calendar, so holiday weeks still get one), an hour after the close and once that day's after-close equity snapshot exists. It covers:
+- the week's flow-adjusted return vs VTI's over the same days, and the same since the start
+- the scorecard's track record (overall and by kind), and each thesis opened or closed this week
+- each strategy version that changed something, with the first line of its summary; resubmissions that only reaffirmed it are counted, not listed
+- automatic exits (stops, stale, overdue), review dates in the next 14 days, and the guardrail state
+
+One letter per week: `notifications.week_of` (the week's Monday) is unique. Staging writes it as `suppressed` like the digest.
+
 ## Setup: moving whitebirch.io DNS to Cloudflare
 
 whitebirch.io's DNS is hosted by Squarespace (formerly Google Domains). The domain is registered through Key-Systems and has **DNSSEC on**. Its mail forwarding to Gmail is Squarespace's built-in forwarding, which runs on Mailgun (the `mxa`/`mxb.mailgun.org` MX, SPF and `k1._domainkey` records). The plan **moves DNS to Cloudflare** (free) and **replaces Squarespace forwarding with Cloudflare Email Routing**, which does the same job. That one setup then serves both your forwarding and Trader's emails.
@@ -69,6 +77,7 @@ No new npm dependencies. The engine Worker gets a `send_email` binding (`EMAIL`,
 npx vitest run notifications                                         # (in packages/core) routing, outbox, digest, throttling
 npm run notify:test -w @trader/core -- --env staging                 # queue a test email through the outbox (sent on the next tick)
 npm run notify:preview -w @trader/core -- --env staging --digest     # print today's digest without sending
+npm run notify:preview -w @trader/core -- --env staging --weekly --date 2026-11-06   # print that week's letter without sending
 ```
 
 ## Project Structure
@@ -79,7 +88,8 @@ packages/core/src/notifications/
   routing.ts    → audit kind → urgent | digest | ignore (pure)
   compose.ts    → urgent email and digest text/HTML (pure, snapshot-tested)
   outbox.ts     → enqueue (idempotent per audit event), deliver (claim, send, mark, retry)
-  jobs.ts       → `notify-urgent` (every tick), `notify-digest` (after-close window)
+  jobs.ts       → `notify-urgent` (every tick), `notify-digest` (after-close window), `notify-weekly` (the week's last session)
+  weekly.ts     → the weekly letter's data from snapshots, VTI closes, the scorecard and strategy versions
 apps/engine/src/mailer.ts → CloudflareMailer over env.EMAIL
 ```
 
@@ -87,7 +97,7 @@ apps/engine/src/mailer.ts → CloudflareMailer over env.EMAIL
 
 | Table | Purpose |
 |---|---|
-| `notifications` | `id`, `type` (`urgent` / `digest` / `test`), `digest_date` (unique per date for digests), `subject`, `text`, `html`, `audit_event_ids` (uuid[]), `status` (`pending` / `sending` / `sent` / `failed` / `suppressed`), `attempts`, `last_error`, `message_id`, `created_at`, `sent_at` |
+| `notifications` | `id`, `type` (`urgent` / `digest` / `weekly` / `test`), `digest_date` (unique per date for digests), `week_of` (unique per week for letters), `subject`, `text`, `html`, `audit_event_ids` (uuid[]), `status` (`pending` / `sending` / `sent` / `failed` / `suppressed`), `attempts`, `last_error`, `message_id`, `created_at`, `sent_at` |
 | `notification_items` | (`audit_event_id`, `type`) unique. This is the guarantee that an event is emailed at most once per type. |
 
 ## Testing Strategy

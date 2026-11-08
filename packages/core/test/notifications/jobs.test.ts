@@ -3,10 +3,13 @@ import { recordEvent } from "../../src/audit.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, notifications } from "../../src/db/schema.js";
+import { auditEvents, benchmarkCloses, equitySnapshots, notifications, thesisEvents } from "../../src/db/schema.js";
 import type { TradingEnv } from "../../src/env.js";
 import type { JobDeps } from "../../src/jobs.js";
-import { notifyDigest, notifyUrgent } from "../../src/notifications/jobs.js";
+import { notifyDigest, notifyUrgent, notifyWeekly } from "../../src/notifications/jobs.js";
+import { headline } from "../../src/notifications/weekly.js";
+import { submitStrategy } from "../../src/portfolio/store.js";
+import { strategy, thesis } from "../portfolio/fixtures.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
 import { FakeMailer } from "./fake-mailer.js";
@@ -142,3 +145,76 @@ describe("notify-digest", () => {
     expect(await notifyDigest(ctx())).toEqual({ status: "skipped", reason: "not a trading day" });
   });
 });
+
+describe("notify-weekly", () => {
+  // The week of Mon 2026-11-02; Friday's close is 21:00 UTC.
+  const FRI_CLOSE = new Date("2026-11-06T21:00:00Z");
+  const session = (date: string) => ({ date, open: new Date(`${date}T14:30:00Z`), close: new Date(`${date}T21:00:00Z`) });
+
+  async function week() {
+    broker.calendar = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09"].map(session);
+    await syncBroker(db, broker, "production", new Date("2026-11-02T15:00:00Z"));
+    await db.insert(equitySnapshots).values([
+      { tradingDate: "2026-10-30", equity: "1000", cash: null, longMarketValue: null, recordedAt: new Date("2026-10-30T21:10:00Z") },
+      { tradingDate: "2026-11-06", equity: "1050", cash: "0", longMarketValue: "1050", recordedAt: new Date("2026-11-06T21:10:00Z") },
+    ]);
+    await db.insert(benchmarkCloses).values([
+      { symbol: "VTI", tradingDate: "2026-10-30", close: "300" },
+      { symbol: "VTI", tradingDate: "2026-11-06", close: "306" },
+    ]);
+    await submitStrategy(db, strategy({ summary: "Version 1: Change. Adds AAPL on services growth.\n\nMore detail.", conviction: [thesis({ reviewBy: "2026-11-12" })] }), "claude", new Date("2026-11-04T13:00:00Z"));
+    await db.insert(thesisEvents).values({ thesisId: "lkq-a", symbol: "LKQ", kind: "overdue", strategyVersion: 1, reason: "past its review date (2026-11-04) without a later one", at: new Date("2026-11-05T15:00:00Z") });
+  }
+
+  it("waits for the week's last session, an hour after the close, and today's snapshot", async () => {
+    await week();
+    clock = new Date("2026-11-05T22:30:00Z"); // Thursday, with a Friday session ahead
+    expect(await notifyWeekly(ctx())).toEqual({ status: "skipped", reason: "not the week's last session" });
+    clock = new Date(FRI_CLOSE.getTime() + 30 * 60_000);
+    expect(await notifyWeekly(ctx())).toEqual({ status: "skipped", reason: "before letter time" });
+    await db.delete(equitySnapshots);
+    clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
+    expect(await notifyWeekly(ctx())).toEqual({ status: "skipped", reason: "waiting for today's after-close equity snapshot" });
+  });
+
+  it("sends one letter per week: the week vs VTI, the week's decisions, and what's coming up", async () => {
+    await week();
+    clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
+    expect(await notifyWeekly(ctx())).toMatchObject({ status: "succeeded", detail: { weekOf: "2026-11-02", queued: true, sent: 1 } });
+    const email = mailer.sent[0]!;
+    expect(email.subject).toBe("Trader weekly: +5% vs VTI +2% (week of Mon Nov 2)");
+    expect(email.text).toContain("v1 (claude): Version 1: Change. Adds AAPL on services growth.");
+    expect(email.text).toContain("LKQ (lkq-a), overdue: past its review date (2026-11-04) without a later one");
+    expect(email.text).toContain("AAPL (aapl-services): Thu Nov 12");
+    expect(email.text).toContain("Normal: drawdown");
+
+    clock = new Date(clock.getTime() + 15 * 60_000);
+    expect(await notifyWeekly(ctx())).toEqual({ status: "skipped", reason: "this week's letter already queued" });
+    expect(mailer.sent).toHaveLength(1);
+  });
+
+  it("counts a resubmission that only reaffirms the strategy rather than listing it", async () => {
+    await week();
+    await submitStrategy(db, strategy({ summary: "Version 2: Keep. Reaffirmed: no material change.", conviction: [thesis({ reviewBy: "2026-11-12" })] }), "claude", new Date("2026-11-05T13:00:00Z"));
+    clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
+    await notifyWeekly(ctx());
+    const text = mailer.sent[0]!.text;
+    expect(text).toContain("v1 (claude): Version 1: Change.");
+    expect(text).not.toContain("v2 (claude)");
+    expect(text).toContain("Reaffirmed unchanged 1 time");
+  });
+
+  it("is written but not sent on staging", async () => {
+    await week();
+    clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
+    await notifyWeekly(ctx("staging"));
+    expect(mailer.sent).toHaveLength(0);
+    expect((await db.select().from(notifications)).map((n) => [n.type, n.status, n.weekOf])).toEqual([["weekly", "suppressed", "2026-11-02"]]);
+  });
+
+  it("takes a strategy summary's first line as its headline", () => {
+    expect(headline("\n  Version 9: Keep.  \nDetails")).toBe("Version 9: Keep.");
+    expect(headline("x".repeat(300))).toHaveLength(240);
+  });
+});
+

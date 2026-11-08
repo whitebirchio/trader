@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { marketDate, marketTimeToUtc } from "../src/time.js";
+import { isLastSessionOfWeek, marketDate, marketTimeToUtc, weekMonday } from "../src/time.js";
 
 describe("market time", () => {
   it("converts New York session times to UTC across DST", () => {
@@ -25,3 +25,23 @@ describe("formatMarketTime", () => {
     expect(formatMarketTime(new Date("2026-11-03T15:15:00Z"))).toBe("Tue, Nov 3, 10:15 AM ET");
   });
 });
+
+describe("weeks", () => {
+  it("finds the Monday of a date's week", () => {
+    expect(weekMonday("2026-11-13")).toBe("2026-11-09"); // Friday
+    expect(weekMonday("2026-11-09")).toBe("2026-11-09"); // Monday
+    expect(weekMonday("2026-11-15")).toBe("2026-11-09"); // Sunday
+  });
+
+  it("knows the last trading session of a week, including a Friday holiday", () => {
+    const normal = ["2026-11-12", "2026-11-13", "2026-11-16"];
+    expect(isLastSessionOfWeek("2026-11-13", normal)).toBe(true);
+    expect(isLastSessionOfWeek("2026-11-12", normal)).toBe(false);
+    // Good Friday 2027 (Apr 2) is a market holiday: Thursday is the week's last session.
+    const holiday = ["2027-03-31", "2027-04-01", "2027-04-05"];
+    expect(isLastSessionOfWeek("2027-04-01", holiday)).toBe(true);
+    expect(isLastSessionOfWeek("2027-04-02", holiday)).toBe(false); // not a session
+    expect(isLastSessionOfWeek("2026-11-13", ["2026-11-13"])).toBe(true); // nothing later in the calendar given
+  });
+});
+

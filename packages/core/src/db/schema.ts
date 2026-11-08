@@ -290,6 +290,8 @@ export const notifications = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     type: text().notNull(),
     digestDate: date({ mode: "string" }).unique("notifications_digest_date_key"),
+    /** The weekly letter's week (its Monday): one letter per week (#38). */
+    weekOf: date({ mode: "string" }).unique("notifications_week_of_key"),
     subject: text().notNull(),
     text: text().notNull(),
     html: text().notNull(),

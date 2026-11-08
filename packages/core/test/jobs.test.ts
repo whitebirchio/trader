@@ -110,7 +110,7 @@ describe("TICK_JOBS", () => {
     const { TICK_JOBS, isJobName } = await import("../src/jobs.js");
     expect(TICK_JOBS.every(isJobName)).toBe(true);
     expect(TICK_JOBS[0]).toBe("heartbeat");
-    expect(TICK_JOBS.slice(-2)).toEqual(["notify-urgent", "notify-digest"]);
+    expect(TICK_JOBS.slice(-3)).toEqual(["notify-urgent", "notify-digest", "notify-weekly"]);
     expect(isJobName("rm -rf")).toBe(false);
   });
 });
