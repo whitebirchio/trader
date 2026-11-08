@@ -25,18 +25,29 @@ const migrationSql = journal.entries
   .sort((a, b) => a.idx - b.idx)
   .map((e) => readFileSync(join(migrationsDir, `${e.tag}.sql`), "utf8"));
 
-/**
- * Fresh in-memory Postgres with all real migrations applied. PGlite runs as
- * superuser, so role grants are not exercised here — the append-only trigger
- * is, and docs/SETUP.md verifies the grants against Neon.
- */
-export async function createTestDb(): Promise<{ db: Db; pglite: PGlite }> {
+async function migrated(): Promise<PGlite> {
   const pglite = new PGlite();
   for (const sql of migrationSql) {
     for (const statement of sql.split("--> statement-breakpoint")) {
       if (statement.trim()) await pglite.exec(statement);
     }
   }
+  return pglite;
+}
+
+// Migrated once per test file, then cloned for each test: a clone copies the
+// migrated database (about 4× faster than replaying every migration) and is
+// fully independent of the template and of other clones.
+let template: Promise<PGlite> | null = null;
+
+/**
+ * Fresh in-memory Postgres with all real migrations applied. PGlite runs as
+ * superuser, so role grants are not exercised here — the append-only trigger
+ * is, and docs/SETUP.md verifies the grants against Neon.
+ */
+export async function createTestDb(): Promise<{ db: Db; pglite: PGlite }> {
+  template ??= migrated();
+  const pglite = (await (await template).clone()) as PGlite;
   const db = drizzle(pglite, { casing: "snake_case" }) as unknown as Db;
   return { db, pglite };
 }
