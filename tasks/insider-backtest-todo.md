@@ -28,7 +28,7 @@
 - [x] Found on the spot check: same-day director buys on a schedule (SPG's ten directors) inflate clusters → routine/opportunistic classification added (Cohen, Malloy & Pomorski 2012), with its own breakdowns from 2020
 
 ### B4: Full run + report
-- [ ] 2018q1–2026q2; `docs/research/insider-buys-vs-vti-2026-11.md`: the method, the biases (with counts dropped), bucket tables, year by year, and a plain-language summary of what it means for Trader
+- [x] 2018q1–2026q2; `docs/research/insider-buys-vs-vti-2026-11.md`: the method, the biases (with counts dropped), bucket tables, year by year, and a plain-language summary of what it means for Trader (2026-11-08: 118,563 purchases → 43,609 events → 11,294 scored; the summary survives a re-run)
 - **Depends on:** B3 · **Scope:** S
 
 ## Checkpoint B
