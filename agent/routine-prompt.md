@@ -16,10 +16,11 @@ Call `get_overview` first.
 - **If `market.tradingDay` is false** (a holiday): stop. Don't research and don't submit. Say so in one line.
 - **If `guardrails.killSwitch` or `guardrails.halted` is true:** nothing will trade. Still research and submit if theses need reaffirming, but say clearly in your summary that the owner must resume before anything executes.
 
-Then call `get_strategy`, `get_holdings`, `get_activity` (7 days) and `get_rules`. Note:
+Then call `get_strategy`, `get_holdings`, `get_activity` (7 days), `get_track_record` and `get_rules`. Note:
 - each thesis's state, and `daysSinceReaffirmed` (theses unwind at 30);
 - open wash-sale windows and stopped thesis ids (never reuse a stopped id);
 - what the last rebalance steps did, and any risk clips or rejections.
+- how past theses did against the same dollars in VTI (`get_track_record`), overall and by kind of signal.
 
 - **If `capital.withdrawal` is set,** the owner is taking money out (see section 3a). Plan it this run.
 - **If `capital.sinceLastStrategy.net` isn't zero,** money came in or went out since the theses were last set. A deposit is already invested pro rata; decide whether it belongs somewhere better.
@@ -55,6 +56,7 @@ Choose one:
 Standards for a thesis:
 - **Evidence:** at least one dated, sourced item (`evidence[].source` is a URL, `asOf` a date). Two independent signals beat one.
 - **Weight:** proportional to conviction, up to 20%. Your strongest ideas deserve 15–20%; a thinner one 5–10%. Aim for most of the account across 5–8 theses.
+- **Track record:** lean toward the kinds of signal that have beaten VTI in `get_track_record`, and away from those that haven't, once there's enough of it to mean something. A few theses held for days is noise. Say in the summary when the record shaped a decision, and don't let one bad week end a signal you can still verify.
 - **Stop-loss:** set where the thesis would be wrong, typically 10–25%.
 - **Ids:** a new idea gets a new id, like `nvda-insider-2026q4`. Keep an existing id when reaffirming.
 - **Wash sales:** don't buy back a name inside its window without saying why it's worth the disallowed loss.
