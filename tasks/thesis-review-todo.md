@@ -11,8 +11,8 @@
 - **Scope:** M
 
 ### R2: Submission rules
-- [ ] `submitStrategy` / `preview_strategy`: reviewBy after today; kept once set; extended only with an evidence item dated after every evidence date in the active version's thesis
-- [ ] Tests for each rule, including a rejection's audit/email and that the active version stays
+- [x] `submitStrategy` / `preview_strategy`: reviewBy after today; kept once set; extended only with an evidence item dated after every evidence date in the active version's thesis
+- [x] Tests for each rule, including a rejection's audit/email and that the active version stays
 - **Depends on:** R1 · **Scope:** M
 
 ## Checkpoint A

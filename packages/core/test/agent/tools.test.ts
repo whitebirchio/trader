@@ -190,6 +190,16 @@ describe("preview_strategy", () => {
   });
 });
 
+describe("preview_strategy and the review-date rules", () => {
+  it("reports what submit would reject, before planning anything", async () => {
+    await submitStrategyTool(deps, strategy({ conviction: [thesis({ reviewBy: "2026-12-01" })] }));
+    expect(await previewStrategy(deps, strategy())).toEqual({
+      valid: false,
+      errors: ['conviction[0].reviewBy: thesis "aapl-services" had a review date (2026-12-01); keep one, and move it later only with fresh evidence'],
+    });
+  });
+});
+
 describe("submit_strategy", () => {
   it("stores the draft as Claude's next version", async () => {
     expect(await submitStrategyTool(deps, strategy())).toEqual({ status: "activated", version: 1 });

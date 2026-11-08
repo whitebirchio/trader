@@ -76,3 +76,20 @@ describe("submitStrategy", () => {
     await expect(db.delete(strategies)).rejects.toThrow();
   });
 });
+
+describe("review-date rules at submission", () => {
+  it("rejects a review date that isn't after today, keeps the active version, and emails why", async () => {
+    await submitStrategy(db, strategy({ summary: "first" }), "claude", now);
+    const r = await submitStrategy(db, strategy({ conviction: [thesis({ reviewBy: "2026-11-02" })] }), "claude", now);
+    expect(r).toEqual({ status: "rejected", errors: ["conviction[0].reviewBy: 2026-11-02 must be after today (2026-11-02)"] });
+    expect((await activeStrategy(db, now)).strategy.summary).toBe("first");
+    expect(await events("strategy.rejected")).toEqual([expect.objectContaining({ payload: expect.objectContaining({ errors: r.status === "rejected" ? r.errors : [] }) })]);
+  });
+
+  it("rejects dropping a review date the active version had", async () => {
+    await submitStrategy(db, strategy({ conviction: [thesis({ reviewBy: "2026-12-01" })] }), "claude", now);
+    const r = await submitStrategy(db, strategy(), "claude", now);
+    expect(r.status).toBe("rejected");
+  });
+});
+

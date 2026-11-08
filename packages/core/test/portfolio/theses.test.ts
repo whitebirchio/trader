@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenLot } from "../../src/broker/lots.js";
-import { averageCost, thesisStates } from "../../src/portfolio/theses.js";
+import { averageCost, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
 import { strategy, thesis } from "./fixtures.js";
 
 const created = new Date("2026-11-02T15:00:00Z");
@@ -110,6 +110,45 @@ describe("review dates", () => {
     const now = new Date("2026-11-10T15:00:00Z");
     expect(withReview("2026-11-03", { now, createdAt: new Date("2026-11-09T15:00:00Z") })).toMatchObject({ state: "overdue" });
     expect(withReview("2026-12-01", { now, createdAt: new Date("2026-11-09T15:00:00Z") })).toMatchObject({ state: "active" });
+  });
+});
+
+describe("reviewDateErrors", () => {
+  const TODAY = "2026-11-08";
+  const ev = (asOf?: string) => ({ kind: "fundamental" as const, summary: "Q3 beat and raised", ...(asOf ? { asOf } : {}) });
+  const doc = (over: Parameters<typeof thesis>[0]) => strategy({ conviction: [thesis(over)] });
+  const errs = (next: Parameters<typeof thesis>[0], before?: Parameters<typeof thesis>[0]) => reviewDateErrors(doc(next), before ? doc(before) : strategy({ conviction: [] }), TODAY);
+
+  it("needs a new or changed date to be after today", () => {
+    expect(errs({ reviewBy: "2026-11-09" })).toEqual([]);
+    expect(errs({ reviewBy: "2026-11-08" })).toEqual(["conviction[0].reviewBy: 2026-11-08 must be after today (2026-11-08)"]);
+    expect(errs({ reviewBy: "2026-11-01" }, { reviewBy: "2026-12-01" })).toEqual(["conviction[0].reviewBy: 2026-11-01 must be after today (2026-11-08)"]);
+  });
+
+  it("lets an unchanged date through even once it has passed (that thesis stays overdue)", () => {
+    expect(errs({ reviewBy: "2026-11-01" }, { reviewBy: "2026-11-01" })).toEqual([]);
+  });
+
+  it("keeps a review date once a thesis has one", () => {
+    expect(errs({}, { reviewBy: "2026-12-01" })).toEqual([
+      'conviction[0].reviewBy: thesis "aapl-services" had a review date (2026-12-01); keep one, and move it later only with fresh evidence',
+    ]);
+    expect(errs({ reviewBy: "2026-12-01" }, {})).toEqual([]); // adding one to an existing thesis is fine
+  });
+
+  it("moves a date later only with evidence dated after everything the thesis cited before", () => {
+    const before = { reviewBy: "2026-12-01", evidence: [ev("2026-10-30"), ev("2026-11-02")] };
+    expect(errs({ reviewBy: "2027-01-15", evidence: before.evidence }, before)).toEqual([
+      "conviction[0].reviewBy: moving it from 2026-12-01 to 2027-01-15 needs new evidence dated after 2026-11-02 (add a dated source)",
+    ]);
+    expect(errs({ reviewBy: "2027-01-15", evidence: [...before.evidence, ev("2026-11-02")] }, before)).toHaveLength(1); // the same day isn't newer
+    expect(errs({ reviewBy: "2027-01-15", evidence: [...before.evidence, ev()] }, before)).toHaveLength(1); // undated doesn't count
+    expect(errs({ reviewBy: "2027-01-15", evidence: [...before.evidence, ev("2026-11-06")] }, before)).toEqual([]);
+    expect(errs({ reviewBy: "2027-01-15", evidence: [ev("2026-11-06")] }, { reviewBy: "2026-12-01", evidence: [ev()] })).toEqual([]); // nothing dated before
+  });
+
+  it("allows moving a date earlier without new evidence", () => {
+    expect(errs({ reviewBy: "2026-11-20" }, { reviewBy: "2026-12-01" })).toEqual([]);
   });
 });
 

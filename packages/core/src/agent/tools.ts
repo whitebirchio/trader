@@ -10,7 +10,7 @@ import { benchmarkSince } from "../portfolio/benchmark.js";
 import { loadScorecard } from "../portfolio/scorecard.js";
 import { WASH_SALE_DAYS, washSaleWindow } from "../portfolio/planner.js";
 import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.js";
-import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submitStrategy } from "../portfolio/store.js";
+import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submissionErrors, submitStrategy } from "../portfolio/store.js";
 import { EVIDENCE_KINDS, validateStrategy } from "../portfolio/strategy.js";
 import { IDLE_SYMBOL } from "../portfolio/systematic.js";
 import { STALE_AFTER_MS, thesisStates } from "../portfolio/theses.js";
@@ -259,9 +259,8 @@ export function getRules() {
 export async function previewStrategy({ db, broker, env, now }: ToolDeps, document: unknown) {
   const parsed = validateStrategy(document);
   if (!parsed.ok) return { valid: false, errors: parsed.errors };
-  const stopped = await stoppedThesisIds(db);
-  const reused = parsed.strategy.conviction.flatMap((t, i) => (stopped.has(t.id) ? [`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`] : []));
-  if (reused.length) return { valid: false, errors: reused };
+  const errors = await submissionErrors(db, parsed.strategy, now);
+  if (errors.length) return { valid: false, errors };
   // Outside the session the mirror is hours old and risk would reject every
   // trade for staleness alone. Preview on the last-synced data instead and say
   // so: the real step runs after a fresh sync and re-checks the age.

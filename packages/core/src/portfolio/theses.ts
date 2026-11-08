@@ -84,6 +84,40 @@ export function thesisStates(input: ThesisInputs): ThesisState[] {
   });
 }
 
+/**
+ * The review-date rules a submission must meet (SPEC-portfolio), against the
+ * active version and today's market date:
+ * 1. a new or changed review date must be after today;
+ * 2. a thesis that had a review date keeps one;
+ * 3. moving it later needs evidence dated after everything the thesis cited
+ *    before (the part of "re-justify" code can check).
+ * An unchanged date passes even once it has passed: that thesis just stays
+ * overdue, and the rest of the strategy can still be reaffirmed.
+ */
+export function reviewDateErrors(next: Strategy, active: Strategy, today: string): string[] {
+  const before = new Map(active.conviction.map((t) => [t.id, t]));
+  const latest = (t: Thesis) => t.evidence.reduce<string | null>((max, e) => (e.asOf && (!max || e.asOf > max) ? e.asOf : max), null);
+  const errors: string[] = [];
+  next.conviction.forEach((t, i) => {
+    const prev = before.get(t.id);
+    const at = `conviction[${i}].reviewBy`;
+    if (prev?.reviewBy && !t.reviewBy) {
+      errors.push(`${at}: thesis "${t.id}" had a review date (${prev.reviewBy}); keep one, and move it later only with fresh evidence`);
+      return;
+    }
+    if (!t.reviewBy || t.reviewBy === prev?.reviewBy) return;
+    if (t.reviewBy <= today) errors.push(`${at}: ${t.reviewBy} must be after today (${today})`);
+    else if (prev?.reviewBy && t.reviewBy > prev.reviewBy) {
+      const was = latest(prev);
+      const now = latest(t);
+      if (!now || (was && now <= was)) {
+        errors.push(`${at}: moving it from ${prev.reviewBy} to ${t.reviewBy} needs new evidence dated after ${was ?? "the thesis's current evidence"} (add a dated source)`);
+      }
+    }
+  });
+  return errors;
+}
+
 /** Prices in email text: always two decimals ("$49.60", not "$49.6"). Display only. */
 function cents(v: string): string {
   const r = round(v, 2, "half-even");
