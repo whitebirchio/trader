@@ -1,7 +1,7 @@
 import { trackRecordView } from "@trader/core";
 import { Badge, Card, Change, StatTile } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
-import { formatEt, formatPct, formatPts, formatQty, formatUsd } from "@/lib/format";
+import { formatDays, formatEt, formatPct, formatPts, formatQty, formatSignedUsd, formatUsd } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +20,9 @@ export default async function TrackRecordPage() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Theses" value={`${o.theses}`} detail={`${o.scored} scored, ${o.closed} closed`} />
-        <StatTile label="vs VTI" value={o.excessPct ? formatPts(o.excessPct) : "—"} detail={`${formatUsd(o.excess)} on ${formatUsd(o.bought)} bought`} />
+        <StatTile label="vs VTI" value={o.excessPct ? formatPts(o.excessPct) : "—"} detail={`${formatSignedUsd(o.excess)} on ${formatUsd(o.bought)} bought`} />
         <StatTile label="Beat VTI" value={o.beatVtiPct ? formatPct(o.beatVtiPct, 0, false) : "—"} detail="Share of scored theses" />
-        <StatTile label="Held" value={o.medianDaysHeld === null ? "—" : `${o.medianDaysHeld} days`} detail="Median" />
+        <StatTile label="Held" value={o.medianDaysHeld === null ? "—" : formatDays(o.medianDaysHeld)} detail="Median" />
       </div>
 
       <Card title="By kind of signal (each thesis's most cited evidence)">
@@ -47,8 +47,8 @@ export default async function TrackRecordPage() {
                     <td className="py-2 font-medium">{k.kind}</td>
                     <td className="text-right">{k.scored === k.theses ? k.theses : `${k.scored} of ${k.theses}`}</td>
                     <td className="text-right">{formatUsd(k.bought)}</td>
-                    <td className="text-right">{formatUsd(k.pnl)}</td>
-                    <td className="text-right">{formatUsd(k.vtiPnl)}</td>
+                    <td className="text-right">{formatSignedUsd(k.pnl)}</td>
+                    <td className="text-right">{formatSignedUsd(k.vtiPnl)}</td>
                     <td className="text-right">{k.excessPct ? formatPts(k.excessPct) : "—"}</td>
                   </tr>
                 ))}
@@ -85,7 +85,7 @@ export default async function TrackRecordPage() {
                       <div className="text-xs text-[var(--muted)]">{r.ids.join(" → ")}</div>
                     </td>
                     <td className="whitespace-nowrap">
-                      {r.daysHeld} days, {ENDING[r.ending]}
+                      {formatDays(r.daysHeld)}, {ENDING[r.ending]}
                       {r.ending !== "open" && !r.closedAt && <span className="text-[var(--muted)]"> (selling)</span>}
                       <div className="text-xs text-[var(--muted)]">
                         {r.openedAt?.slice(0, 10)} to {r.closedAt?.slice(0, 10) ?? "now"}
@@ -97,15 +97,15 @@ export default async function TrackRecordPage() {
                         <td className="text-right">{formatUsd(r.bought)}</td>
                         <td className="text-right">
                           <Change pct={r.returnPct} />
-                          <div className="text-xs text-[var(--muted)]">{formatUsd(r.pnl)}</div>
+                          <div className="text-xs text-[var(--muted)]">{formatSignedUsd(r.pnl)}</div>
                         </td>
                         <td className="text-right">
                           {formatPct(r.vtiPct)}
-                          <div className="text-xs text-[var(--muted)]">{formatUsd(r.vtiPnl)}</div>
+                          <div className="text-xs text-[var(--muted)]">{formatSignedUsd(r.vtiPnl)}</div>
                         </td>
                         <td className="text-right font-medium">
                           {formatPts(r.excessPct)}
-                          <div className="text-xs font-normal text-[var(--muted)]">{formatUsd(r.excess)}</div>
+                          <div className="text-xs font-normal text-[var(--muted)]">{formatSignedUsd(r.excess)}</div>
                         </td>
                       </>
                     ) : (
