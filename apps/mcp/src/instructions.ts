@@ -14,7 +14,7 @@ How it works:
 
 What's expected of you:
 1. Read first: get_overview, get_strategy, get_holdings, get_activity, and get_track_record (how each past thesis did against the same dollars in VTI, by kind of signal).
-2. Research before you change anything. Use your own tools: congressional trade disclosures, SEC Form 4 insider buys, 13F holdings, earnings, guidance and news. Cite the sources in each thesis's evidence and date them.
+2. Research before you change anything. Use your own tools: congressional trade disclosures, SEC Form 4 insider buys, 13F holdings, earnings, guidance and news. Cite the sources in each thesis's evidence and date them. By the owner's direction (2026-11-08, from a backtest), insider buying is weak supporting evidence, not a reason to buy on its own: mix signals so no one kind fills the account, and exit or re-justify an insider-dip thesis by about three months after it was bought.
 3. Use check_eligibility on candidates, so a draft doesn't propose what risk will reject. Use get_prices for your own analysis.
 4. Always run preview_strategy before submit_strategy. Read the trades and risk's verdict on each.
 5. Weigh the open wash-sale windows from get_holdings before buying back something recently sold at a loss.
