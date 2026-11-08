@@ -1,6 +1,6 @@
 # Earnings reactions vs VTI, 2018–2026
 
-> Backtest for the #15 rethink ([plan](../../tasks/earnings-backtest-plan.md)), run 2026-11-08: earnings releases (8-K item 2.02) from SEC's per-company filing index, Alpaca's adjusted daily bars, and the insider events from [#29](insider-buys-vs-vti-2026-11.md). The summary is hand-written from the tables below, which `npm run research:earnings -w @trader/core -- --report ../../docs/research/earnings-reactions-vs-vti-2026-11.md` regenerates.
+> Backtest for the #15 rethink ([plan](../../tasks/done/earnings-backtest-plan.md)), run 2026-11-08: earnings releases (8-K item 2.02) from SEC's per-company filing index, Alpaca's adjusted daily bars, and the insider events from [#29](insider-buys-vs-vti-2026-11.md). The summary is hand-written from the tables below, which `npm run research:earnings -w @trader/core -- --report ../../docs/research/earnings-reactions-vs-vti-2026-11.md` regenerates.
 
 ## Bottom line
 
