@@ -1,5 +1,5 @@
 /**
- * The quality/value backtest (#49, tasks/momentum-quality-plan.md): each
+ * The quality/value backtest (#49, tasks/done/momentum-quality-plan.md): each
  * April, deciles by gross profitability, earnings yield, book-to-market and a
  * quality-plus-value combination, from SEC's XBRL frames, each against VTI,
  * in-sample (2019–2023 cohorts) and held out (2024 on). Reads the cached

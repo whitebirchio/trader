@@ -1,6 +1,6 @@
 # Quality and value vs VTI, 2019–2026
 
-> Backtest for [#49](https://github.com/whitebirchio/trader/issues/49), run 2026-11-08 from SEC's XBRL frames and Alpaca's daily bars ([plan](../../tasks/momentum-quality-plan.md)). Decided on the 2019–2023 April cohorts, with 2024–2025 held out under a promotion rule fixed before any results (the 250-trading-day excess, after a 0.2% round trip). The summary is hand-written from the tables below, which `npm run research:quality -w @trader/core -- --report ../../docs/research/quality-value-vs-vti-2026-11.md` regenerates.
+> Backtest for [#49](https://github.com/whitebirchio/trader/issues/49), run 2026-11-08 from SEC's XBRL frames and Alpaca's daily bars ([plan](../../tasks/done/momentum-quality-plan.md)). Decided on the 2019–2023 April cohorts, with 2024–2025 held out under a promotion rule fixed before any results (the 250-trading-day excess, after a 0.2% round trip). The summary is hand-written from the tables below, which `npm run research:quality -w @trader/core -- --report ../../docs/research/quality-value-vs-vti-2026-11.md` regenerates.
 
 ## Bottom line
 

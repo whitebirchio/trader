@@ -1,5 +1,5 @@
 /**
- * The momentum backtest (#49, tasks/momentum-quality-plan.md): month-end
+ * The momentum backtest (#49, tasks/done/momentum-quality-plan.md): month-end
  * deciles by past return among the tradable stocks with cached bars, each
  * against VTI, in-sample (to 2023) and held out (2024 on). Offline: it reads
  * the bars research:insiders and research:earnings cached. Read-only.

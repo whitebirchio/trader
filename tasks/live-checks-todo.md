@@ -6,6 +6,8 @@
   - calls `get_track_record`, and the summary says whether the record shaped a decision (#27);
   - sets `reviewBy` on every thesis it keeps or adds (#35 and the higher bar);
   - applies the 2026-11-08 directions without selling the whole book at once;
-  - sees UPBD and HGV as eligible if it considers them (#33).
+  - sees UPBD and HGV as eligible if it considers them (#33);
+  - checks candidates' 12-1 month return and skips −30%-or-worse names without a dated reason (#49).
 - [ ] **Tue 2026-11-10, staging:** LLY (`reviewBy` 2026-11-09) unwinds on paper, and `thesis.review_overdue` is queued (suppressed on staging) (#35).
 - [x] **After #48 merges:** RemoteTrigger update with the higher bar (2026-11-08); `tasks/earnings-backtest-*` moved to `tasks/done/`; stale plan paths in the research code and reports fixed.
+- [ ] **After the avoid-rule PR merges:** RemoteTrigger update (the momentum/quality plan's last item).

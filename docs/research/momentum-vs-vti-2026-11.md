@@ -1,6 +1,6 @@
 # Momentum vs VTI, 2018–2026
 
-> Backtest for [#49](https://github.com/whitebirchio/trader/issues/49), run 2026-11-08 from Alpaca's adjusted daily bars ([plan](../../tasks/momentum-quality-plan.md)). Decided on 2018–2023, with 2024 to May 2026 held out under a promotion rule fixed before any results. The summary is hand-written from the tables below, which `npm run research:momentum -w @trader/core -- --report ../../docs/research/momentum-vs-vti-2026-11.md` regenerates.
+> Backtest for [#49](https://github.com/whitebirchio/trader/issues/49), run 2026-11-08 from Alpaca's adjusted daily bars ([plan](../../tasks/done/momentum-quality-plan.md)). Decided on 2018–2023, with 2024 to May 2026 held out under a promotion rule fixed before any results. The summary is hand-written from the tables below, which `npm run research:momentum -w @trader/core -- --report ../../docs/research/momentum-vs-vti-2026-11.md` regenerates.
 
 ## Bottom line
 
