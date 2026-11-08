@@ -1,6 +1,6 @@
 # Todo: historical replay (#57)
 
-> Plan: `tasks/replay-plan.md`. **Not started: awaiting Scott's review of the plan and its open questions.** Gate for every task: `npm run typecheck && npm test`; focused tests: `npx vitest run replay` (in packages/core). Every task leaves production behaviour unchanged.
+> Plan: `tasks/replay-plan.md`. **Approved 2026-11-08 (decisions in the plan); the build starts after Monday 2026-11-09's routine review.** Gate for every task: `npm run typecheck && npm test`; focused tests: `npx vitest run replay` (in packages/core). Every task leaves production behaviour unchanged.
 
 ## Phase 1: the real code runs under a simulated clock
 
@@ -26,7 +26,7 @@
 **Acceptance criteria:**
 - [ ] On synthetic bars, a strategy with one thesis is bought within the first session after it's inserted; a drop through its stop sells it the next session (never the same day as the buy); idle money sits in VTI.
 - [ ] A replay dated in 2024 leaves only simulated timestamps on orders, fills, snapshots, thesis events and plans (a test asserts it); any seam fixed is production-neutral and tested.
-- [ ] A drawdown through the limit halts the replay's trading (it reports the halt date); `autoResume` resumes it the next session.
+- [ ] A drawdown through the limit halts the replay's trading and reports the halt date; with `autoResume` (the default for rule-based replays), trading resumes the next session and the halt is still reported.
 
 **Verification:**
 - [ ] Tests: `npx vitest run replay/driver`
@@ -138,16 +138,16 @@ All of it is read from the replay database with the existing readers.
 ## Checkpoint C
 - [ ] Gate green
 - [ ] Scott has seen a variant diff on Trader's history
-- [ ] Decide: build #35's trailing stop and profit target next, against the replay (each new schema field gets a variant in the same PR)
+- [ ] Agree that Trader's own history only proves the machinery, and move to the multi-year replay
 
-## Phase 4 (optional, after Checkpoint C): rule-based strategies (mode 2)
+## Phase 4: rule-based strategies (mode 2)
 
 ### T8: A rule-based timeline from the insider data
-**Description:** Generate a weekly timeline from the cached insider events (#29's data): new clusters become theses at 5%, a 15% stop and a 90-day review, at most 8 at a time, with the rest in VTI. Replay 2019–2026, and write it up in `docs/research/` beside the backtest it extends.
+**Description:** Generate a weekly timeline from the cached insider events (#29's data): new clusters become theses at 5%, a 15% stop and a 90-day review, at most 8 at a time, with the rest in VTI. Replay 2019–2026 with auto-resume after halts. Run today's-rule variants on it (stop width, caps, review horizon), and write it up in `docs/research/` beside the backtest it extends.
 
 **Acceptance criteria:**
 - [ ] The generator uses only data dated on or before each week (a test proves no lookahead).
-- [ ] The write-up compares the replay with the insider backtest's result and explains the difference (caps, stops, staleness, costs).
+- [ ] The write-up compares the replay with the insider backtest's result and explains the difference (caps, stops, staleness, costs); it lists every halt, and how each variant changed the outcome.
 
 **Verification:**
 - [ ] Tests: `npx vitest run replay/rules`
@@ -157,7 +157,12 @@ All of it is read from the replay database with the existing readers.
 **Files likely touched:** `src/replay/rules.ts`, `scripts/replay.ts`, `test/replay/rules.test.ts`, `docs/research/insider-replay-*.md`
 **Estimated scope:** Medium
 
+## Checkpoint D
+- [ ] Gate green
+- [ ] Scott has read the multi-year write-up
+- [ ] Next: #35's trailing stop and profit target, built in production code switched off, each with a replay variant, and judged on this replay before either is switched on
+
 ## Done
-- [ ] Every task above, or Phase 4 explicitly deferred
+- [ ] Every task above
 - [ ] `docs/research/README` (or the research index) says how to run a replay and what it can't tell you
 - [ ] Plan and todo moved to `tasks/done/`
