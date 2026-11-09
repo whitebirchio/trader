@@ -44,7 +44,8 @@ describe("SimBroker: orders", () => {
     expect(order).toMatchObject({ status: "filled", filledAvgPrice: "102.102" }); // 102 × (1 + 0.0010)
     const [position] = await b.getPositions();
     expect(position).toMatchObject({ symbol: "VTI", qty: "9.794127441", currentPrice: "102", costBasis: "1000" });
-    expect(await b.getAccount()).toMatchObject({ cash: "9000", equity: "9999", lastEquity: "9989.21" });
+    // lastEquity is the previous close's equity (the starting cash here), as Alpaca's last_equity: today's buy doesn't change it.
+    expect(await b.getAccount()).toMatchObject({ cash: "9000", equity: "9999", lastEquity: "10000" });
     const [fill] = await b.getActivities();
     expect(fill).toMatchObject({ type: "FILL", side: "buy", qty: "9.794127441", price: "102.102", at: at("2026-11-03T15:00:00Z") });
   });
@@ -71,6 +72,18 @@ describe("SimBroker: orders", () => {
 });
 
 describe("SimBroker: account", () => {
+  it("reports lastEquity from cash and holdings as the previous session closed, not today's", async () => {
+    const b = sim("2026-11-02T13:00:00Z", "0");
+    b.deposit("1000"); // before the first close: nothing was there yesterday
+    expect((await b.getAccount()).lastEquity).toBe("0");
+    b.setNow(at("2026-11-02T15:00:00Z"));
+    await b.submitOrder({ symbol: "VTI", side: "buy", clientOrderId: "c1", notional: "500" });
+    b.setNow(at("2026-11-03T15:00:00Z"));
+    b.deposit("200"); // today's deposit isn't in yesterday's equity
+    // At the 11-02 close: $500 cash + 4.995004995 VTI at 101.
+    expect((await b.getAccount()).lastEquity).toBe("1004.5");
+  });
+
   it("records a deposit as a CSD activity the ledger can book", async () => {
     const b = sim("2026-11-03T15:00:00Z", "0");
     b.deposit("1000");

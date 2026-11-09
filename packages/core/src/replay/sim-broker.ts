@@ -61,6 +61,9 @@ export class SimBroker implements BrokerAdapter {
   private readonly orders: BrokerOrder[] = [];
   private readonly activities: Activity[] = [];
   private readonly barsByDate: Record<string, Map<string, Bar>>;
+  /** Cash and holdings as each session closed, by date: what lastEquity reports, as Alpaca's last_equity does. */
+  private readonly atClose = new Map<string, { cash: string; holdings: Map<string, Holding> }>();
+  private readonly startingCash: string;
   private seq = 0;
 
   constructor(
@@ -69,14 +72,19 @@ export class SimBroker implements BrokerAdapter {
   ) {
     this.now = options.now;
     this.cash = options.cash;
+    this.startingCash = options.cash;
     this.slippage = div(String(options.slippageBps ?? 10), "10000", 6, "half-even");
     this.barsByDate = Object.fromEntries(Object.entries(market.bars).map(([s, bars]) => [s, new Map(bars.map((b) => [marketDate(b.t), b]))]));
   }
 
   // --- The simulation's own controls (not part of BrokerAdapter) ----------------
 
-  /** Move the clock. Orders waiting for a session that has now opened are filled. */
+  /** Move the clock. Closes passed on the way are recorded, then orders waiting for a session that has now opened are filled. */
   setNow(now: Date): void {
+    // Nothing changes between events, so the state when a close passes is the state at that close.
+    for (const d of this.market.calendar) {
+      if (d.close > this.now && d.close <= now) this.atClose.set(d.date, { cash: this.cash, holdings: new Map([...this.holdings].map(([s, h]) => [s, { ...h }])) });
+    }
     this.now = now;
     this.settle();
   }
@@ -104,10 +112,15 @@ export class SimBroker implements BrokerAdapter {
     return before?.c ?? null;
   }
 
-  /** The close of the last session before today (what equity is measured against). */
-  private lastClose(symbol: string): string | null {
+  /** Equity at the last session close before today, valued at that day's closes; the starting cash before any close. */
+  private lastEquity(): string {
     const today = marketDate(this.now);
-    return (this.market.bars[symbol] ?? []).filter((b) => marketDate(b.t) < today).at(-1)?.c ?? null;
+    const date = [...this.atClose.keys()].filter((d) => d < today).sort().at(-1);
+    if (!date) return this.startingCash;
+    const state = this.atClose.get(date)!;
+    let equity = state.cash;
+    for (const [symbol, h] of state.holdings) equity = add(equity, mul(h.qty, this.barsByDate[symbol]?.get(date)?.c ?? "0"));
+    return round(equity, 2, "half-even");
   }
 
   // --- Orders and fills ---------------------------------------------------------
@@ -181,11 +194,7 @@ export class SimBroker implements BrokerAdapter {
   async getAccount(): Promise<Account> {
     this.settle();
     let value = "0";
-    let previous = this.cash;
-    for (const [symbol, h] of this.holdings) {
-      value = add(value, mul(h.qty, this.priceNow(symbol) ?? "0"));
-      previous = add(previous, mul(h.qty, this.lastClose(symbol) ?? "0"));
-    }
+    for (const [symbol, h] of this.holdings) value = add(value, mul(h.qty, this.priceNow(symbol) ?? "0"));
     const equity = round(add(this.cash, value), 2, "half-even");
     return {
       accountNumber: "SIM00000001",
@@ -193,7 +202,7 @@ export class SimBroker implements BrokerAdapter {
       currency: "USD",
       cash: this.cash,
       equity,
-      lastEquity: round(previous, 2, "half-even"),
+      lastEquity: this.lastEquity(),
       longMarketValue: round(value, 2, "half-even"),
       buyingPower: this.cash,
       multiplier: "1",
