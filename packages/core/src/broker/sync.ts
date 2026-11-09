@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, max } from "drizzle-orm";
+import { and, eq, inArray, max } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
 import type { AuditKind } from "../audit.js";
 import type { Db } from "../db/client.js";
@@ -8,9 +8,10 @@ import { compare } from "../money.js";
 import { marketDate } from "../time.js";
 import { recordBenchmarkCloses } from "./benchmark-closes.js";
 import { recordThesisCloses } from "./thesis-closes.js";
+import { loadActivities } from "./activities.js";
 import { buildLots, openQtyBySymbol } from "./lots.js";
 import { isOurClientOrderId } from "./orders.js";
-import type { Account, AccountConfig, Activity, BrokerAdapter, BrokerOrder } from "./port.js";
+import type { Account, AccountConfig, BrokerAdapter, BrokerOrder } from "./port.js";
 
 /** Keep syncing this long after the close, so the closing equity snapshot gets written. */
 export const AFTER_CLOSE_WINDOW_MS = 30 * 60_000;
@@ -218,8 +219,7 @@ interface Reconciliation {
  * audited once; the quantities go in the event payload.
  */
 async function reconcileLots(db: Db): Promise<Reconciliation> {
-  const rows = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
-  const lots = buildLots(rows.map(toActivity));
+  const lots = buildLots(await loadActivities(db));
   const held = await db.select({ symbol: positions.symbol, qty: positions.qty }).from(positions);
 
   const lotQty = openQtyBySymbol(lots.open);
@@ -241,21 +241,6 @@ async function reconcileLots(db: Db): Promise<Reconciliation> {
     detail[issue.symbol] = { ...(detail[issue.symbol] as object), issue: issue.reason };
   }
   return { reasons: [...new Set(reasons)], detail };
-}
-
-function toActivity(row: typeof brokerActivities.$inferSelect): Activity {
-  return {
-    id: row.id,
-    type: row.type,
-    at: row.at,
-    symbol: row.symbol,
-    side: row.side === "buy" || row.side === "sell" ? row.side : null,
-    qty: row.qty,
-    price: row.price,
-    netAmount: row.netAmount,
-    orderId: row.orderId,
-    raw: row.raw,
-  };
 }
 
 async function writeSnapshot(db: Db, broker: BrokerAdapter, account: Account, now: Date): Promise<boolean> {

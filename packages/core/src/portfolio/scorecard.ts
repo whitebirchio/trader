@@ -2,10 +2,10 @@ import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
 import { buildLots } from "../broker/lots.js";
-import type { Activity } from "../broker/port.js";
+import { type LedgerActivity, loadActivities } from "../broker/activities.js";
 import type { DailyBenchmarkClose } from "../capital/shadow.js";
 import type { Db } from "../db/client.js";
-import { benchmarkCloses, brokerActivities, positions, strategies, thesisEvents } from "../db/schema.js";
+import { benchmarkCloses, positions, strategies, thesisEvents } from "../db/schema.js";
 import { add, compare, div, mul, round, sub } from "../money.js";
 import { marketDate } from "../time.js";
 
@@ -45,7 +45,7 @@ export interface ThesisWindow {
   closedAt: Date | null;
   ending: ThesisEnding;
   /** The thesis's fills, in time order. */
-  fills: Activity[];
+  fills: LedgerActivity[];
   /** Why the row can't be scored, or null. */
   unscored: string | null;
 }
@@ -80,7 +80,7 @@ function listings(document: unknown): Listing[] | null {
 type Step =
   | { at: Date; order: 0; kind: "version"; listings: Listing[] }
   | { at: Date; order: 1; kind: "stopped" | "stale" | "overdue"; thesisId: string }
-  | { at: Date; order: 2; kind: "fill"; fill: Activity };
+  | { at: Date; order: 2; kind: "fill"; fill: LedgerActivity };
 
 /**
  * Which fills belong to which thesis. One pass in time order over versions,
@@ -92,7 +92,7 @@ type Step =
  * - a new id on the same symbol while shares are held continues the window.
  * Fills outside every window (VTI, the systematic sleeve, manual trades) are ignored.
  */
-export function thesisWindows(versions: ScorecardVersion[], events: ScorecardThesisEvent[], activities: Activity[]): ThesisWindow[] {
+export function thesisWindows(versions: ScorecardVersion[], events: ScorecardThesisEvent[], activities: LedgerActivity[]): ThesisWindow[] {
   const steps: Step[] = [];
   for (const v of versions) {
     const l = listings(v.document);
@@ -228,12 +228,12 @@ export interface ScorecardRow {
   /** Null when unscored. */
   money: ThesisMoney | null;
   /** The window's fills, in time order. */
-  fills: Activity[];
+  fills: LedgerActivity[];
 }
 
 export interface ScoreInputs {
   /** Every activity (dividends are matched to windows by symbol and time). */
-  activities: Activity[];
+  activities: LedgerActivity[];
   /** Current price per symbol (positions, last sync). */
   marks: Record<string, string>;
   /** VTI's adjusted closes, ascending. */
@@ -387,14 +387,13 @@ export interface Scorecard {
 
 /** The scorecard from the database alone, so the dashboard's read-only role can serve it too. */
 export async function loadScorecard(db: Db, now: Date): Promise<Scorecard> {
-  const [versions, events, activityRows, held, closes] = await Promise.all([
+  const [versions, events, activities, held, closes] = await Promise.all([
     db.select({ version: strategies.version, createdAt: strategies.createdAt, document: strategies.document }).from(strategies).orderBy(asc(strategies.version)),
     db.select({ thesisId: thesisEvents.thesisId, kind: thesisEvents.kind, at: thesisEvents.at }).from(thesisEvents),
-    db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id)),
+    loadActivities(db),
     db.select().from(positions),
     db.select({ tradingDate: benchmarkCloses.tradingDate, close: benchmarkCloses.close }).from(benchmarkCloses).where(eq(benchmarkCloses.symbol, BENCHMARK)).orderBy(asc(benchmarkCloses.tradingDate)),
   ]);
-  const activities: Activity[] = activityRows.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null }));
   const marks = Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice]));
   const markedAt = held.reduce<Date | null>((latest, p) => (!latest || p.syncedAt > latest ? p.syncedAt : latest), null);
 
