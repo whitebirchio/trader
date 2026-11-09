@@ -55,6 +55,9 @@ const base = (m: SimMarket, autoResume = false) => ({
   autoResume,
 });
 
+// Each replay builds a fresh database from every migration, then walks its sessions: integration-test sized.
+const REPLAY_TIMEOUT = 60_000;
+
 describe("replay", () => {
   it("runs the real jobs over a simulated clock: buys the thesis, stops it out on a later day's gap, idles the rest in VTI, in replay time", async () => {
     const r = await replay(base(market({ aapl: { [day(5)]: 85 } })));
@@ -91,7 +94,7 @@ describe("replay", () => {
     // One snapshot per session, after a base row at the prior close (production's first-snapshot seed, migration 0018).
     expect((await r.db.select({ d: equitySnapshots.tradingDate }).from(equitySnapshots).orderBy(equitySnapshots.tradingDate)).map((s) => s.d)).toEqual([DAYS[HISTORY - 1], ...REPLAY]);
     expect(r.msPerSession).toBeGreaterThan(0);
-  });
+  }, REPLAY_TIMEOUT);
 
   it("freezes on a drawdown halt like live trading; autoResume resumes it, and production's check re-latches it while still 30% down", async () => {
     const crash = { [day(6)]: 55 };
@@ -105,5 +108,5 @@ describe("replay", () => {
     const resumed = await replay(base(market({ aapl: crash, vti: { [day(6)]: 165 } }), true));
     expect(resumed.halts[0]).toEqual({ date: day(6), reason: expect.any(String), resumed: true });
     expect(resumed.halts.map((h) => h.date)).toEqual([day(6), day(7), day(8), day(9), day(10)]);
-  });
+  }, REPLAY_TIMEOUT);
 });
