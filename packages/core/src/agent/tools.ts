@@ -1,10 +1,11 @@
-import { asc, desc, gte, inArray } from "drizzle-orm";
+import { desc, gte, inArray } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
+import { loadActivities } from "../broker/activities.js";
 import { buildLots, estimateSale } from "../broker/lots.js";
 import { capitalOverview } from "../capital/overview.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
-import { auditEvents, brokerAccount, brokerActivities, orders, positions, rebalancePlans, riskState } from "../db/schema.js";
+import { auditEvents, brokerAccount, orders, positions, rebalancePlans, riskState } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import { compare, round, sub } from "../money.js";
 import { benchmarkSince } from "../portfolio/benchmark.js";
@@ -51,8 +52,7 @@ function daysUntil(date: string, now: Date): number {
 const MAX_PRICE_DAYS = 730;
 
 async function holdingsWithLots(db: Db) {
-  const acts = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
-  const lots = buildLots(acts.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null })));
+  const lots = buildLots(await loadActivities(db));
   const held = await db.select().from(positions);
   return { lots, held };
 }

@@ -71,7 +71,7 @@ const DUPLICATE_ID = /client_order_id must be unique/i;
  * client_order_id, which Alpaca enforces as unique, so an ambiguous failure
  * can be retried safely and is never re-sent under a new id.
  *
- * Not called by any job until `risk` exists (SPEC-broker boundaries).
+ * Its one caller is the rebalance, after riskGate approves the order (SPEC-portfolio).
  */
 export async function submitOrder(
   db: Db,

@@ -1,5 +1,5 @@
 import { add, compare, div, mul, sub } from "../money.js";
-import type { Activity } from "./port.js";
+import type { LedgerActivity } from "./activities.js";
 
 /**
  * Tax lots rebuilt from fills, first-in first-out: the method Alpaca reportedly
@@ -50,7 +50,7 @@ const SHARE_AFFECTING = new Set(["SSP", "SSO", "SC", "MA", "REORG", "ACATC", "AC
 // on the lot, so basis is never created or lost across slices.
 const BASIS_DP = 11;
 
-export function buildLots(activities: Activity[]): Lots {
+export function buildLots(activities: LedgerActivity[]): Lots {
   const sorted = [...activities].sort(
     (a, b) => a.at.getTime() - b.at.getTime() || a.id.localeCompare(b.id),
   );

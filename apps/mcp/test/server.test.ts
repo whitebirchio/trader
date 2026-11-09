@@ -137,6 +137,10 @@ describe("OAuth", () => {
     const page = await call(`/authorize?${query}`);
     expect(page.status).toBe(200);
     expect(await page.text()).toContain("Connect Trader");
+    // Never framed (clickjacking), never cached, and nothing loads but its own inline styles.
+    expect(page.headers.get("content-security-policy")).toMatch(/default-src 'none'.*frame-ancestors 'none'/);
+    expect(page.headers.get("x-frame-options")).toBe("DENY");
+    expect(page.headers.get("cache-control")).toBe("no-store");
 
     const wrong = await consent(query, "not the passphrase at all");
     expect(wrong.status).toBe(401);

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "../src/db/client.js";
 import { auditEvents, jobRuns } from "../src/db/schema.js";
-import { runJob, slotFor } from "../src/jobs.js";
+import { runJob, slotFor, sweepAbandonedRuns } from "../src/jobs.js";
+import { sql } from "drizzle-orm";
 import { createTestDb, deps } from "./helpers.js";
 
 let db: Db;
@@ -14,10 +15,10 @@ beforeEach(async () => {
 describe("runJob", () => {
   it("runs the registered heartbeat and records success", async () => {
     const outcome = await runJob(deps(db, "staging"), "heartbeat", scheduledFor);
-    expect(outcome).toEqual({ status: "succeeded", detail: { env: "staging" } });
+    expect(outcome).toEqual({ status: "succeeded", detail: { env: "staging", abandonedRunsSwept: 0 } });
 
     const [run] = await db.select().from(jobRuns);
-    expect(run).toMatchObject({ job: "heartbeat", status: "succeeded", detail: { env: "staging" } });
+    expect(run).toMatchObject({ job: "heartbeat", status: "succeeded", detail: { env: "staging", abandonedRunsSwept: 0 } });
     expect(run?.scheduledFor.toISOString()).toBe(scheduledFor.toISOString());
     expect(run?.finishedAt).toBeInstanceOf(Date);
     expect(run?.error).toBeNull();
@@ -83,6 +84,27 @@ describe("runJob", () => {
     await runJob(deps(db, "staging"), "heartbeat", scheduledFor);
     await runJob(deps(db, "staging"), "heartbeat", new Date(scheduledFor.getTime() + 15 * 60_000));
     expect(await db.select().from(jobRuns)).toHaveLength(2);
+  });
+});
+
+describe("sweepAbandonedRuns", () => {
+  it("fails runs still running 15+ minutes after they started (a Lambda timeout), audits each, and leaves the rest", async () => {
+    const at = (minutesAgo: number) => sql`now() - make_interval(mins => ${minutesAgo})`;
+    await db.insert(jobRuns).values([
+      { job: "rebalance", scheduledFor: new Date("2026-11-09T15:00:00Z"), status: "running", startedAt: at(20) },
+      { job: "sync-broker", scheduledFor: new Date("2026-11-09T15:30:00Z"), status: "running", startedAt: at(2) },
+      { job: "heartbeat", scheduledFor: new Date("2026-11-09T14:00:00Z"), status: "succeeded", startedAt: at(60) },
+    ]);
+    expect(await sweepAbandonedRuns(db)).toBe(1);
+    const runs = await db.select({ job: jobRuns.job, status: jobRuns.status, error: jobRuns.error }).from(jobRuns).orderBy(jobRuns.job);
+    expect(runs).toEqual([
+      { job: "heartbeat", status: "succeeded", error: null },
+      { job: "rebalance", status: "failed", error: "abandoned: still running after 15 minutes (likely a Lambda timeout)" },
+      { job: "sync-broker", status: "running", error: null },
+    ]);
+    const events = await db.select({ kind: auditEvents.kind, subject: auditEvents.subject }).from(auditEvents);
+    expect(events).toEqual([{ kind: "job.failed", subject: "rebalance" }]);
+    expect(await sweepAbandonedRuns(db)).toBe(0);
   });
 });
 

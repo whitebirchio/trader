@@ -1,10 +1,11 @@
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
+import { loadActivities } from "../broker/activities.js";
 import { buildLots } from "../broker/lots.js";
 import { OPEN_ORDER_LOOKBACK_MS, OPEN_ORDER_STATES, submitOrder } from "../broker/orders.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
-import { brokerAccount, brokerActivities, orders, positions, rebalancePlans, thesisEvents } from "../db/schema.js";
+import { brokerAccount, orders, positions, rebalancePlans, thesisEvents } from "../db/schema.js";
 import type { TradingEnv } from "../env.js";
 import type { JobFn } from "../jobs.js";
 import { loadSnapshot, riskGate, roundTripBlocks } from "../risk/gate.js";
@@ -85,8 +86,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
     ? { version: -1, authoredBy: "claude" as const, createdAt: now, reaffirmedAt: now, strategy: opts.strategyOverride }
     : await activeStrategy(db, now);
   const { strategy } = active;
-  const activityRows = await db.select().from(brokerActivities).orderBy(asc(brokerActivities.at), asc(brokerActivities.id));
-  const lots = buildLots(activityRows.map((r) => ({ ...r, side: r.side === "buy" || r.side === "sell" ? r.side : null })));
+  const lots = buildLots(await loadActivities(db));
   const held = await db.select().from(positions);
 
   // One bars request: universe, theses, holdings, VTI and the defensive symbol.

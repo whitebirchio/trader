@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { recordEvent } from "../../src/audit.js";
 import type { Db } from "../../src/db/client.js";
 import { notificationItems, notifications } from "../../src/db/schema.js";
-import { deliver, enqueue, foldEvents } from "../../src/notifications/outbox.js";
+import { BACKOFF_MINUTES, deliver, enqueue, foldEvents } from "../../src/notifications/outbox.js";
 import { FakeMailer } from "./fake-mailer.js";
 import { createTestDb } from "../helpers.js";
 
@@ -100,5 +100,21 @@ describe("deliver", () => {
     await db.update(notifications).set({ status: "sending", claimedAt: now });
     expect((await deliver(db, mailer, minutes(5))).sent).toBe(0);
     expect((await deliver(db, mailer, minutes(11))).sent).toBe(1);
+  });
+
+  it("counts an interrupted send as an attempt", async () => {
+    await enqueue(db, "production", { type: "urgent", email, eventIds: [await event()] }, now);
+    await db.update(notifications).set({ status: "sending", claimedAt: now });
+    expect((await deliver(db, mailer, minutes(11))).sent).toBe(1);
+    expect((await db.select().from(notifications))[0]).toMatchObject({ status: "sent", attempts: 1 });
+  });
+
+  it("gives up on an email whose sends keep being interrupted, instead of resending forever", async () => {
+    await enqueue(db, "production", { type: "urgent", email, eventIds: [await event()] }, now);
+    // Interrupted on its last allowed attempt: the row is left `sending` with every retry used.
+    await db.update(notifications).set({ status: "sending", claimedAt: now, attempts: BACKOFF_MINUTES.length });
+    expect(await deliver(db, mailer, minutes(11))).toEqual({ sent: 0, retrying: 0, failed: 1 });
+    expect(mailer.sent).toHaveLength(0);
+    expect((await db.select().from(notifications))[0]).toMatchObject({ status: "failed", lastError: "interrupted mid-send too many times" });
   });
 });

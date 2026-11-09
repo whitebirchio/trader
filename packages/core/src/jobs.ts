@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { recordEvent } from "./audit.js";
 import type { BrokerAdapter } from "./broker/port.js";
 import { syncBroker } from "./broker/sync.js";
@@ -35,7 +35,28 @@ export type JobOutcome = JobResult | { status: "failed"; error: string } | { sta
 export type JobFn = (ctx: JobContext) => Promise<JobResult>;
 
 /** Proves the scheduler, the database and the deploy are alive; read by getHealth. */
-const heartbeat: JobFn = async ({ env }) => ({ status: "succeeded", detail: { env } });
+/** A run still `running` this long after it started was cut off (the engine Lambda times out at 5 minutes). */
+export const ABANDONED_AFTER_MINUTES = 15;
+
+/**
+ * Mark runs that never finished as failed, and audit each like any failed run.
+ * A Lambda timeout kills a job mid-way, leaving its row `running` forever;
+ * idempotency doesn't care (the next tick has a new slot), but the run history
+ * and failure reports would. Compared on the database's clock, like finishedAt.
+ */
+export async function sweepAbandonedRuns(db: Db): Promise<number> {
+  const swept = await db
+    .update(jobRuns)
+    .set({ status: "failed", error: `abandoned: still running after ${ABANDONED_AFTER_MINUTES} minutes (likely a Lambda timeout)`, finishedAt: dbNow })
+    .where(and(eq(jobRuns.status, "running"), lt(jobRuns.startedAt, sql`now() - make_interval(mins => ${ABANDONED_AFTER_MINUTES})`)))
+    .returning({ id: jobRuns.id, job: jobRuns.job, scheduledFor: jobRuns.scheduledFor, error: jobRuns.error });
+  for (const run of swept) {
+    await recordEvent(db, { actor: "system", kind: "job.failed", subject: run.job, jobRunId: run.id, payload: { error: run.error, scheduledFor: run.scheduledFor.toISOString() } });
+  }
+  return swept.length;
+}
+
+const heartbeat: JobFn = async ({ db, env }) => ({ status: "succeeded", detail: { env, abandonedRunsSwept: await sweepAbandonedRuns(db) } });
 
 /** Mirror the Alpaca account into Postgres and refresh the tradingAllowed verdict (SPEC-broker). */
 const syncBrokerJob: JobFn = async ({ db, env, broker, now }) => {
@@ -63,7 +84,7 @@ const processCapitalJob: JobFn = async ({ db, broker, now }) => {
   return { status: "succeeded", detail };
 };
 
-/** Every job the engine can run. Later modules register `rebalance`, … */
+/** Every job the engine can run, by name: the tick jobs and the rebalance. */
 export const JOBS = {
   heartbeat,
   "sync-broker": syncBrokerJob,
