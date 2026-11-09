@@ -16,16 +16,19 @@ export function HoldingsTable({ rows, conviction }: { rows: HoldingRow[]; convic
   return (
     <>
     <RowsOnPhone>
-      {rows.map((r) => (
-        <PhoneRow
-          key={r.symbol}
-          title={symbolCell(r)}
-          value={formatUsd(r.marketValue)}
-          detail={`${formatPct(r.weightPct, 1, false)} of equity${conviction && r.thesis ? ` · target ${formatPct(r.thesis.targetPct, 1, false)}` : ""}`}
-          secondary={<Change pct={r.gainPct} />}
-          foot={[`${formatQty(r.qty)} @ ${formatUsd(r.price)}`, ...(conviction && stop(r) ? [stop(r)] : [])].join(" · ")}
-        />
-      ))}
+      {rows.map((r) => {
+        const stopLine = conviction ? stop(r) : null;
+        return (
+          <PhoneRow
+            key={r.symbol}
+            title={symbolCell(r)}
+            value={formatUsd(r.marketValue)}
+            detail={`${formatPct(r.weightPct, 1, false)} of equity${conviction && r.thesis ? ` · target ${formatPct(r.thesis.targetPct, 1, false)}` : ""}`}
+            secondary={<Change pct={r.gainPct} />}
+            foot={[`${formatQty(r.qty)} @ ${formatUsd(r.price)}`, ...(stopLine ? [stopLine] : [])].join(" · ")}
+          />
+        );
+      })}
     </RowsOnPhone>
     <TableOnWide>
       <table className="w-full min-w-[36rem] text-sm">

@@ -25,7 +25,12 @@ const STALE_AFTER_MS = 60_000;
 /** The menu entry a path belongs to (a thesis page sits under the track record). */
 export function activeHref(pathname: string): string {
   if (pathname.startsWith("/theses/")) return "/track-record";
-  return NAV.map(([href]) => href).filter((href) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)))[0] ?? "";
+  return NAV.map(([href]) => href).find((href) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`))) ?? "";
+}
+
+/** Whether the page's data is old enough to reload when the app comes back to the foreground. */
+export function isStale(loadedAt: number, now: number): boolean {
+  return now - loadedAt > STALE_AFTER_MS;
 }
 
 export function Nav() {
@@ -54,7 +59,8 @@ export function Nav() {
   return (
     <div
       ref={row}
-      className="-ml-4 min-w-0 flex-1 overflow-x-auto overscroll-x-contain pl-4 [scrollbar-width:none] sm:ml-0 sm:overflow-visible sm:pl-0 [&::-webkit-scrollbar]:hidden"
+      // `relative` makes it the links' offsetParent, so offsetLeft is measured from the row's own edge.
+      className="relative -ml-4 min-w-0 flex-1 overflow-x-auto overscroll-x-contain pl-4 [scrollbar-width:none] sm:ml-0 sm:overflow-visible sm:pl-0 [&::-webkit-scrollbar]:hidden"
       style={{ maskImage: `linear-gradient(to right, ${mask})`, WebkitMaskImage: `linear-gradient(to right, ${mask})` }}
     >
       <nav aria-label="Pages" className="flex w-max gap-1 text-sm sm:w-auto sm:flex-wrap">
@@ -81,7 +87,7 @@ export function Refresh() {
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible" && Date.now() - loadedAt.current > STALE_AFTER_MS) {
+      if (document.visibilityState === "visible" && isStale(loadedAt.current, Date.now())) {
         loadedAt.current = Date.now();
         startTransition(() => router.refresh());
       }
