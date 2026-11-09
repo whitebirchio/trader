@@ -3,7 +3,7 @@ import { loadActivities } from "../broker/activities.js";
 import { buildLots, isLongTerm } from "../broker/lots.js";
 import { performanceSeries } from "../dashboard/views.js";
 import { equitySnapshots, riskDecisions, thesisEvents } from "../db/schema.js";
-import { add, compare, div, mul, round, toBig } from "../money.js";
+import { add, compare, div, mul, round, sub, toBig } from "../money.js";
 import { WASH_SALE_DAYS } from "../portfolio/planner.js";
 import { type ScorecardRollUp, loadScorecard } from "../portfolio/scorecard.js";
 import type { BenchmarkComparison } from "../portfolio/benchmark.js";
@@ -191,5 +191,80 @@ export function formatReport(report: ReplayReport): string {
     section("Read with care");
     for (const w of report.warnings) lines.push(`  ! ${w}`);
   }
+  return `${lines.join("\n")}\n`;
+}
+
+export interface DiffRow {
+  label: string;
+  baseline: string | null;
+  variant: string | null;
+  /** variant − baseline; null when either side is missing. */
+  difference: string | null;
+}
+
+export interface ThesisChange {
+  ids: string[];
+  symbol: string;
+  baseline: { ending: string; returnPct: string | null } | null;
+  variant: { ending: string; returnPct: string | null } | null;
+}
+
+export interface ReportDiff {
+  variant: string;
+  rows: DiffRow[];
+  /** Theses whose ending or return differs, or that only one side held. */
+  theses: ThesisChange[];
+}
+
+const exitCount = (r: ReplayReport, kind: string) => String(r.thesisExits.filter((e) => e.kind === kind).length);
+
+/** A baseline and its variant, side by side: each headline figure, and the theses whose outcome changed. */
+export function diffReports(baseline: ReplayReport, variant: ReplayReport, name: string): ReportDiff {
+  const figures: [string, (r: ReplayReport) => string | null][] = [
+    ["Return %", (r) => r.performance?.portfolioPct ?? null],
+    ["VTI %", (r) => r.performance?.benchmarkPct ?? null],
+    ["Return vs VTI, points", (r) => (r.performance ? round(sub(r.performance.portfolioPct, r.performance.benchmarkPct), 2, "half-even") : null)],
+    ["Theses' excess vs VTI %", (r) => r.scorecard.overall.excessPct],
+    ["Theses that beat VTI %", (r) => r.scorecard.overall.beatVtiPct],
+    ["Fills", (r) => String(r.trades.fills)],
+    ["Turnover %", (r) => r.trades.turnoverPct],
+    ["Realized short-term $", (r) => r.realized.shortTerm],
+    ["Realized long-term $", (r) => r.realized.longTerm],
+    ["Wash sales", (r) => String(r.washSales.length)],
+    ["Stops fired", (r) => exitCount(r, "stopped")],
+    ["Review-date unwinds", (r) => exitCount(r, "overdue")],
+    ["Stale unwinds", (r) => exitCount(r, "stale")],
+    ["Risk rejections and clips", (r) => String(r.risk.decisions.rejected + r.risk.decisions.clipped)],
+    ["Halts", (r) => String(r.halts.length)],
+  ];
+  const rows = figures.map(([label, pick]) => {
+    const b = pick(baseline);
+    const v = pick(variant);
+    return { label, baseline: b, variant: v, difference: b !== null && v !== null ? sub(v, b) : null };
+  });
+
+  const key = (t: ReportThesis) => t.ids.join(",");
+  const base = new Map(baseline.scorecard.theses.map((t) => [key(t), t]));
+  const varied = new Map(variant.scorecard.theses.map((t) => [key(t), t]));
+  const side = (t: ReportThesis | undefined) => (t ? { ending: t.ending, returnPct: t.returnPct } : null);
+  const theses = [...new Set([...base.keys(), ...varied.keys()])].flatMap((k) => {
+    const b = base.get(k);
+    const v = varied.get(k);
+    if (b && v && b.ending === v.ending && b.returnPct === v.returnPct) return [];
+    return [{ ids: (b ?? v)!.ids, symbol: (b ?? v)!.symbol, baseline: side(b), variant: side(v) }];
+  });
+  return { variant: name, rows, theses };
+}
+
+/** The diff as plain text. */
+export function formatDiff(d: ReportDiff): string {
+  const lines = [`Baseline vs ${d.variant}`, "", `  ${"".padEnd(28)}${"baseline".padStart(12)}${"variant".padStart(12)}${"difference".padStart(12)}`];
+  const show = (v: string | null) => (v ?? "-").padStart(12);
+  const delta = (v: string | null) => (v === null ? "-" : v.startsWith("-") || v === "0" ? v : `+${v}`).padStart(12);
+  for (const r of d.rows) lines.push(`  ${r.label.padEnd(28)}${show(r.baseline)}${show(r.variant)}${delta(r.difference)}`);
+  lines.push("", `Theses whose outcome changed (${d.theses.length})`);
+  if (d.theses.length === 0) lines.push("  none");
+  const outcome = (s: ThesisChange["baseline"]) => (s ? `${s.ending} ${s.returnPct === null ? "unscored" : `${s.returnPct}%`}` : "not held");
+  for (const t of d.theses) lines.push(`  ${t.symbol.padEnd(6)} ${outcome(t.baseline).padEnd(22)} → ${outcome(t.variant).padEnd(22)} ${t.ids.join(", ")}`);
   return `${lines.join("\n")}\n`;
 }

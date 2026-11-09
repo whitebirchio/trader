@@ -147,22 +147,34 @@ Withdrawal requests aren't replayed (only completed transfers), and the report n
 **Files likely touched:** `scripts/replay.ts` (a `--compare-actual` flag), `src/replay/report.ts`
 **Estimated scope:** Small
 
-## Checkpoint B (Scott reviews)
-- [ ] Gate green
-- [ ] Scott has read the fidelity write-up and agrees the replay is close enough to compare rules with
+## Checkpoint B (Scott reviews) ✅ (2026-11-09)
+- [x] Gate green
+- [x] Scott has read the fidelity write-up and agrees the replay is close enough to compare rules with (#80 merged, T7 approved)
 
 ## Phase 3: rule variants
 
-### T7: Variants and the baseline-vs-variant report
+### T7: Variants and the baseline-vs-variant report ✅ (2026-11-09)
 **Description:** Named variants and ad-hoc ones (`--variant stop=20`, `--variant cap=10`, `--variant review-days=60`) as document transforms plus `limits` overrides. One command runs baseline and variant on identical inputs and reports the diff: return vs VTI, per-thesis outcomes, trades, turnover, taxes and stops fired.
 
 **Acceptance criteria:**
-- [ ] A variant changes only what it names (a test diffs the documents), and an unknown variant is an error.
-- [ ] The diff report shows both sides and the difference for each headline figure, and lists the theses whose outcome changed.
+- [x] A variant changes only what it names (a test diffs the documents), and an unknown variant is an error.
+- [x] The diff report shows both sides and the difference for each headline figure, and lists the theses whose outcome changed.
 
 **Verification:**
-- [ ] Tests: `npx vitest run replay/variants`
-- [ ] Manual: `npm run replay -- --timeline production --variant stop=20`
+- [x] Tests: `npx vitest run replay/variants`
+- [x] Manual: `npm run replay -- --timeline production --variant stop=20`
+
+**Done:**
+- **Variants:** `src/replay/variants.ts` provides `stop=N`, `cap=N` and `review-days=N`. They're transforms of every version's document, can be repeated, and are applied in order. An unknown variant, or a value the schema wouldn't take, is an error.
+- **The diff:** `diffReports` and `formatDiff` in `report.ts` show 15 headline figures side by side, with the difference, and list the theses whose ending or return changed.
+- **The command:** `npm run replay -- --timeline <env> --variant stop=20` replays both on the same market data and writes the diff and the variant's report next to the baseline's.
+- **On production's week:**
+  - `stop=20` and `cap=10` change nothing: no thesis fell 20%, and none was above 10%.
+  - `stop=15` stops TTMI out and realizes more short-term loss.
+
+  The machinery works; one week can't judge a rule.
+
+**Left out: limit overrides** (for example a different drawdown halt or position cap). The jobs read `LIMITS` themselves. A replay override would need a `limits` argument on `runJob`, a new route to limits through production code, and CLAUDE.md says to ask before touching limits. The decision is the owner's; document variants cover today's rules.
 
 **Dependencies:** T5
 **Files likely touched:** `src/replay/variants.ts`, `src/replay/report.ts`, `scripts/replay.ts`, `test/replay/variants.test.ts`
