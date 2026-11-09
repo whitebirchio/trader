@@ -89,11 +89,30 @@ export class SimBroker implements BrokerAdapter {
     this.settle();
   }
 
-  /** Money arrives in the account now, as Alpaca records a deposit (an activity the ledger books). */
-  deposit(amount: string): void {
+  /**
+   * Money moves now, as Alpaca records a transfer (an activity the ledger
+   * books): positive in (CSD), negative out (CSW). A withdrawal larger than
+   * the cash takes what's there and returns the shortfall: history sold to
+   * fund it, but the replay's holdings can differ.
+   */
+  transfer(amount: string): { shortfall: string } {
     this.settle();
-    this.cash = add(this.cash, amount);
-    this.activities.push({ id: this.nextId("csd"), type: "CSD", at: this.now, symbol: null, side: null, qty: null, price: null, netAmount: amount, orderId: null, raw: { status: "executed", created_at: this.now.toISOString() } });
+    let moved = amount;
+    let shortfall = "0";
+    if (compare(amount, "0") < 0 && compare(sub("0", amount), this.cash) > 0) {
+      moved = sub("0", this.cash);
+      shortfall = sub(sub("0", amount), this.cash);
+    }
+    if (compare(moved, "0") === 0) return { shortfall };
+    this.cash = add(this.cash, moved);
+    const type = compare(moved, "0") > 0 ? "CSD" : "CSW";
+    this.activities.push({ id: this.nextId(type.toLowerCase()), type, at: this.now, symbol: null, side: null, qty: null, price: null, netAmount: moved, orderId: null, raw: { status: "executed", created_at: this.now.toISOString() } });
+    return { shortfall };
+  }
+
+  /** A deposit: transfer(amount) with a positive amount. */
+  deposit(amount: string): void {
+    this.transfer(amount);
   }
 
   // --- Prices -------------------------------------------------------------------
