@@ -6,8 +6,8 @@ import { MCP_PARAMETERS } from "@trader/core";
 // used only for market data (MarketDataOnly).
 export { MCP_PARAMETERS };
 
-/** Re-read SSM at most this often per warm container, so a rotated secret lands within minutes. */
-const TTL_MS = 15 * 60_000;
+/** Re-read SSM at most this often per warm container (each decrypted SecureString is a KMS request); a rotated secret lands within the hour. */
+const TTL_MS = 60 * 60_000;
 let cache: { path: string; at: number; values: Record<string, string> } | null = null;
 
 /** The parameters under `path` (e.g. `/trader/staging/`), keyed by name. Values are never logged. */

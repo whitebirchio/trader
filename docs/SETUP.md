@@ -57,7 +57,7 @@ sed -n 's/^PRODUCTION_MIGRATE_URL=//p' .env | tr -d "'\"" | gh secret set PRODUC
 
 ## Secrets (SSM Parameter Store)
 
-Each environment's Lambda reads only `/trader/<env>/` (SecureStrings, default `aws/ssm` key), and re-reads at most every 15 minutes, so rotations apply without a deploy. Values go in through stdin and never appear in argv or output (`scripts/put-ssm-secret.sh`).
+Each environment's Lambdas read only `/trader/<env>/` (SecureStrings, default `aws/ssm` key), and each reads only its own names: the engine `ENGINE_PARAMETERS`, the MCP server `MCP_PARAMETERS`, the dashboard its three. Each re-reads at most hourly, so rotations apply without a deploy, within the hour. Every decrypted SecureString is a KMS request (20,000 a month are free). Values go in through stdin and never appear in argv or output (`scripts/put-ssm-secret.sh`).
 
 | Parameter | Written by |
 |---|---|
