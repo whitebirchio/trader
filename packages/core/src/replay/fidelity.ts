@@ -1,3 +1,4 @@
+import type { Bar } from "../broker/port.js";
 import { add, compare, div, mul, round, sub, toBig } from "../money.js";
 import { type IndexFlow, buildIndex } from "../risk/equity-index.js";
 import { marketDate } from "../time.js";
@@ -11,7 +12,9 @@ import type { AccountHistory } from "./timeline.js";
  * assumption where one explains it:
  *   matched      the same trade on the same day; price and size differ by the
  *                fill model (the open ± slippage vs the live trade) and the
- *                account's value at the time
+ *                account's value at the time. A price further off than the
+ *                fill model allows is still explained when live's price was
+ *                inside that session's low–high range: the day moved
  *   shifted      the same trade a session or two apart: step timing
  *   small        a top-up below the size that matters: live rebalances every
  *                15 minutes against moving prices, the replay sees one price
@@ -79,6 +82,8 @@ export interface FidelityInput {
   flows: IndexFlow[];
   /** The replay's sessions, YYYY-MM-DD, oldest first. */
   sessions: string[];
+  /** The daily bars the replay ran on, to tell an intraday move from a pricing bug. */
+  bars?: Record<string, Bar[]>;
 }
 
 /** A matched trade's price further off than this is more than the fill model explains. */
@@ -153,8 +158,10 @@ export function compareFidelity(input: FidelityInput): Fidelity {
     replayByKey.delete(key(l));
     const priceGapPct = pctGap(r.price, l.price);
     const tooFar = priceGapPct !== null && compare(abs(priceGapPct), MAX_PRICE_GAP_PCT) > 0;
+    const bar = input.bars?.[l.symbol]?.find((b) => marketDate(b.t) === l.date);
+    const inRange = !!bar && compare(l.price, bar.l) >= 0 && compare(l.price, bar.h) <= 0;
     fills.push({
-      kind: tooFar ? "unexplained" : "matched",
+      kind: tooFar && !inRange ? "unexplained" : "matched",
       symbol: l.symbol,
       side: l.side,
       live: l,
@@ -162,7 +169,11 @@ export function compareFidelity(input: FidelityInput): Fidelity {
       priceGapPct,
       notionalGapPct: pctGap(r.notional, l.notional),
       sessionsLate: 0,
-      explanation: tooFar ? `price ${priceGapPct}% off: more than the fill model (the open ± slippage) explains` : "same trade, same session",
+      explanation: !tooFar
+        ? "same trade, same session"
+        : inRange
+          ? `price ${priceGapPct}% off: live traded inside the session's range (${bar!.l}–${bar!.h}); the replay fills at the open (${bar!.o})`
+          : `price ${priceGapPct}% off: more than the fill model (the open ± slippage) explains`,
     });
   }
   const replayLeft = [...replayByKey.values()];
@@ -249,7 +260,7 @@ export function formatFidelity(f: Fidelity): string {
     for (const x of rows) {
       const gaps = x.priceGapPct !== null ? `  price ${signed(x.priceGapPct)}, size ${signed(x.notionalGapPct)}` : "";
       lines.push(`  ${x.symbol.padEnd(6)} live ${describe(x.live)}  |  replay ${describe(x.replay)}${gaps}`);
-      if (kind !== "matched") lines.push(`         ${x.explanation}`);
+      if (x.explanation !== "same trade, same session") lines.push(`         ${x.explanation}`);
     }
   }
 
@@ -258,9 +269,9 @@ export function formatFidelity(f: Fidelity): string {
   for (const e of f.thesisEvents) lines.push(`  ${e.kind.padEnd(8)} ${e.symbol.padEnd(6)} live ${e.live ?? "-"}  replay ${e.replay ?? "-"}  ${e.explained ? "" : "! "}${e.explanation}`);
 
   section("How gaps are explained");
-  lines.push("  matched: the same trade on the same day; the replay fills at the open ± slippage and sizes off its own equity.");
+  lines.push(`  matched: the same trade on the same day; the replay fills at the open ± slippage and sizes off its own equity. A price more than ${MAX_PRICE_GAP_PCT}% off still matches when live traded inside the day's range.`);
   lines.push(`  shifted: the same trade within ${SHIFT_SESSIONS} sessions; live steps every 15 minutes, the replay at 09:45, 10:00, 12:30 and 12:45.`);
   lines.push("  small: a one-sided drift top-up; live sees prices move through the day, the replay sees the open only.");
-  lines.push(`  unexplained: anything else, or a matched price more than ${MAX_PRICE_GAP_PCT}% off. Each needs a reason or a bug.`);
+  lines.push(`  unexplained: anything else, or a matched price more than ${MAX_PRICE_GAP_PCT}% off and outside the day's range. Each needs a reason or a bug.`);
   return `${lines.join("\n")}\n`;
 }

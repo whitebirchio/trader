@@ -44,7 +44,7 @@ const result = await replay({ market, versions: timeline.versions, transfers: ti
 const report = await replayReport(result, { from, to, slippageBps });
 const text = formatReport(report);
 const sessions = market.calendar.filter((d) => d.date >= from && d.date <= to).map((d) => d.date);
-const fidelity = values["compare-actual"] ? formatFidelity(compareFidelity({ live: timeline.actual!, replay: await readAccountHistory(result.db), flows: timeline.transfers, sessions })) : null;
+const fidelity = values["compare-actual"] ? formatFidelity(compareFidelity({ live: timeline.actual!, replay: await readAccountHistory(result.db), flows: timeline.transfers, sessions, bars: market.bars })) : null;
 await result.pglite.close();
 
 const dir = join(REPLAY_CACHE, "reports");

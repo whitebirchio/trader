@@ -49,6 +49,15 @@ describe("compareFidelity", () => {
     expect(f.smallUsd).toBe("20.4"); // 2% of the average live equity, 1020
   });
 
+  it("still matches a price further off than the fill model when live traded inside the day's range, but not outside it", () => {
+    const bar = (l: string, h: string) => ({ NVDA: [{ t: new Date("2026-11-04T05:00:00Z"), o: "220", h, l, c: "201", v: "1" }] });
+    const inside = compareFidelity({ live, replay, flows: [], sessions: SESSIONS, bars: bar("195", "222") }).fills.find((x) => x.symbol === "NVDA")!;
+    expect(inside).toMatchObject({ kind: "matched", priceGapPct: "10" });
+    expect(inside.explanation).toMatch(/inside the session's range \(195–222\); the replay fills at the open \(220\)/);
+    const outside = compareFidelity({ live, replay, flows: [], sessions: SESSIONS, bars: bar("205", "222") }).fills.find((x) => x.symbol === "NVDA")!;
+    expect(outside.kind).toBe("unexplained");
+  });
+
   it("explains a one-sided stop by the price model, but not another one-sided thesis event", () => {
     expect(f.thesisEvents).toEqual([
       { kind: "stopped", thesisId: "nvda-1", symbol: "NVDA", live: "2026-11-04", replay: null, explained: true, explanation: expect.stringMatching(/through the stop/) },

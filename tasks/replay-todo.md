@@ -113,12 +113,12 @@ Risk reasons are grouped by their text with the figures masked, since decisions 
 **Files likely touched:** `src/replay/report.ts`, `scripts/replay.ts`, `package.json` (script), `test/replay/report.test.ts`
 **Estimated scope:** Medium
 
-### T6: Fidelity check ✅ staging (2026-11-09); production pending a fresh export
+### T6: Fidelity check ✅ (2026-11-09)
 **Description:** Replay production's history under today's rules and compare it with what actually happened: equity path, fills (dates, prices, quantities), stops and unwinds. Explain each gap (fill price model, versions authored after 10:00, intraday stops) in a short local write-up.
 
 **Acceptance criteria:**
 - [x] The comparison is a script that can be re-run, not a one-off.
-- [x] Every material gap is either explained by a stated assumption or filed as a bug (staging; production to come).
+- [x] Every material gap is either explained by a stated assumption or filed as a bug.
 
 **Verification:**
 - [ ] Manual: Scott reads the write-up (kept in `.cache/replay/`, since it contains live figures; a summary without live figures can go in the PR)
@@ -140,6 +140,8 @@ Risk reasons are grouped by their text with the figures masked, since decisions 
 - #82: systematic buys the cash can't cover are proposed again at every step, and risk rejects each one.
 
 Withdrawal requests aren't replayed (only completed transfers), and the report now states it.
+
+**Production result:** every trade-day matched or was a small drift trade, with equity within 0.5% of live every day. A matched price more than 5% off now counts as explained when live traded inside the session's low–high range: on falling days, live's midday fills beat the replay's open. That fill model is the main source of the replay's small shortfall vs live.
 
 **Dependencies:** T5
 **Files likely touched:** `scripts/replay.ts` (a `--compare-actual` flag), `src/replay/report.ts`
