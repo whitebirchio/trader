@@ -45,7 +45,7 @@ Staging shows a persistent **"STAGING · paper"** banner. Production shows nothi
 
 ### Amendment 2 (2026-11-08): phones
 
-> **Status: Approved** (Scott, 2026-11-08, with the menu and sign-out answers below). Scott, 2026-11-08: "On mobile (using the PWA) in particular, I'm noticing some bad UX." Every page is used on the phone; the most used are Overview, Holdings, Track record and Activity, then Strategy. Device: iPhone 15 (393 × 852 CSS px), iOS 27, installed to the home screen from Chrome. That install runs on WebKit like a Safari install, so the iOS home-screen rules apply.
+> **Status: Built** (2026-11-08, #66 and #67; Scott confirmed on his iPhone 15 from the home screen). Approved with the menu and sign-out answers below. Scott, 2026-11-08: "On mobile (using the PWA) in particular, I'm noticing some bad UX." Every page is used on the phone; the most used are Overview, Holdings, Track record and Activity, then Strategy. Device: iPhone 15 (393 × 852 CSS px), iOS 27, installed to the home screen from Chrome. That install runs on WebKit like a Safari install, so the iOS home-screen rules apply.
 
 **What's wrong today:**
 - **The page scrolls sideways.** The top menu (six links plus "Sign out" on one row that can't wrap) is about 500 px wide on a 393 px screen.
@@ -104,6 +104,14 @@ npm run mobile:check -w trader-dashboard   # Playwright, iPhone 15 profile: ever
 5. From the home screen: content clears the Dynamic Island and the home indicator; tapping the withdrawal amount doesn't zoom; the refresh control and the refresh on returning to the app both reload data.
 6. At 1280 px, every page looks as it does today, apart from the current-page highlight (checked against `mobile:check`'s desktop screenshots).
 7. Scott confirms on his iPhone, on staging, before merge.
+
+**Verified (2026-11-08):**
+- `mobile:check` is all clear on every page, including `/money/confirm`, at 393 px and 1280 px (baseline: 10 of 11 pages failing on the phone).
+- Scott checked production in his home-screen app: "Things look good on my phone."
+
+**Settled:**
+- **Status bar:** stays `default`, since it looked right on the phone and light mode isn't used.
+- **No `overflow-x: clip` backstop,** so `mobile:check` keeps catching real overflow.
 
 **Resolved (Scott, 2026-11-08):**
 1. **Menu:** one row that scrolls inside itself is fine, provided it's obvious there's more and it's easy to reach (the cut-off item, the faded edge, the current page in view).
