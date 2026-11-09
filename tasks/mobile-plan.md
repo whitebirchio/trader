@@ -63,7 +63,9 @@ Tables stay at 640 px and up.
 **Done when:** `mobile:check` passes the table and input checks on every page.
 **Files:** `src/app/(signed-in)/activity/page.tsx`, `src/app/(signed-in)/money/page.tsx`, `src/app/(signed-in)/theses/[id]/page.tsx`
 
-### M5: Charts on phones
+### M5: Charts on phones ✅
+**Result:** `mobile:check` is clear on every page at 393 px and 1280 px, and now also checks that charts have 280+ px of plot. On phones: short axis dates ("Nov 2", or "Nov '25" on long ranges); the thesis chart's cost and stop labels inside the plot; the Overview chart relies on its legend instead of end labels; range buttons and "Table view" at 44 px; cards a little tighter (p-3) so the plots fit.
+
 **What:**
 - short date labels ("Nov 2") and fewer ticks below 640 px;
 - direct labels that fit (the thesis chart's right margin shrinks on phones, with the cost and stop labels drawn inside the plot);

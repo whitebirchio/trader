@@ -2,6 +2,8 @@
 
 import { CartesianGrid, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { thesisView } from "@trader/core";
+import { shortDate } from "@/lib/format";
+import { useNarrow } from "@/lib/use-narrow";
 
 /**
  * One thesis's daily close (validated slot 1) with its cost and stop as
@@ -32,6 +34,7 @@ function niceStep(span: number): number {
 }
 
 export function ThesisChart({ chart }: { chart: Chart }) {
+  const narrow = useNarrow();
   const data = chart.closes.map((c) => ({ date: c.date, close: Number(c.close) }));
   if (data.length < 2) {
     return <p className="text-sm text-[var(--muted)]">The chart starts once two daily closes are recorded (after each close).</p>;
@@ -55,25 +58,36 @@ export function ThesisChart({ chart }: { chart: Chart }) {
   const domain: [number, number] = [Math.max(0, Math.floor(Math.min(...levels) / step) * step), Math.ceil(Math.max(...levels) / step) * step];
   const ticks = Array.from({ length: Math.round((domain[1] - domain[0]) / step) + 1 }, (_, i) => domain[0] + i * step);
   const last = data.at(-1)!;
+  // A long axis labels months, not days.
+  const longAxis = Date.parse(last.date) - Date.parse(data[0]!.date) > 200 * 86_400_000;
+  // On phones the cost and stop labels sit inside the plot, so it needs no right-hand gutter.
+  const levelLabel = (text: string, above: boolean) => ({ value: text, position: narrow ? (above ? "insideTopRight" : "insideBottomRight") : "right", fill: "var(--text)", fontSize: 11 }) as const;
 
   return (
     <figure>
       <div className="h-64 w-full" role="img" aria-label={`Daily close from ${data[0]!.date} to ${last.date}, last ${usd(last.close)}${chart.cost ? `, cost ${usd(Number(chart.cost))}` : ""}${chart.stopPrice ? `, stop ${usd(Number(chart.stopPrice))}` : ""}`}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 104, bottom: 0, left: 0 }}>
+          <LineChart data={data} margin={{ top: 8, right: narrow ? 8 : 104, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "var(--border)" }} minTickGap={32} />
-            <YAxis domain={domain} ticks={ticks} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} width={52} tickFormatter={(v: number) => `$${v.toFixed(step < 1 ? 2 : 0)}`} />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: "var(--muted)", fontSize: 11 }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              minTickGap={narrow ? 24 : 32}
+              tickFormatter={(d: string) => (narrow ? shortDate(d, longAxis) : d)}
+            />
+            <YAxis domain={domain} ticks={ticks} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} width={narrow ? 44 : 52} tickFormatter={(v: number) => `$${v.toFixed(step < 1 ? 2 : 0)}`} />
             {[...evidenceOn.keys()].map((d) => (
               <ReferenceLine key={`e-${d}`} x={d} stroke="var(--muted)" strokeOpacity={0.5} strokeDasharray="2 3" />
             ))}
             {chart.cost && (
               <ReferenceLine y={Number(chart.cost)} stroke="var(--muted)" strokeWidth={1.5}
-                label={{ value: `cost ${usd(Number(chart.cost))}`, position: "right", fill: "var(--text)", fontSize: 11 }} />
+                label={levelLabel(`cost ${usd(Number(chart.cost))}`, true)} />
             )}
             {chart.stopPrice && (
               <ReferenceLine y={Number(chart.stopPrice)} stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="6 4"
-                label={{ value: `stop ${usd(Number(chart.stopPrice))}`, position: "right", fill: "var(--text)", fontSize: 11 }} />
+                label={levelLabel(`stop ${usd(Number(chart.stopPrice))}`, false)} />
             )}
             <Tooltip
               cursor={{ stroke: "var(--muted)", strokeDasharray: "3 3" }}
@@ -105,7 +119,7 @@ export function ThesisChart({ chart }: { chart: Chart }) {
         ▲ buy · ▼ sell · solid line: average cost{chart.stopPrice ? " · dashed line: stop" : ""}{evidenceOn.size ? " · dotted guides: evidence dates" : ""}. Closes are adjusted for dividends and splits; fills and cost are actual prices.
       </figcaption>
       <details className="mt-2 text-xs">
-        <summary className="cursor-pointer text-[var(--muted)]">Table view</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center text-[var(--muted)] sm:block sm:min-h-0">Table view</summary>
         <table className="mt-2 w-full">
           <thead className="text-left text-[var(--muted)]">
             <tr><th className="py-1">Date</th><th className="text-right">Close</th><th className="pl-3">Fills and evidence</th></tr>

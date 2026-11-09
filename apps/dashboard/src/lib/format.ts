@@ -53,3 +53,12 @@ export const sign = (value: string) => compare(value, "0");
 
 /** Only http(s) links from strategy evidence are rendered as links. */
 export const safeHref = (url: string | undefined) => (url && /^https?:\/\//i.test(url) ? url : null);
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A chart axis date (SPEC-dashboard Amendment 2): "Nov 2", or "Nov '25" when the axis spans long enough that the day doesn't matter. */
+export function shortDate(iso: string, monthAndYear = false): string {
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  const month = MONTHS[Number(m) - 1] ?? m;
+  return monthAndYear ? `${month} '${y?.slice(2)}` : `${month} ${Number(d)}`;
+}

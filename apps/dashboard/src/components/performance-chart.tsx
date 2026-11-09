@@ -2,11 +2,14 @@
 
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { PerformancePoint } from "@trader/core";
+import { shortDate } from "@/lib/format";
+import { useNarrow } from "@/lib/use-narrow";
 
 /**
  * Trader vs VTI, both rebased to 100 at the first snapshot: one axis, two
  * series (validated slots 1–2), a legend plus direct end labels, a crosshair
- * tooltip, and a table view. Numbers are converted here for drawing only.
+ * tooltip, and a table view. Numbers are converted here for drawing only. On
+ * phones the end labels give way to the legend, so the plot keeps its width.
  */
 type LabelProps = { index?: number; x?: number | string; y?: number | string };
 
@@ -17,6 +20,7 @@ const endLabel = (text: string, lastIndex: number) =>
   };
 
 export function PerformanceChart({ points }: { points: PerformancePoint[] }) {
+  const narrow = useNarrow();
   const data = points.map((p) => ({ date: p.date, trader: Number(p.portfolio), vti: p.benchmark === null ? null : Number(p.benchmark) }));
   const last = points.at(-1);
   if (points.length < 2) {
@@ -26,9 +30,16 @@ export function PerformanceChart({ points }: { points: PerformancePoint[] }) {
     <figure>
       <div className="h-64 w-full" role="img" aria-label={`Trader ${last?.portfolio} vs VTI ${last?.benchmark ?? "n/a"}, both from 100`}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 48, bottom: 0, left: 0 }}>
+          <LineChart data={data} margin={{ top: 8, right: narrow ? 8 : 48, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "var(--border)" }} minTickGap={32} />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: "var(--muted)", fontSize: 11 }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              minTickGap={narrow ? 24 : 32}
+              tickFormatter={(d: string) => (narrow ? shortDate(d) : d)}
+            />
             <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--muted)", fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
             <Tooltip
               cursor={{ stroke: "var(--muted)", strokeDasharray: "3 3" }}
@@ -37,14 +48,14 @@ export function PerformanceChart({ points }: { points: PerformancePoint[] }) {
             />
             <Legend formatter={(v) => <span style={{ color: "var(--text)", fontSize: 12 }}>{v === "trader" ? "Trader" : "VTI"}</span>} />
             <Line dataKey="trader" stroke="var(--portfolio)" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }} isAnimationActive={false}
-              label={endLabel("Trader", data.length - 1)} />
+              label={narrow ? undefined : endLabel("Trader", data.length - 1)} />
             <Line dataKey="vti" stroke="var(--benchmark)" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }} isAnimationActive={false} connectNulls
-              label={endLabel("VTI", data.length - 1)} />
+              label={narrow ? undefined : endLabel("VTI", data.length - 1)} />
           </LineChart>
         </ResponsiveContainer>
       </div>
       <details className="mt-2 text-xs">
-        <summary className="cursor-pointer text-[var(--muted)]">Table view</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center text-[var(--muted)] sm:block sm:min-h-0">Table view</summary>
         <table className="mt-2 w-full">
           <thead className="text-left text-[var(--muted)]">
             <tr><th className="py-1">Date</th><th className="text-right">Trader</th><th className="text-right">VTI</th></tr>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDays, formatSignedUsd } from "@/lib/format";
+import { formatDays, formatSignedUsd, shortDate } from "@/lib/format";
 
 describe("formatSignedUsd", () => {
   it("signs gains and losses, not zero", () => {
@@ -16,5 +16,13 @@ describe("formatDays", () => {
     expect(formatDays(1)).toBe("1 day");
     expect(formatDays(0)).toBe("0 days");
     expect(formatDays(2.5)).toBe("2.5 days");
+  });
+});
+
+describe("shortDate", () => {
+  it("shortens an axis date to the month and day, or the month and year", () => {
+    expect(shortDate("2026-11-02")).toBe("Nov 2");
+    expect(shortDate("2026-01-31")).toBe("Jan 31");
+    expect(shortDate("2025-11-12", true)).toBe("Nov '25");
   });
 });

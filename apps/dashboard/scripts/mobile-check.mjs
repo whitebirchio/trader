@@ -133,6 +133,11 @@ async function audit(page, phone) {
             return `${describe(el)} ${Math.round(r.width)}×${Math.round(r.height)}`;
           });
         if (small.length) problems.push(`${small.length} tap target(s) under ${MIN_TAP}px: ${small.slice(0, 4).join("; ")}${small.length > 4 ? "; …" : ""}`);
+        // Charts need room to read: at least 280 px of plot (the grid's width).
+        for (const grid of document.querySelectorAll(".recharts-cartesian-grid")) {
+          const w = grid.getBoundingClientRect().width;
+          if (w > 0 && w < 280) problems.push(`chart plot only ${Math.round(w)}px wide (want 280+)`);
+        }
         for (const input of document.querySelectorAll("input:not([type=hidden]), textarea, select")) {
           const size = parseFloat(getComputedStyle(input).fontSize);
           if (visible(input) && size < MIN_INPUT_FONT) problems.push(`input under ${MIN_INPUT_FONT}px (${size}px, iOS zooms on focus): ${describe(input)}`);

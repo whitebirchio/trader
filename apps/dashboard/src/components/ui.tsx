@@ -2,7 +2,7 @@ import { formatPct, sign } from "@/lib/format";
 
 export function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 ${className}`}>
+    <section className={`min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4 ${className}`}>
       {title && <h2 className="mb-3 text-sm font-semibold text-[var(--muted)]">{title}</h2>}
       {children}
     </section>
@@ -60,7 +60,7 @@ export function Badge({ children }: { children: React.ReactNode }) {
  * `RowsOnPhone`, and exactly one of the two shows.
  */
 export function TableOnWide({ children }: { children: React.ReactNode }) {
-  return <div className="-mx-4 hidden overflow-x-auto px-4 sm:block">{children}</div>;
+  return <div className="-mx-4 hidden overflow-x-auto px-4 sm:block">{children}</div>; // the card's sm:p-4
 }
 
 export function RowsOnPhone({ children }: { children: React.ReactNode }) {
