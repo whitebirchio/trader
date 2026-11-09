@@ -113,15 +113,33 @@ Risk reasons are grouped by their text with the figures masked, since decisions 
 **Files likely touched:** `src/replay/report.ts`, `scripts/replay.ts`, `package.json` (script), `test/replay/report.test.ts`
 **Estimated scope:** Medium
 
-### T6: Fidelity check
+### T6: Fidelity check ✅ staging (2026-11-09); production pending a fresh export
 **Description:** Replay production's history under today's rules and compare it with what actually happened: equity path, fills (dates, prices, quantities), stops and unwinds. Explain each gap (fill price model, versions authored after 10:00, intraday stops) in a short local write-up.
 
 **Acceptance criteria:**
-- [ ] The comparison is a script that can be re-run, not a one-off.
-- [ ] Every material gap is either explained by a stated assumption or filed as a bug.
+- [x] The comparison is a script that can be re-run, not a one-off.
+- [x] Every material gap is either explained by a stated assumption or filed as a bug (staging; production to come).
 
 **Verification:**
 - [ ] Manual: Scott reads the write-up (kept in `.cache/replay/`, since it contains live figures; a summary without live figures can go in the PR)
+
+**Done:**
+- **The script:** `npm run replay -- --timeline <env> --compare-actual`.
+- **Export:** `replay:export` now also writes what actually happened (fills, equity snapshots, thesis events), read by `readAccountHistory`, the same reader the replay's own database goes through.
+- **Comparison:** `src/replay/fidelity.ts` compares the two per session, symbol and side:
+  - matched;
+  - shifted (within 2 sessions);
+  - small (under 2% of equity);
+  - unexplained (anything else, or a matched price more than 5% off).
+
+  It also compares the equity path, the flow-adjusted return and thesis events.
+- **Write-up:** in `.cache/replay/reports/fidelity-notes.md`.
+
+**Staging result:** where the replay and live take the same decision, prices are within about 1% and sizes within 0.5%. Equity stayed within 0.4% of live every day. The gaps come from a decision near a threshold (a sector ETF at its 200-day line), which one session's price difference flips, and two live behaviours the comparison surfaced. Both are drafted as issues, with no figures:
+- the wash-sale skip applies to VTI, the idle symbol, and cascades VTI sales in multi-name universes;
+- systematic buys the cash can't cover are proposed again at every step, and risk rejects each one.
+
+Withdrawal requests aren't replayed (only completed transfers), and the report now states it.
 
 **Dependencies:** T5
 **Files likely touched:** `scripts/replay.ts` (a `--compare-actual` flag), `src/replay/report.ts`

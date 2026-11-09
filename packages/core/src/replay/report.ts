@@ -115,6 +115,7 @@ export async function replayReport(r: ReplayResult, opts: ReportOptions): Promis
       `Steps per session (ET): ${STEPS.map((s) => s.time).join(", ")}. Live runs every 15 minutes; a version after the last trading step waits for the next session.`,
       "Stops check the latest price, which in the replay is the session's open at every step (live: the latest trade, every 15 minutes). A move through a stop that recovers by the next open goes unseen.",
       "No dividends or corporate actions: adjusted bars stand in for them.",
+      "Withdrawal requests aren't replayed, only completed transfers, so no cash is held back for an open request.",
     ],
     warnings,
     performance: perf.totals,
