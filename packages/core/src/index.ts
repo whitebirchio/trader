@@ -9,6 +9,7 @@ export * from "./time.js";
 export * from "./broker/port.js";
 export * from "./broker/hosts.js";
 export * from "./broker/alpaca.js";
+export * from "./broker/market-data.js";
 export * from "./broker/lots.js";
 export * from "./broker/orders.js";
 export * from "./broker/sync.js";

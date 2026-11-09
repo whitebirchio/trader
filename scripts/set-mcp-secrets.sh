@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # Store one environment's MCP secrets in SSM (/trader/<env>/MCP_*), never
-# printing them (SPEC-agent).
+# printing them (SPEC-agent). The MCP server reads only these, never the
+# engine's DATABASE_URL or Alpaca keys (least privilege, review finding R1).
 #
 #   scripts/set-mcp-secrets.sh staging|production [--rotate]
+#
+#   MCP_DATABASE_URL       create/rotate trader_mcp (SELECT, plus INSERT on
+#                          strategies and audit_events) on the env's Neon branch,
+#                          using <ENV>_MIGRATE_URL from .env
+#   MCP_ALPACA_KEY_ID,     the PAPER account's keys (STAGING_ALPACA_* in .env) for
+#   MCP_ALPACA_SECRET_KEY  both environments: the MCP server only reads market data,
+#                          so even production's holds no live-account credential
 #
 # Values live in .env as <ENV>_MCP_SIGNING_KEY, <ENV>_MCP_PASSPHRASE and
 # <ENV>_MCP_TOKEN. Any that are missing are generated and added there, so .env
@@ -54,5 +62,18 @@ for name in MCP_SIGNING_KEY MCP_TOKEN MCP_PASSPHRASE; do
   min=32; [ "$name" = MCP_PASSPHRASE ] && min=16
   [ "${#value}" -ge "$min" ] || { echo "$var must be at least $min characters" >&2; exit 1; }
   printf '%s' "$value" | scripts/put-ssm-secret.sh "/trader/$env/$name"
+done
+
+owner_url="$(read_env "${prefix}_MIGRATE_URL")"
+[ -n "$owner_url" ] || { echo "${prefix}_MIGRATE_URL is not set in .env" >&2; exit 1; }
+mcp_url="$(DATABASE_URL="$owner_url" MCP_ROLE_PASSWORD="$(random 32)" \
+  npx -w @trader/core tsx scripts/mcp-role.ts --print-url)"
+[ -n "$mcp_url" ] || { echo "mcp-role setup produced no URL" >&2; exit 1; }
+printf '%s' "$mcp_url" | scripts/put-ssm-secret.sh "/trader/$env/MCP_DATABASE_URL"
+
+for name in ALPACA_KEY_ID ALPACA_SECRET_KEY; do
+  value="$(read_env "STAGING_${name}")"
+  [ -n "$value" ] || { echo "STAGING_${name} (the paper account's) is not set in .env" >&2; exit 1; }
+  printf '%s' "$value" | scripts/put-ssm-secret.sh "/trader/$env/MCP_${name}"
 done
 echo "Done. The passphrase and token are in .env as ${prefix}_MCP_PASSPHRASE and ${prefix}_MCP_TOKEN."

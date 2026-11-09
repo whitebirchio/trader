@@ -11,7 +11,7 @@ import * as scheduler from "aws-cdk-lib/aws-scheduler";
 import * as ses from "aws-cdk-lib/aws-ses";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
-import { TICK_JOBS } from "@trader/core";
+import { MCP_PARAMETERS, TICK_JOBS } from "@trader/core";
 import type { Construct } from "constructs";
 import { Dashboard } from "./dashboard.js";
 import { MAIL_DOMAIN, NOTIFY_FROM, OWNER_EMAIL, type TradingEnv, secretsPath } from "./config.js";
@@ -144,8 +144,10 @@ export class EngineStack extends Stack {
     new CfnOutput(this, "HealthUrl", { value: `${url.url}healthz` });
 
     // The MCP server (SPEC-agent): its own function, so a tool bug can't touch
-    // the trading schedule. It reads the same secrets (plus MCP_*), has no SES
-    // permission and no schedule, and is public behind its own OAuth.
+    // the trading schedule. It's public behind its own OAuth, so it gets least
+    // privilege (review finding R1): only its own named parameters (a
+    // trader_mcp database URL and a paper-account market-data key), never the
+    // engine's DATABASE_URL or Alpaca keys; no SES permission; no schedule.
     const mcp = new NodejsFunction(this, "Mcp", {
       functionName: `trader-mcp-${env}`,
       entry: `${repoRoot}apps/mcp/src/index.ts`,
@@ -159,7 +161,13 @@ export class EngineStack extends Stack {
       environment: { TRADING_ENV: env, SECRETS_PATH: secretsPath(env) },
       bundling,
     });
-    mcp.addToRolePolicy(readOwnSecrets());
+    mcp.addToRolePolicy(
+      new iam.PolicyStatement({
+        sid: "ReadMcpSecrets",
+        actions: ["ssm:GetParameters"],
+        resources: MCP_PARAMETERS.map((name) => `arn:aws:ssm:${this.region}:${this.account}:parameter${secretsPath(env)}${name}`),
+      }),
+    );
     const mcpUrl = mcp.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
     new CfnOutput(this, "McpUrl", { value: `${mcpUrl.url}mcp`, description: "Add in Claude as a custom connector" });
 
