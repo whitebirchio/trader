@@ -135,9 +135,9 @@ Risk reasons are grouped by their text with the figures masked, since decisions 
   It also compares the equity path, the flow-adjusted return and thesis events.
 - **Write-up:** in `.cache/replay/reports/fidelity-notes.md`.
 
-**Staging result:** where the replay and live take the same decision, prices are within about 1% and sizes within 0.5%. Equity stayed within 0.4% of live every day. The gaps come from a decision near a threshold (a sector ETF at its 200-day line), which one session's price difference flips, and two live behaviours the comparison surfaced. Both are drafted as issues, with no figures:
-- the wash-sale skip applies to VTI, the idle symbol, and cascades VTI sales in multi-name universes;
-- systematic buys the cash can't cover are proposed again at every step, and risk rejects each one.
+**Staging result:** where the replay and live take the same decision, prices are within about 1% and sizes within 0.5%. Equity stayed within 0.4% of live every day. The gaps come from a decision near a threshold (a sector ETF at its 200-day line), which one session's price difference flips, and two live behaviours the comparison surfaced. Both are filed:
+- #81: the wash-sale skip applies to VTI, the idle symbol, and cascades VTI sales in multi-name universes;
+- #82: systematic buys the cash can't cover are proposed again at every step, and risk rejects each one.
 
 Withdrawal requests aren't replayed (only completed transfers), and the report now states it.
 
