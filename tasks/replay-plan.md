@@ -20,10 +20,11 @@ It changes no production behaviour. It runs on a laptop against a throwaway PGli
 - **Simulated session:**
   - 09:45 ET: sync, then a rebalance step (sells).
   - 10:00 ET: sync, then a rebalance step (buys).
+  - 12:30 and 12:45 ET: the same pair again, for the routine's midday version (added in T5).
   - 16:15 ET: after-close sync (snapshot, VTI and thesis closes, drawdown check).
   
   During the session, `getDailyBars` serves today's bar as a partial bar: open = close = today's open. That avoids lookahead: decisions and stops see yesterday's close and today's open. Fills are at today's open ± a slippage assumption, and the full bar appears only after the close. *(Open question 1.)*
-- **Versions authored after 10:00 ET** (the routine's 12:00 run) take effect the next session. This is a known fidelity gap; Task 6 measures it.
+- **Versions authored after 12:45 ET** take effect the next session. T5 added the midday steps once T4 showed that a midday version otherwise trades a day late. A midday order fills at the open, the only intraday price daily bars hold; Task 6 measures what that costs.
 - **Deposits and withdrawals in the history are replayed as transfers** at their dates, so the flow-adjusted index compares like for like.
 - **Halts depend on the mode.** A drawdown halt or kill switch **freezes** a replay of Trader's own history, as it would live. A multi-year rule-based replay **resumes automatically** the next session, because a concentrated book would likely halt in March 2020 and freeze every variant identically from then on. Every report lists every halt date either way, and either default can be overridden.
 - **Reports reuse the dashboard's readers on the replay database** (`performanceSeries`, `loadScorecard`, `rebalance_plans`, `risk_decisions`, lots), plus turnover, realized short-term gains and wash-sale hits.

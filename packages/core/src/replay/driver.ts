@@ -17,13 +17,19 @@ import { SimBroker, type SimMarket } from "./sim-broker.js";
  * `from` to `to`, running production's own jobs through runJob against a
  * SimBroker and a throwaway PGlite database with the real migrations.
  *
- * Each session runs three steps, in Eastern time:
+ * Each session runs five steps, in Eastern time:
  *   09:45  sync, capital, rebalance (sells first; sim orders fill at the open)
  *   10:00  sync, capital, rebalance (the sync sees the fills; buys)
+ *   12:30  sync, capital, rebalance (the routine's midday version, ~12:15: sells)
+ *   12:45  sync, capital, rebalance (its buys)
  *   16:15  sync, capital (after the close: snapshot, closes, drawdown check)
- * Before each step, strategy versions and transfers whose time has come are
- * applied, versions through the real submitStrategy with their original
- * timestamps. A version authored after 10:00 takes effect next session.
+ * Live rebalances every 15 minutes; these are the steps that matter for a
+ * routine that submits around 08:15 and 12:15. Daily bars hold one intraday
+ * price, the open, so a midday order fills at the open too (an assumption the
+ * report states). Before each step, strategy versions and transfers whose
+ * time has come are applied, recorded ones as stored and others through the
+ * real submitStrategy, with their original timestamps. A version authored
+ * after 12:45 takes effect next session.
  *
  * A drawdown halt or kill switch freezes trading as it would live; with
  * `autoResume`, the owner's resume runs at the next session's first step.
@@ -88,6 +94,8 @@ export interface ReplayResult {
 export const STEPS: { time: string; jobs: JobName[] }[] = [
   { time: "09:45", jobs: ["sync-broker", "process-capital", "rebalance"] },
   { time: "10:00", jobs: ["sync-broker", "process-capital", "rebalance"] },
+  { time: "12:30", jobs: ["sync-broker", "process-capital", "rebalance"] },
+  { time: "12:45", jobs: ["sync-broker", "process-capital", "rebalance"] },
   { time: "16:15", jobs: ["sync-broker", "process-capital"] },
 ];
 
