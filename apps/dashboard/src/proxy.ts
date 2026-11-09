@@ -52,6 +52,8 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+// Image optimization (/_next/image) is off (next.config.ts), and it isn't
+// exempt here either, so it would need a session even if it came back.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/).*)"],
+  matcher: ["/((?!_next/static|favicon.ico|manifest.webmanifest|icons/).*)"],
 };
