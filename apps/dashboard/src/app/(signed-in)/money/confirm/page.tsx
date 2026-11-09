@@ -61,7 +61,7 @@ export default async function ConfirmPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="csrf" value={csrf} />
             <input type="hidden" name="confirm" value="yes" />
             <div className="flex flex-wrap gap-3">
-              <button type="submit" className="rounded-md bg-[var(--text)] px-3 py-1.5 font-medium text-[var(--background)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+              <button type="submit" className="min-h-11 rounded-md bg-[var(--text)] px-3 sm:min-h-0 py-1.5 font-medium text-[var(--background)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
                 {kind === "request" ? "Confirm withdrawal" : kind === "fund_now" ? "Confirm: fund now" : "Confirm: cancel withdrawal"}
               </button>
               <Link href="/money" className="rounded-md px-3 py-1.5 hover:bg-[var(--border)]">Back</Link>

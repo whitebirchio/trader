@@ -164,6 +164,9 @@ async function pageList(browser) {
     "/",
     "/holdings",
     "/money",
+    // The confirmation step only renders on a GET; nothing is queued without its POST form.
+    "/money/confirm?kind=cancel",
+    "/money/confirm?kind=request&amount=500",
     "/strategy",
     ...(version ? [version] : []),
     "/track-record",

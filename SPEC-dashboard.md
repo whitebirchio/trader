@@ -82,7 +82,7 @@ npm run mobile:check -w trader-dashboard   # Playwright, iPhone 15 profile: ever
 ```
 
 **Testing:**
-- **Automated (`mobile:check`, on demand before each PR):** on every signed-in page (`/`, `/holdings`, `/money`, `/strategy`, `/strategy/[version]`, `/track-record`, `/activity`, `/theses/[id]` with each range) and on `/login`, at 393 × 852:
+- **Automated (`mobile:check`, on demand before each PR):** on every signed-in page (`/`, `/holdings`, `/money`, `/money/confirm` for a cancel and a request (a GET only renders it), `/strategy`, `/strategy/[version]`, `/track-record`, `/activity`, `/theses/[id]` with each range) and on `/login`, at 393 × 852:
   - `document.documentElement.scrollWidth` is at most the viewport width;
   - the menu, range pickers, refresh control and card toggles are at least 44 × 44 px;
   - no text input renders under 16 px.
