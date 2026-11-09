@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { trackRecordView } from "@trader/core";
-import { Badge, Card, Change, Signed, StatTile } from "@/components/ui";
+import { Badge, Card, Change, PhoneRow, RowsOnPhone, Signed, StatTile, TableOnWide } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
 import { formatDays, formatEt, formatPct, formatPts, formatQty, formatSignedUsd, formatUsd } from "@/lib/format";
 
@@ -31,7 +31,19 @@ export default async function TrackRecordPage() {
         {t.byKind.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">No theses yet.</p>
         ) : (
-          <div className="-mx-4 overflow-x-auto px-4">
+          <>
+          <RowsOnPhone>
+            {t.byKind.map((k) => (
+              <PhoneRow
+                key={k.kind}
+                title={k.kind}
+                value={k.excessPct ? <Signed value={k.excessPct}>{formatPts(k.excessPct)}</Signed> : "—"}
+                detail={`${k.scored === k.theses ? k.theses : `${k.scored} of ${k.theses}`} ${k.theses === 1 ? "thesis" : "theses"} · ${formatUsd(k.bought)} bought`}
+                secondary={<>P&amp;L {formatSignedUsd(k.pnl)} · VTI {formatSignedUsd(k.vtiPnl)}</>}
+              />
+            ))}
+          </RowsOnPhone>
+          <TableOnWide>
             <table className="w-full min-w-[32rem] text-sm">
               <thead className="text-left text-xs text-[var(--muted)]">
                 <tr>
@@ -56,7 +68,8 @@ export default async function TrackRecordPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableOnWide>
+          </>
         )}
       </Card>
 
@@ -64,7 +77,34 @@ export default async function TrackRecordPage() {
         {t.theses.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">No theses yet.</p>
         ) : (
-          <div className="-mx-4 overflow-x-auto px-4">
+          <>
+          <RowsOnPhone>
+            {t.theses.map((r) => (
+              <PhoneRow
+                key={`${r.ids[0]}-${r.openedAt}`}
+                title={
+                  <>
+                    <Link href={`/theses/${r.ids.at(-1)}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">{r.symbol}</Link>
+                    {r.primaryKind && <Badge>{r.primaryKind}</Badge>}
+                  </>
+                }
+                value={"pnl" in r ? <Signed value={r.excessPct}>{formatPts(r.excessPct)}</Signed> : "—"}
+                detail={
+                  <>
+                    {formatDays(r.daysHeld)}, {ENDING[r.ending]}
+                    {r.ending !== "open" && !r.closedAt && " (selling)"}
+                  </>
+                }
+                secondary={"pnl" in r ? <>return <Change pct={r.returnPct} /> · VTI <Change pct={r.vtiPct} /></> : undefined}
+                foot={
+                  "pnl" in r
+                    ? `${formatUsd(r.bought)} bought · ${formatSignedUsd(r.excess)} vs VTI · ${r.openedAt?.slice(0, 10)} to ${r.closedAt?.slice(0, 10) ?? "now"}`
+                    : `Not scored: ${r.unscored}`
+                }
+              />
+            ))}
+          </RowsOnPhone>
+          <TableOnWide>
             <table className="w-full min-w-[44rem] text-sm">
               <thead className="text-left text-xs text-[var(--muted)]">
                 <tr>
@@ -117,7 +157,8 @@ export default async function TrackRecordPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableOnWide>
+          </>
         )}
       </Card>
     </div>

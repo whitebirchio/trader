@@ -45,7 +45,9 @@ Screenshots go to `apps/dashboard/.mobile/` (git-ignored).
 ### Checkpoint 1
 - [ ] Gate green; `mobile:check` shows the shell fixed; push to staging so Scott can try the menu on his phone early
 
-### M3: Cards for Holdings and Track record
+### M3: Cards for Holdings and Track record ✅
+**Result:** both pages pass `mobile:check` on phone and desktop. Holdings fits every figure in three lines per row, so nothing needs to expand. The duplicate wash-sale key is fixed. The shared `TableOnWide` / `RowsOnPhone` / `PhoneRow` components carry the pattern to M4.
+
 **What:** below 640 px, each row becomes a card:
 - **Holdings:** symbol, value, weight vs target, gain, distance to stop; the rest expands in place.
 - **Track record:** by-kind rows; theses with symbol, how it ended, return and vs VTI, linking to the thesis page.

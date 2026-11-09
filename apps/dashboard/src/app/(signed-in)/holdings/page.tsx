@@ -17,8 +17,9 @@ export default async function HoldingsPage() {
       {h.washSaleWindows.length > 0 && (
         <Card title="Open wash-sale windows">
           <ul className="grid gap-1 text-sm">
-            {h.washSaleWindows.map((w) => (
-              <li key={`${w.symbol}-${w.soldAt}`}>
+            {h.washSaleWindows.map((w, i) => (
+              // Partial sales of one symbol can share a time, so the index keeps keys unique.
+              <li key={`${w.symbol}-${w.soldAt}-${i}`}>
                 {w.symbol}: sold at a loss of {formatUsd(w.loss)} on {w.soldAt.slice(0, 10)}; buying back before {w.windowEnds} disallows the loss.
               </li>
             ))}
