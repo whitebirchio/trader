@@ -6,11 +6,16 @@
  * packages/core/.cache/replay/reports/. A history's report holds live
  * figures, so it stays local.
  *
- *   npm run replay -w @trader/core -- --timeline staging|production|<file> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--slippage-bps 10] [--compare-actual]
+ *   npm run replay -w @trader/core -- --timeline staging|production|<file> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--slippage-bps 10] [--compare-actual] [--variant stop=20]
  *
  * --compare-actual adds the fidelity check (T6): the replay set against what
  * the account actually did, from the timeline's `actual` (exported since T6),
  * written alongside as <name>-fidelity.txt.
+ *
+ * --variant kind=N (repeatable, applied in order; see src/replay/variants.ts)
+ * also replays the timeline with every version transformed, on the same
+ * market data, and prints the baseline-vs-variant diff (T7), written
+ * alongside as <name>-<variant>-diff.txt with the variant's own report.
  *
  * --from defaults to the timeline's first version, --to to yesterday (the
  * last session whose bars are complete).
@@ -21,12 +26,13 @@ import { parseArgs } from "node:util";
 import { loadMarket } from "../src/replay/data.js";
 import { replay } from "../src/replay/driver.js";
 import { compareFidelity, formatFidelity } from "../src/replay/fidelity.js";
-import { formatReport, replayReport } from "../src/replay/report.js";
+import { diffReports, formatDiff, formatReport, replayReport } from "../src/replay/report.js";
+import { combineVariants, parseVariant } from "../src/replay/variants.js";
 import { parseTimeline, readAccountHistory, timelineStart, timelineSymbols } from "../src/replay/timeline.js";
 import { marketDate } from "../src/time.js";
 import { REPLAY_CACHE, paperMarketData } from "./replay-data.js";
 
-const { values } = parseArgs({ options: { timeline: { type: "string" }, from: { type: "string" }, to: { type: "string" }, "slippage-bps": { type: "string" }, "compare-actual": { type: "boolean" } } });
+const { values } = parseArgs({ options: { timeline: { type: "string" }, from: { type: "string" }, to: { type: "string" }, "slippage-bps": { type: "string" }, "compare-actual": { type: "boolean" }, variant: { type: "string", multiple: true } } });
 if (!values.timeline) throw new Error("--timeline staging|production|<file> is required");
 const file = values.timeline === "staging" || values.timeline === "production" ? join(REPLAY_CACHE, `timeline-${values.timeline}.json`) : values.timeline;
 const timeline = parseTimeline(readFileSync(file, "utf8"));
@@ -34,6 +40,8 @@ if (values["compare-actual"] && !timeline.actual) throw new Error(`${file} has n
 const from = values.from ?? timelineStart(timeline);
 if (!from) throw new Error(`${file} has no strategy versions; pass --from`);
 const to = values.to ?? marketDate(new Date(Date.now() - 86_400_000));
+// Parsed before any replay runs, so an unknown variant fails fast.
+const variant = values.variant?.length ? combineVariants(values.variant.map(parseVariant)) : null;
 const slippageBps = values["slippage-bps"] === undefined ? 10 : Number(values["slippage-bps"]);
 if (!Number.isInteger(slippageBps) || slippageBps < 0) throw new Error("--slippage-bps must be a whole number of basis points");
 
@@ -54,6 +62,17 @@ writeFileSync(join(dir, `${name}.txt`), text);
 writeFileSync(join(dir, `${name}.json`), JSON.stringify(report, null, 2));
 console.log(text);
 console.log(`→ ${join(dir, `${name}.txt`)} (and .json)`);
+if (variant) {
+  const varied = await replay({ market, versions: timeline.versions.map(variant.apply), transfers: timeline.transfers, from, to, slippageBps });
+  const variantReport = await replayReport(varied, { from, to, slippageBps });
+  await varied.pglite.close();
+  const diff = formatDiff(diffReports(report, variantReport, variant.name));
+  const slug = variant.name.replace(/[^a-z0-9.=-]+/gi, "_");
+  writeFileSync(join(dir, `${name}-${slug}.txt`), formatReport(variantReport));
+  writeFileSync(join(dir, `${name}-${slug}-diff.txt`), diff);
+  console.log(`\n${diff}`);
+  console.log(`→ ${join(dir, `${name}-${slug}-diff.txt`)} (the variant's report: ${name}-${slug}.txt)`);
+}
 if (fidelity) {
   writeFileSync(join(dir, `${name}-fidelity.txt`), fidelity);
   console.log(`\n${fidelity}`);
