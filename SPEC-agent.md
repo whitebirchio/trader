@@ -58,6 +58,7 @@ Claude Code routine (cron) ┴─▶ trader-mcp-<env> Lambda (Function URL)
 - **A second Lambda per environment** (`trader-mcp-staging`, `trader-mcp-production`), separate from the engine, so a tool bug can't affect the trading schedule and each has its own IAM. It reads the same SSM secrets plus three MCP ones. It's public through its own Function URL.
 - **The auth and protocol are ported from Fred** (`~/fred/src/mcp/auth.ts`, `protocol.ts`; Scott's own code, adapted, and credited in the file headers). They're stateless, so no session store or database tables are needed:
   - **OAuth 2.1** with dynamic client registration (what claude.ai connectors and routines use), a **passphrase consent page**, 1-hour access tokens, 30-day refresh tokens, and audience binding.
+  - **Stateless trade-offs, accepted (codebase review, 2026-11-08):** with no server-side store, an authorization code can be redeemed more than once within its 5-minute life, and an earlier refresh token stays valid until it expires. PKCE means a stolen code is useless without the client's verifier, access tokens last an hour, and rotating `MCP_SIGNING_KEY` revokes everything at once. The passphrase page sends a `frame-ancestors 'none'` CSP, so it can't be framed.
   - **A static bearer token** for Claude Code and curl.
   - **Revoking everything** means rotating the signing key.
 - **Fails closed:** without a signing key or static token configured, `/mcp` serves nothing.

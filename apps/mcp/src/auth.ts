@@ -625,7 +625,17 @@ const page = (title: string, inner: string, status = 200) =>
     button { background:#fafaf9; color:#0c0a09; }
   }
 </style></head><body><main>${inner}</main></body></html>`,
-    { status, headers: { "content-type": "text/html; charset=utf-8" } },
+    {
+      status,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        // The one page a person sees: inline styles and a same-origin form, nothing else, and never framed.
+        "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+        "x-frame-options": "DENY",
+        "referrer-policy": "no-referrer",
+        "cache-control": "no-store",
+      },
+    },
   );
 
 export const errorPage = (message: string, status = 400) =>
