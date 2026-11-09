@@ -44,11 +44,11 @@
   - **SimBroker's `lastEquity`** first used today's cash; it now reports the previous close's state, as Alpaca does.
   - **Wall-clock audit:** `equity_snapshots.recorded_at` took the database clock, but the equity index splits deposits between snapshots by it, so it now takes the caller's `now`. So do `rebalance_plans.created_at`, `risk_gate_runs.ran_at` and `risk_decisions.decided_at`, for the reports. Production is unchanged (the Lambda's and database's clocks agree). `audit_events.at` and `job_runs.started_at` stay on the database clock: no decision reads them.
   - **A production finding for Scott:** `resume` doesn't re-base the drawdown peak, so after a 30% halt, `risk:resume` is re-latched at the next sync unless equity has recovered. The replay models production exactly (auto-resume re-halts daily). **Decision needed:** re-base the peak on resume (and how), or keep it.
-- [ ] Tell Scott: Phase 1 done, and the decision above
+- [x] Tell Scott: Phase 1 done (#76). **Decision (Scott, 2026-11-09): keep it** — a halt holds until the account recovers to within 30% of its peak; resume doesn't re-base the peak.
 
 ## Phase 2: replay Trader's own history (mode 1)
 
-### T3: Market-data cache
+### T3: Market-data cache ✅ (2026-11-09)
 **Description:** Fetch full daily bars (adjusted, as decimal strings), the market calendar and asset facts from Alpaca with the paper keys (market data only, read-only), cached under git-ignored `.cache/replay/` like the research cache, and load them into `SimBroker`.
 
 **Acceptance criteria:**
