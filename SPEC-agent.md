@@ -55,14 +55,17 @@ Claude Code routine (cron) ┴─▶ trader-mcp-<env> Lambda (Function URL)
                                  tools → @trader/core (store, rebalance dry-run, risk, broker reads)
 ```
 
-- **A second Lambda per environment** (`trader-mcp-staging`, `trader-mcp-production`), separate from the engine, so a tool bug can't affect the trading schedule and each has its own IAM. It reads the same SSM secrets plus three MCP ones. It's public through its own Function URL.
+- **A second Lambda per environment** (`trader-mcp-staging`, `trader-mcp-production`), separate from the engine, so a tool bug can't affect the trading schedule and each has its own IAM. It's public through its own Function URL.
+- **Least privilege (codebase review finding R1, 2026-11-08):** the MCP function reads only its own named parameters (`MCP_PARAMETERS` in core; IAM `ssm:GetParameters` on exactly those), never the engine's `DATABASE_URL` or Alpaca keys.
+  - **Its Alpaca client is market-data-only** (`MarketDataOnly`: bars, assets, calendar; every account and order method throws), on the **paper** hosts with the paper account's key in both environments. So production's public MCP function holds no live-account credential. Every tool runs on that alone (tested).
+  - **Its database role is `trader_mcp`** (`scripts/mcp-role.ts`): `SELECT`, plus `INSERT` on `strategies` and `audit_events` (submit_strategy's only writes). ADR-011's rule (no order tools) now holds at the credential layer as well as the tool layer.
 - **The auth and protocol are ported from Fred** (`~/fred/src/mcp/auth.ts`, `protocol.ts`; Scott's own code, adapted, and credited in the file headers). They're stateless, so no session store or database tables are needed:
   - **OAuth 2.1** with dynamic client registration (what claude.ai connectors and routines use), a **passphrase consent page**, 1-hour access tokens, 30-day refresh tokens, and audience binding.
   - **Stateless trade-offs, accepted (codebase review, 2026-11-08):** with no server-side store, an authorization code can be redeemed more than once within its 5-minute life, and an earlier refresh token stays valid until it expires. PKCE means a stolen code is useless without the client's verifier, access tokens last an hour, and rotating `MCP_SIGNING_KEY` revokes everything at once. The passphrase page sends a `frame-ancestors 'none'` CSP, so it can't be framed.
   - **A static bearer token** for Claude Code and curl.
   - **Revoking everything** means rotating the signing key.
 - **Fails closed:** without a signing key or static token configured, `/mcp` serves nothing.
-- **Database access:** `trader_app`, the same as the engine. `submit_strategy` writes as `actor: "claude"`.
+- **Database access:** `trader_mcp` (above). `submit_strategy` writes as `actor: "claude"`.
 
 ### New secrets (SSM, per environment)
 
@@ -71,6 +74,8 @@ Claude Code routine (cron) ┴─▶ trader-mcp-<env> Lambda (Function URL)
 | `/trader/<env>/MCP_SIGNING_KEY` | HMAC key for OAuth codes and tokens. Rotating it revokes everything. |
 | `/trader/<env>/MCP_PASSPHRASE` | What you type on the consent page when connecting. **This is the security boundary:** make it long and random. |
 | `/trader/<env>/MCP_TOKEN` | Optional static bearer token, for Claude Code and curl |
+| `/trader/<env>/MCP_DATABASE_URL` | `trader_mcp`'s connection string (created or rotated by `set-mcp-secrets.sh`) |
+| `/trader/<env>/MCP_ALPACA_KEY_ID`, `MCP_ALPACA_SECRET_KEY` | The **paper** account's key, for market data, in both environments |
 
 ## Assumptions (correct any of these)
 
@@ -83,7 +88,8 @@ Claude Code routine (cron) ┴─▶ trader-mcp-<env> Lambda (Function URL)
 
 ```sh
 npx vitest run agent                                        # (in packages/core and apps/mcp) tools, previews, auth, protocol
-scripts/set-mcp-secrets.sh staging|production [--rotate]    # generate what .env lacks (<ENV>_MCP_*) → SSM; prints names only
+scripts/set-mcp-secrets.sh staging|production [--rotate]    # generate what .env lacks (<ENV>_MCP_*), create/rotate trader_mcp, copy the paper data key → SSM; prints names only
+DATABASE_URL=<owner url> MCP_DATABASE_URL=<its url> npm run db:mcp-role -w @trader/core -- --check   # prove trader_mcp's grants without rotating
 curl -s -H "Authorization: Bearer $TOKEN" -X POST $MCP_URL -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
@@ -92,7 +98,7 @@ curl -s -H "Authorization: Bearer $TOKEN" -X POST $MCP_URL -d '{"jsonrpc":"2.0",
 ```
 packages/core/src/agent/      → tool implementations (pure core over Db + Broker): overview, strategy, holdings, activity, prices, eligibility, rules, preview, submit
 apps/mcp/                     → trader-mcp Lambda: Function URL adapter, auth (from Fred), protocol (from Fred), tool registry, instructions
-infra/lib/engine-stack.ts     → + the MCP function, its URL and its IAM (same SSM path, no SES)
+infra/lib/engine-stack.ts     → + the MCP function, its URL and its IAM (its own named MCP_* parameters, no SES)
 agent/routine-prompt.md       → the routine's prompt (checked in)
 ```
 

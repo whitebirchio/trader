@@ -63,7 +63,7 @@ Each environment's Lambda reads only `/trader/<env>/` (SecureStrings, default `a
 |---|---|
 | `/trader/<env>/DATABASE_URL` | `scripts/set-db-secret.sh <env>` |
 | `/trader/<env>/ALPACA_KEY_ID`, `/trader/<env>/ALPACA_SECRET_KEY` | `scripts/set-alpaca-secret.sh <env>` |
-| `/trader/<env>/MCP_SIGNING_KEY`, `MCP_PASSPHRASE`, `MCP_TOKEN` | `scripts/set-mcp-secrets.sh <env>` (values in `.env` as `<ENV>_MCP_*`) |
+| `/trader/<env>/MCP_SIGNING_KEY`, `MCP_PASSPHRASE`, `MCP_TOKEN`, `MCP_DATABASE_URL`, `MCP_ALPACA_KEY_ID`, `MCP_ALPACA_SECRET_KEY` | `scripts/set-mcp-secrets.sh <env>` (values in `.env` as `<ENV>_MCP_*`; it creates or rotates `trader_mcp` with `<ENV>_MIGRATE_URL` and copies the paper key `STAGING_ALPACA_*`) |
 | `/trader/<env>/DATABASE_READ_URL`, `DASHBOARD_SESSION_KEY`, `GOOGLE_CLIENT_SECRET` | `scripts/set-dashboard-secrets.sh <env>` |
 
 The dashboard's role reads only its three parameters, by exact name (`ssm:GetParameters`), never the path, so it can't see the Alpaca keys.

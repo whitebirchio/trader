@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
+import { MCP_PARAMETERS } from "@trader/core";
 import { describe, expect, it } from "vitest";
 import { CertsStack } from "../lib/certs-stack.js";
 import { EngineStack } from "../lib/engine-stack.js";
@@ -74,7 +75,7 @@ describe("EngineStack", () => {
     expect(Object.keys(staging.findOutputs("*"))).toEqual(expect.arrayContaining(["HealthUrl", "McpUrl"]));
   });
 
-  it("runs MCP as its own function: secrets path only, no SES, no schedule", () => {
+  it("runs MCP as its own function: its own named secrets only, no SES, no schedule", () => {
     staging.hasResourceProperties("AWS::Lambda::Function", {
       FunctionName: "trader-mcp-staging",
       Runtime: "nodejs22.x",
@@ -86,8 +87,13 @@ describe("EngineStack", () => {
     const mcpRole = Object.keys(staging.findResources("AWS::IAM::Role")).find((k) => k.startsWith("McpServiceRole"));
     const mcpPolicies = Object.values(staging.findResources("AWS::IAM::Policy")).filter((p) => JSON.stringify(p).includes(`"${mcpRole}"`));
     const actions = JSON.stringify(mcpPolicies.map((p) => (p as { Properties: { PolicyDocument: unknown } }).Properties.PolicyDocument));
-    expect(actions).toContain("ssm:GetParametersByPath");
+    expect(actions).toContain("ssm:GetParameters");
+    expect(actions).not.toContain("ssm:GetParametersByPath");
     expect(actions).not.toContain("ses:");
+    // Least privilege (review finding R1): exactly the MCP_* parameters, never the engine's database URL or Alpaca keys.
+    const mcpRead = roleStatements(staging).find((s) => s.Sid === "ReadMcpSecrets");
+    expect(mcpRead?.Resource).toEqual(MCP_PARAMETERS.map((n) => `arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging/${n}`));
+    expect(JSON.stringify(mcpRead?.Resource)).not.toMatch(/\/(DATABASE_URL|ALPACA_KEY_ID|ALPACA_SECRET_KEY)"/);
     const targets = JSON.stringify(Object.values(staging.findResources("AWS::Scheduler::Schedule")));
     expect(targets).not.toContain("Mcp");
   });
@@ -96,8 +102,7 @@ describe("EngineStack", () => {
     const read = (t: Template) => roleStatements(t).find((s) => s.Sid === "ReadOwnSecrets");
     for (const t of [staging, production]) {
       const reads = roleStatements(t).filter((s) => s.Sid === "ReadOwnSecrets");
-      expect(reads).toHaveLength(2); // engine + MCP, the same path
-      expect(reads[1]?.Resource).toEqual(reads[0]?.Resource);
+      expect(reads).toHaveLength(1); // the engine; the MCP server has its own named list (ReadMcpSecrets)
     }
     // Both spellings of the path: the SDK requests ".../trader/<env>/" (with the slash).
     expect(read(staging)?.Resource).toEqual([

@@ -14,6 +14,13 @@ export type ConfigResult =
 
 // Each var maps to one schema so failures can be reported per name. Messages
 // never carry the received value: DATABASE_URL holds a password.
+/**
+ * The MCP server's own SSM parameters (least privilege, review finding R1).
+ * Its IAM role (infra) reads exactly these names, and apps/mcp loads exactly
+ * these: never the engine's DATABASE_URL or Alpaca keys.
+ */
+export const MCP_PARAMETERS = ["MCP_DATABASE_URL", "MCP_ALPACA_KEY_ID", "MCP_ALPACA_SECRET_KEY", "MCP_TOKEN", "MCP_PASSPHRASE", "MCP_SIGNING_KEY"] as const;
+
 const VARS = {
   TRADING_ENV: z.enum(TRADING_ENVS),
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\/\S+$/),
