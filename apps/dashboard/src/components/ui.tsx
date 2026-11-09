@@ -57,10 +57,12 @@ export function Badge({ children }: { children: React.ReactNode }) {
 /**
  * Phones show a list of compact rows instead of a wide table (SPEC-dashboard
  * Amendment 2): the table renders inside `TableOnWide`, the rows inside
- * `RowsOnPhone`, and exactly one of the two shows.
+ * `RowsOnPhone`, and exactly one of the two shows. Each table is written
+ * twice, so a new column belongs in both. `TableOnWide`'s `-mx-4 px-4` lets
+ * a wide table scroll to the card's edges: it must match `Card`'s `sm:p-4`.
  */
 export function TableOnWide({ children }: { children: React.ReactNode }) {
-  return <div className="-mx-4 hidden overflow-x-auto px-4 sm:block">{children}</div>; // the card's sm:p-4
+  return <div className="-mx-4 hidden overflow-x-auto px-4 sm:block">{children}</div>;
 }
 
 export function RowsOnPhone({ children }: { children: React.ReactNode }) {

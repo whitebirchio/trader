@@ -18,8 +18,9 @@ const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(APP, ".mobile");
 const PORT = 3100;
 const BASE = `http://localhost:${PORT}`;
-const OWNER_EMAIL = "scott.schmalz@gmail.com"; // infra/lib/config.ts
-const GOOGLE_CLIENT_ID = "944410438267-6jg5ik0qpm9t0q4430ja1kv6l3ncs7g9.apps.googleusercontent.com"; // infra/lib/config.ts (not secret)
+// Defaults mirror infra/lib/config.ts; set them in the environment if those change.
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "scott.schmalz@gmail.com";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? "944410438267-6jg5ik0qpm9t0q4430ja1kv6l3ncs7g9.apps.googleusercontent.com"; // not secret
 const MIN_TAP = 44;
 const MIN_INPUT_FONT = 16;
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
@@ -55,8 +56,11 @@ async function waitFor(url, ms) {
   while (Date.now() < until) {
     try {
       const res = await fetch(url, { redirect: "manual" });
+      // 503 is the app failing closed on bad config: say which settings, rather than checking a broken app.
+      if (res.status === 503) throw new Error(`the dashboard refused to start: ${(await res.text()).slice(0, 300)}`);
       if (res.status < 500) return;
-    } catch {
+    } catch (e) {
+      if (String(e).includes("refused to start")) throw e;
       // not up yet
     }
     await new Promise((r) => setTimeout(r, 1000));
@@ -133,6 +137,14 @@ async function audit(page, phone) {
             return `${describe(el)} ${Math.round(r.width)}×${Math.round(r.height)}`;
           });
         if (small.length) problems.push(`${small.length} tap target(s) under ${MIN_TAP}px: ${small.slice(0, 4).join("; ")}${small.length > 4 ? "; …" : ""}`);
+        // The current page's menu link is scrolled fully into view inside the menu row.
+        const current = document.querySelector('nav[aria-label="Pages"] [aria-current="page"]');
+        const row = current?.closest("nav")?.parentElement;
+        if (current && row) {
+          const c = current.getBoundingClientRect();
+          const r = row.getBoundingClientRect();
+          if (c.left < r.left - 1 || c.right > r.right + 1) problems.push(`current page "${current.textContent}" isn't fully in view in the menu (${Math.round(c.left)}–${Math.round(c.right)} in ${Math.round(r.left)}–${Math.round(r.right)})`);
+        }
         // Charts need room to read: at least 280 px of plot (the grid's width).
         for (const grid of document.querySelectorAll(".recharts-cartesian-grid")) {
           const w = grid.getBoundingClientRect().width;
