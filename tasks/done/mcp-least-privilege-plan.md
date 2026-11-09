@@ -1,6 +1,6 @@
 # Plan: least privilege for the MCP server (review finding R1)
 
-> **Status: Approved** (Scott, 2026-11-08: build and verify on staging now; production cut-over after Monday's 8:08 run). Found in the codebase review. Paired with R2 (migration 0021, "only the owner resumes"), which already removes a leaked credential's power to clear a halt.
+> **Status: Done** (#73, cut over 2026-11-08). Was approved (Scott, 2026-11-08: build and verify on staging now; production cut-over after Monday's 8:08 run). Found in the codebase review. Paired with R2 (migration 0021, "only the owner resumes"), which already removes a leaked credential's power to clear a halt.
 
 ## Why
 The MCP Lambda is public, behind its own OAuth, and today it reads the whole `/trader/<env>/` SSM path (`infra/lib/engine-stack.ts:162`). So it holds **Alpaca's trading-capable keys** and **`trader_app`'s database URL**. ADR-011 ("no order tools for Claude") holds at the tool layer, but one auth bug or one remote-code-execution flaw in a dependency would allow direct orders at Alpaca (bypassing risk) and writes to most tables.
@@ -31,12 +31,12 @@ The MCP Lambda is public, behind its own OAuth, and today it reads the whole `/t
 - [x] L1: The `trader_mcp` role script with `--check` (it proves its grants as the role against Neon; PGlite has no login roles to test it against).
 - [x] L2: `apps/mcp` loads its own parameter names (`MCP_PARAMETERS` in core); `MarketDataOnly` wraps a paper-host `AlpacaBroker`; a test runs every tool through it.
 - [x] L3: Infra: the MCP role's explicit parameter list (`ssm:GetParameters`); infra tests pin it.
-- [ ] L4: **Owner steps (Scott runs; production secrets are "ask first"):**
+- [x] L4 (2026-11-08, Scott ran `set-mcp-secrets.sh` for staging, then production): **Owner steps (Scott runs; production secrets are "ask first"):**
   - `npm run db:mcp-role` for staging, then production;
   - `scripts/set-mcp-secrets.sh <env>` extended to write `MCP_DATABASE_URL` and the paper data key to SSM.
   
   The deploy order matters: secrets first, then merge, so the new MCP function finds them.
-- [ ] L5: Staging: the routine's tools work end to end through the staging connector (a preview and a read of every tool); the MCP role's `--check` passes. Then production the same way, before Monday's 8:08 run, or after it if we'd rather not change anything the routine touches tonight.
+- [x] L5 (2026-11-08): staging, then production through its connector (overview, eligibility, prices, holdings, preview); the 2026-11-09 8:08 run used every tool, including `get_exposure` and `submit_strategy`. Staging: the routine's tools work end to end through the staging connector (a preview and a read of every tool); the MCP role's `--check` passes. Then production the same way, before Monday's 8:08 run, or after it if we'd rather not change anything the routine touches tonight.
 
 ## Risks
 | Risk | Mitigation |
