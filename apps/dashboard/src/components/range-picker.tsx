@@ -16,12 +16,12 @@ export function RangePicker({ options, selected, path }: { options: RangeOption[
             href={`${path}?range=${o.range}`}
             scroll={false}
             aria-current={o.range === selected ? "true" : undefined}
-            className={`rounded-md border px-2 py-1 ${o.range === selected ? "border-[var(--text)] font-semibold" : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)]"}`}
+            className={`flex min-h-11 items-center rounded-md border px-3 text-sm sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs ${o.range === selected ? "border-[var(--text)] font-semibold" : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)]"}`}
           >
             {o.label}
           </Link>
         ) : (
-          <span key={o.range} aria-disabled="true" title={`Not yet: ${o.reason}`} className="cursor-not-allowed rounded-md border border-dashed border-[var(--border)] px-2 py-1 text-[var(--muted)] opacity-60">
+          <span key={o.range} aria-disabled="true" title={`Not yet: ${o.reason}`} className="flex min-h-11 cursor-not-allowed items-center rounded-md border border-dashed border-[var(--border)] px-3 text-sm text-[var(--muted)] opacity-60 sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs">
             {o.label}
           </span>
         ),

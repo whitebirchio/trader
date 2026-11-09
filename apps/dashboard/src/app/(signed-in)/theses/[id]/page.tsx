@@ -4,7 +4,7 @@ import { THESIS_RANGES, parseRange, thesisView } from "@trader/core";
 import { ThesisBody } from "@/components/strategy-document";
 import { RangePicker } from "@/components/range-picker";
 import { ThesisChart } from "@/components/thesis-chart";
-import { Badge, Card, Change, Signed, StatTile } from "@/components/ui";
+import { Badge, Card, Change, PhoneRow, RowsOnPhone, Signed, StatTile, TableOnWide } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
 import { formatDays, formatEt, formatPct, formatPts, formatQty, formatSignedUsd, formatUsd, sign } from "@/lib/format";
 
@@ -77,7 +77,19 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
       </Card>
 
       <Card title="Version history, newest first">
-        <div className="-mx-4 overflow-x-auto px-4">
+        <RowsOnPhone>
+          {v.history.map((h) => (
+            <PhoneRow
+              key={h.version}
+              title={<Link href={`/strategy/${h.version}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">v{h.version}</Link>}
+              value={h.thesis ? `${formatPct(h.thesis.targetWeightPct, 1, false)} target` : "dropped"}
+              detail={formatEt(h.createdAt)}
+              secondary={h.thesis ? `stop ${formatPct(h.thesis.stopLossPct, 0, false)}${h.thesis.reviewBy ? ` · review by ${h.thesis.reviewBy}` : ""}` : undefined}
+              foot={h.changes.join(", ")}
+            />
+          ))}
+        </RowsOnPhone>
+        <TableOnWide>
           <table className="w-full min-w-[36rem] text-sm">
             <thead className="text-left text-xs text-[var(--muted)]">
               <tr>
@@ -102,7 +114,7 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
               ))}
             </tbody>
           </table>
-        </div>
+        </TableOnWide>
       </Card>
 
       {v.events.length > 0 && (
