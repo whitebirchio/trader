@@ -24,7 +24,7 @@ export type ConfigResult = { ok: true; config: DashboardConfig } | { ok: false; 
 
 export const SECRET_NAMES = ["DATABASE_READ_URL", "GOOGLE_CLIENT_SECRET", "DASHBOARD_SESSION_KEY"] as const;
 const TRADING_ENVS: readonly TradingEnv[] = ["staging", "production"];
-const TTL_MS = 15 * 60_000;
+const TTL_MS = 60 * 60_000; // each decrypted SecureString is a KMS request
 let cache: { at: number; values: Record<string, string> } | null = null;
 const ssm = new SSMClient({});
 

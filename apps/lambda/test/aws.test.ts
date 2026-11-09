@@ -1,5 +1,5 @@
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
-import { GetParametersByPathCommand, SSMClient } from "@aws-sdk/client-ssm";
+import { GetParametersCommand, SSMClient } from "@aws-sdk/client-ssm";
 import { mockClient } from "aws-sdk-client-mock";
 import { beforeEach, describe, expect, it } from "vitest";
 import { clearSecretsCache, loadSecrets } from "../src/secrets.js";
@@ -15,24 +15,23 @@ beforeEach(() => {
 });
 
 describe("loadSecrets", () => {
-  it("reads every page under the path, decrypted, keyed by name", async () => {
+  it("reads only the engine's own parameters, by name and decrypted, keyed by name; a missing one is left for parseConfig to report", async () => {
     ssmMock
-      .on(GetParametersByPathCommand, { Path: "/trader/staging/", WithDecryption: true, NextToken: undefined })
-      .resolves({ Parameters: [{ Name: "/trader/staging/DATABASE_URL", Value: "postgres://x" }], NextToken: "t" })
-      .on(GetParametersByPathCommand, { NextToken: "t" })
-      .resolves({ Parameters: [{ Name: "/trader/staging/ALPACA_KEY_ID", Value: "PK1" }] });
+      .on(GetParametersCommand, { Names: ["/trader/staging/DATABASE_URL", "/trader/staging/ALPACA_KEY_ID", "/trader/staging/ALPACA_SECRET_KEY"], WithDecryption: true })
+      .resolves({ Parameters: [{ Name: "/trader/staging/DATABASE_URL", Value: "postgres://x" }, { Name: "/trader/staging/ALPACA_KEY_ID", Value: "PK1" }], InvalidParameters: ["/trader/staging/ALPACA_SECRET_KEY"] });
     const values = await loadSecrets(new SSMClient({}), "/trader/staging/", 0);
     expect(values).toEqual({ DATABASE_URL: "postgres://x", ALPACA_KEY_ID: "PK1" });
+    expect(ssmMock.calls()).toHaveLength(1); // never the whole path (it holds the MCP server's and dashboard's secrets too)
   });
 
-  it("caches per container for 15 minutes", async () => {
-    ssmMock.on(GetParametersByPathCommand).resolves({ Parameters: [{ Name: "/trader/staging/A", Value: "1" }] });
+  it("caches per container for an hour: the 15-minute ticks reuse it", async () => {
+    ssmMock.on(GetParametersCommand).resolves({ Parameters: [{ Name: "/trader/staging/DATABASE_URL", Value: "postgres://x" }] });
     const ssm = new SSMClient({});
     await loadSecrets(ssm, "/trader/staging/", 0);
-    await loadSecrets(ssm, "/trader/staging/", 14 * 60_000);
-    expect(ssmMock.commandCalls(GetParametersByPathCommand)).toHaveLength(1);
-    await loadSecrets(ssm, "/trader/staging/", 16 * 60_000);
-    expect(ssmMock.commandCalls(GetParametersByPathCommand)).toHaveLength(2);
+    for (const minute of [15, 30, 45, 59]) await loadSecrets(ssm, "/trader/staging/", minute * 60_000);
+    expect(ssmMock.commandCalls(GetParametersCommand)).toHaveLength(1);
+    await loadSecrets(ssm, "/trader/staging/", 61 * 60_000);
+    expect(ssmMock.commandCalls(GetParametersCommand)).toHaveLength(2);
   });
 });
 

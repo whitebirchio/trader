@@ -35,7 +35,7 @@ infra/                         → new workspace "trader-infra" (CDK v2, TypeScr
 apps/engine/
   src/lambda.ts                → handler: scheduler events → runJob; Function URL → /healthz
   src/ses-mailer.ts            → Mailer port over SESv2 SendEmail
-  src/secrets.ts               → SSM GetParametersByPath → env-shaped config (cached per container)
+  src/secrets.ts               → SSM GetParameters (ENGINE_PARAMETERS) → env-shaped config (cached per container for an hour)
   (src/index.ts, wrangler.jsonc, worker-configuration.d.ts removed at cutover)
 ```
 

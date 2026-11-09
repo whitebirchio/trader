@@ -11,7 +11,7 @@ import * as scheduler from "aws-cdk-lib/aws-scheduler";
 import * as ses from "aws-cdk-lib/aws-ses";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
-import { MCP_PARAMETERS, TICK_JOBS } from "@trader/core";
+import { ENGINE_PARAMETERS, MCP_PARAMETERS, TICK_JOBS } from "@trader/core";
 import type { Construct } from "constructs";
 import { Dashboard } from "./dashboard.js";
 import { MAIL_DOMAIN, NOTIFY_FROM, OWNER_EMAIL, type TradingEnv, secretsPath } from "./config.js";
@@ -65,18 +65,14 @@ export class EngineStack extends Stack {
       bundling,
     });
 
-    // Secrets: only this environment's SSM path (ADR-005). The resource is the
-    // path as requested; the SDK sends it with the trailing slash, so grant both
-    // spellings of exactly this path. aws/ssm decrypt is allowed via SSM by the
-    // key's own policy.
+    // Secrets: only this environment's (ADR-005), and of those only the
+    // engine's own names (ENGINE_PARAMETERS), never the MCP server's or the
+    // dashboard's. aws/ssm decrypt is allowed via SSM by the key's own policy.
     const readOwnSecrets = () =>
       new iam.PolicyStatement({
         sid: "ReadOwnSecrets",
-        actions: ["ssm:GetParametersByPath"],
-        resources: [
-          `arn:aws:ssm:${this.region}:${this.account}:parameter/trader/${env}`,
-          `arn:aws:ssm:${this.region}:${this.account}:parameter/trader/${env}/`,
-        ],
+        actions: ["ssm:GetParameters"],
+        resources: ENGINE_PARAMETERS.map((name) => `arn:aws:ssm:${this.region}:${this.account}:parameter${secretsPath(env)}${name}`),
       });
     fn.addToRolePolicy(readOwnSecrets());
 

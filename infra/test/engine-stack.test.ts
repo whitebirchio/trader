@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
-import { MCP_PARAMETERS } from "@trader/core";
+import { ENGINE_PARAMETERS, MCP_PARAMETERS } from "@trader/core";
 import { describe, expect, it } from "vitest";
 import { CertsStack } from "../lib/certs-stack.js";
 import { EngineStack } from "../lib/engine-stack.js";
@@ -104,15 +104,13 @@ describe("EngineStack", () => {
       const reads = roleStatements(t).filter((s) => s.Sid === "ReadOwnSecrets");
       expect(reads).toHaveLength(1); // the engine; the MCP server has its own named list (ReadMcpSecrets)
     }
-    // Both spellings of the path: the SDK requests ".../trader/<env>/" (with the slash).
-    expect(read(staging)?.Resource).toEqual([
-      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging",
-      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging/",
-    ]);
-    expect(read(production)?.Resource).toEqual([
-      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/production",
-      "arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/",
-    ]);
+    // Exactly the engine's own names, read with GetParameters: never the whole path, which holds the MCP server's and dashboard's secrets.
+    for (const env of ["staging", "production"] as const) {
+      const statement = read(env === "staging" ? staging : production);
+      expect(statement?.Action).toBe("ssm:GetParameters");
+      expect(statement?.Resource).toEqual(ENGINE_PARAMETERS.map((n) => `arn:aws:ssm:us-east-1:111111111111:parameter/trader/${env}/${n}`));
+    }
+    for (const t of [staging, production]) expect(JSON.stringify(roleStatements(t))).not.toContain("ssm:GetParametersByPath");
     for (const t of [staging, production]) {
       expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(3); // engine, MCP, dashboard
       expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ses:"))).toHaveLength(1);

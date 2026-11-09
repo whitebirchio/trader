@@ -21,6 +21,14 @@ export type ConfigResult =
  */
 export const MCP_PARAMETERS = ["MCP_DATABASE_URL", "MCP_ALPACA_KEY_ID", "MCP_ALPACA_SECRET_KEY", "MCP_TOKEN", "MCP_PASSPHRASE", "MCP_SIGNING_KEY"] as const;
 
+/**
+ * The engine's own SSM parameters, read by name like MCP_PARAMETERS. Its IAM
+ * role (infra) reads exactly these, never the MCP server's or the
+ * dashboard's: each decrypted SecureString is a KMS request, and reading the
+ * whole path decrypted all of them on every tick.
+ */
+export const ENGINE_PARAMETERS = ["DATABASE_URL", "ALPACA_KEY_ID", "ALPACA_SECRET_KEY"] as const;
+
 const VARS = {
   TRADING_ENV: z.enum(TRADING_ENVS),
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\/\S+$/),
