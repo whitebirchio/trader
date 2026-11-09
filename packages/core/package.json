@@ -39,6 +39,7 @@
     "rebalance:run": "tsx scripts/rebalance.ts --mode run",
     "db:dashboard-role": "tsx scripts/dashboard-role.ts",
     "db:mcp-role": "tsx scripts/mcp-role.ts",
+    "replay": "tsx scripts/replay.ts",
     "replay:data": "tsx scripts/replay-data.ts",
     "replay:export": "tsx scripts/replay-export.ts",
     "capital:status": "tsx scripts/capital-status.ts",

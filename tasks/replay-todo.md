@@ -82,7 +82,7 @@
 **Files likely touched:** `src/replay/timeline.ts`, `scripts/replay.ts`, `test/replay/timeline.test.ts`
 **Estimated scope:** Medium
 
-### T5: Report and `npm run replay`
+### T5: Report and `npm run replay` ✅ (2026-11-09)
 **Description:** `npm run replay -w @trader/core -- --timeline production|staging|<file> [--from --to] [--fill open|close] [--slippage-bps 10]`. It prints, and writes to `.cache/replay/reports/`:
 - equity vs VTI (flow-adjusted)
 - the scorecard (each thesis vs the same dollars in VTI)
@@ -96,12 +96,18 @@
 All of it is read from the replay database with the existing readers.
 
 **Acceptance criteria:**
-- [ ] The figures come from the same readers the dashboard and digest use (`performanceSeries`, `loadScorecard`, lots), not new math.
-- [ ] The report states its assumptions (fill model, slippage, steps per session, daily-bar limits) and flags small samples.
+- [x] The figures come from the same readers the dashboard and digest use (`performanceSeries`, `loadScorecard`, lots), not new math.
+- [x] The report states its assumptions (fill model, slippage, steps per session, daily-bar limits) and flags small samples.
 
 **Verification:**
-- [ ] Tests on a synthetic replay: `npx vitest run replay/report`
-- [ ] Manual: `npm run replay -- --timeline staging` runs and reads well
+- [x] Tests on a synthetic replay: `npx vitest run replay/report`
+- [x] Manual: `npm run replay -- --timeline staging` runs and reads well
+
+**Done:** `src/replay/report.ts` (`replayReport`, `formatReport`) and `scripts/replay.ts`. Reports go to `.cache/replay/reports/<timeline>-<from>-<to>-<bps>bps.{txt,json}`. Two changes from the plan:
+- **Midday steps.** The driver now steps at 09:45, 10:00, 12:30, 12:45 and 16:15 ET, so the routine's midday version trades the same session, as live does. Midday orders fill at the open, the only intraday price daily bars hold, and the report says so.
+- **`--fill close` is left out.** Fill at the open was the decision, and a close model would also need the sim's intraday price to change. Add it with the T7 variants if wanted.
+
+Risk reasons are grouped by their text with the figures masked, since decisions don't store a rule id. Wash-sale hits count only buys after a loss sale (within 30 days), not buys before it.
 
 **Dependencies:** T4
 **Files likely touched:** `src/replay/report.ts`, `scripts/replay.ts`, `package.json` (script), `test/replay/report.test.ts`
