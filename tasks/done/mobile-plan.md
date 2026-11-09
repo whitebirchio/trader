@@ -1,6 +1,6 @@
 # Plan: the dashboard on phones (SPEC-dashboard Amendment 2)
 
-> **Status: Draft for review** (2026-11-08). Spec: SPEC-dashboard.md § Amendment 2 (approved). One branch (`feat/mobile-ux`) and one PR, with a commit per task. Presentation only: no read model, write path, auth or header changes.
+> **Status: Done** (2026-11-08, #66 and #67). Spec: SPEC-dashboard.md § Amendment 2 (approved). One branch (`feat/mobile-ux`) and one PR, with a commit per task. Presentation only: no read model, write path, auth or header changes.
 
 ## Approach
 Measure first, then fix what the measurements show. The page-wide sideways scroll is most likely the menu, so the app shell goes first. Then tables, most-used pages first, then charts. Each task ends with `mobile:check` and a look at its iPhone 15 screenshots.
@@ -43,7 +43,7 @@ Screenshots go to `apps/dashboard/.mobile/` (git-ignored).
 **Files:** `src/app/(signed-in)/layout.tsx`, `src/app/layout.tsx`, `src/components/nav.tsx` (client: active page, scroll into view, refresh), `src/app/globals.css`
 
 ### Checkpoint 1
-- [ ] Gate green; `mobile:check` shows the shell fixed; push to staging so Scott can try the menu on his phone early
+- [x] Gate green; `mobile:check` shows the shell fixed; pushed to staging so Scott could try the menu early
 
 ### M3: Cards for Holdings and Track record ✅
 **Result:** both pages pass `mobile:check` on phone and desktop. Holdings fits every figure in three lines per row, so nothing needs to expand. The duplicate wash-sale key is fixed. The shared `TableOnWide` / `RowsOnPhone` / `PhoneRow` components carry the pattern to M4.
@@ -77,9 +77,9 @@ A unit test covers the short date formatter.
 **Files:** `src/components/performance-chart.tsx`, `src/components/thesis-chart.tsx`, `src/components/range-picker.tsx`, `src/lib/format.ts`, `test/format.test.ts`
 
 ### Checkpoint 2
-- [ ] Gate green; `mobile:check` passes everywhere at 393 px, and the desktop screenshots are unchanged
-- [ ] Staging deploy; Scott checks on his iPhone from the home screen (Success criterion 7)
-- [ ] SPEC-dashboard success criteria 1–6 ticked; PR opened
+- [x] Gate green; `mobile:check` passes everywhere at 393 px, and the desktop screenshots are unchanged
+- [x] Staging deploy; Scott checks on his iPhone from the home screen (Success criterion 7): "Things look good on my phone" (2026-11-08)
+- [x] SPEC-dashboard success criteria 1–6 met; PR #66 merged, plus the follow-up #67
 
 ## Risks
 | Risk | Mitigation |
