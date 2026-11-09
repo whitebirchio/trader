@@ -63,7 +63,7 @@
 **Files likely touched:** `src/replay/data.ts`, `scripts/replay-data.ts` (or within `scripts/replay.ts`), `test/replay/data.test.ts`
 **Estimated scope:** Small–Medium
 
-### T4: Production timeline
+### T4: Production timeline ✅ (2026-11-09)
 **Description:** Read production's strategy versions (document, author, `created_at`) and capital flows read-only through the ops helper, into a timeline file in `.cache/replay/`. The driver replays them: each version at its time, and deposits and withdrawals as transfers. The starting cash is the first deposit.
 
 **Acceptance criteria:**

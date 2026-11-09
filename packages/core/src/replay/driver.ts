@@ -4,7 +4,9 @@ import type { CalendarDay } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import { type JobName, runJob } from "../jobs.js";
 import type { Mailer } from "../notifications/port.js";
+import { strategies } from "../db/schema.js";
 import { submitStrategy } from "../portfolio/store.js";
+import { validateStrategy } from "../portfolio/strategy.js";
 import { getRiskState, resume } from "../risk/state.js";
 import { marketTimeToUtc } from "../time.js";
 import { migratedPglite } from "./db.js";
@@ -33,13 +35,22 @@ import { SimBroker, type SimMarket } from "./sim-broker.js";
 export interface TimelineVersion {
   at: Date;
   authoredBy: "claude" | "owner" | "system";
-  /** The strategy document, as stored; validated by submitStrategy. */
+  /** The strategy document. */
   document: unknown;
+  /** The version number it had (a recorded history's own numbering), for reports. */
+  version?: number;
+  /**
+   * Inserted as stored, not through submitStrategy: a recorded version was
+   * valid when written, and today's submission rules (a review date after
+   * "today", say) mustn't reject it now. Today's code still reads it as live
+   * does: a document today's schema rejects falls back to version 0.
+   */
+  raw?: boolean;
 }
 
 export interface TimelineTransfer {
   at: Date;
-  /** Positive: money in. */
+  /** Signed: positive in, negative out. */
   amount: string;
 }
 
@@ -65,8 +76,10 @@ export interface ReplayResult {
   pglite: PGlite;
   broker: SimBroker;
   sessions: number;
-  /** Versions submitStrategy refused (an old document today's schema rejects), with its errors. */
-  rejectedVersions: { at: Date; errors: string[] }[];
+  /** Versions submitStrategy refused, or raw versions today's schema rejects (live falls back to version 0 for them). */
+  rejectedVersions: { at: Date; version?: number; errors: string[] }[];
+  /** Withdrawals larger than the replay's cash at the time (history sold to fund them; the replay's holdings differ). */
+  transferShortfalls: { at: Date; amount: string; shortfall: string }[];
   halts: ReplayHalt[];
   /** Wall-clock milliseconds per simulated session. */
   msPerSession: number;
@@ -95,6 +108,7 @@ export async function replay(input: ReplayInput): Promise<ReplayResult> {
   const versions = [...input.versions].sort((a, b) => a.at.getTime() - b.at.getTime());
   const transfers = [...input.transfers].sort((a, b) => a.at.getTime() - b.at.getTime());
   const rejectedVersions: ReplayResult["rejectedVersions"] = [];
+  const transferShortfalls: ReplayResult["transferShortfalls"] = [];
   const halts: ReplayHalt[] = [];
   let resumePending = false;
 
@@ -107,12 +121,20 @@ export async function replay(input: ReplayInput): Promise<ReplayResult> {
       while (transfers[0] && transfers[0].at <= at) {
         const t = transfers.shift()!;
         broker.setNow(t.at);
-        broker.deposit(t.amount);
+        const { shortfall } = broker.transfer(t.amount);
+        if (shortfall !== "0") transferShortfalls.push({ at: t.at, amount: t.amount, shortfall });
       }
       while (versions[0] && versions[0].at <= at) {
         const v = versions.shift()!;
-        const result = await submitStrategy(db, v.document, v.authoredBy, v.at);
-        if (result.status === "rejected") rejectedVersions.push({ at: v.at, errors: result.errors });
+        if (v.raw) {
+          const parsed = validateStrategy(v.document);
+          if (!parsed.ok) rejectedVersions.push({ at: v.at, version: v.version, errors: parsed.errors });
+          const summary = typeof (v.document as { summary?: unknown })?.summary === "string" ? (v.document as { summary: string }).summary : "";
+          await db.insert(strategies).values({ authoredBy: v.authoredBy, summary, document: v.document as Record<string, unknown>, createdAt: v.at });
+        } else {
+          const result = await submitStrategy(db, v.document, v.authoredBy, v.at);
+          if (result.status === "rejected") rejectedVersions.push({ at: v.at, version: v.version, errors: result.errors });
+        }
       }
       broker.setNow(at);
 
@@ -134,5 +156,5 @@ export async function replay(input: ReplayInput): Promise<ReplayResult> {
       }
     }
   }
-  return { db, pglite, broker, sessions: sessions.length, rejectedVersions, halts, msPerSession: Math.round((Date.now() - started) / sessions.length) };
+  return { db, pglite, broker, sessions: sessions.length, rejectedVersions, transferShortfalls, halts, msPerSession: Math.round((Date.now() - started) / sessions.length) };
 }

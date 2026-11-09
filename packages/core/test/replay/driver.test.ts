@@ -96,6 +96,26 @@ describe("replay", () => {
     expect(r.msPerSession).toBeGreaterThan(0);
   }, REPLAY_TIMEOUT);
 
+  it("replays a recorded history as stored: a version today's schema rejects is reported (and read as version 0, like live), an oversized withdrawal's shortfall is reported", async () => {
+    const r = await replay({
+      ...base(market()),
+      versions: [
+        { at: new Date(`${day(1)}T13:00:00Z`), authoredBy: "claude", document: doc, version: 1, raw: true },
+        { at: new Date(`${day(3)}T13:00:00Z`), authoredBy: "claude", document: { summary: "an old shape" }, version: 2, raw: true },
+      ],
+      transfers: [
+        { at: new Date(`${day(1)}T13:30:00Z`), amount: "10000" },
+        { at: new Date(`${day(4)}T13:30:00Z`), amount: "-20000" },
+      ],
+    });
+    expect(r.rejectedVersions).toEqual([{ at: new Date(`${day(3)}T13:00:00Z`), version: 2, errors: expect.arrayContaining([expect.stringMatching(/^conviction/)]) }]);
+    expect(r.transferShortfalls).toHaveLength(1);
+    expect(r.transferShortfalls[0]).toMatchObject({ amount: "-20000" });
+    // With version 2 unreadable, live falls back to version 0 (everything in VTI), so the AAPL thesis is sold.
+    const fills = (await r.db.select().from(brokerActivities)).filter((a) => a.type === "FILL").map((a) => [marketDate(a.at), a.symbol, a.side]);
+    expect(fills).toContainEqual([day(3), "AAPL", "sell"]);
+  }, REPLAY_TIMEOUT);
+
   it("freezes on a drawdown halt like live trading; autoResume resumes it, and production's check re-latches it while still 30% down", async () => {
     const crash = { [day(6)]: 55 };
     const frozen = await replay(base(market({ aapl: { [day(6)]: 55 }, vti: { [day(6)]: 165 } })));

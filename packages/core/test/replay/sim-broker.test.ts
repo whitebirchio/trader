@@ -91,6 +91,14 @@ describe("SimBroker: account", () => {
     expect(await b.getActivities()).toMatchObject([{ type: "CSD", netAmount: "1000", raw: { status: "executed", created_at: "2026-11-03T15:00:00.000Z" } }]);
   });
 
+  it("records a withdrawal as a CSW activity, taking only the cash there is and reporting the shortfall", async () => {
+    const b = sim("2026-11-03T15:00:00Z", "300");
+    expect(b.transfer("-100")).toEqual({ shortfall: "0" });
+    expect(b.transfer("-250")).toEqual({ shortfall: "50" });
+    expect((await b.getAccount()).cash).toBe("0");
+    expect((await b.getActivities()).map((a) => [a.type, a.netAmount])).toEqual([["CSW", "-100"], ["CSW", "-200"]]);
+  });
+
   it("reports the clock from the calendar", async () => {
     const b = sim("2026-11-03T15:00:00Z");
     expect(await b.getClock()).toMatchObject({ isOpen: true, nextClose: at("2026-11-03T21:00:00Z"), nextOpen: at("2026-11-04T14:30:00Z") });
