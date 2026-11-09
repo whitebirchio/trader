@@ -52,7 +52,8 @@ export async function riskGate(
 
   const [run] = await db
     .insert(riskGateRuns)
-    .values({ limitsVersion: version, snapshot: JSON.parse(JSON.stringify(snapshot)) as Record<string, unknown> })
+    // The caller's clock, not the database's, so a replay (#57) records its decisions in replay time.
+    .values({ limitsVersion: version, snapshot: JSON.parse(JSON.stringify(snapshot)) as Record<string, unknown>, ranAt: now })
     .returning({ id: riskGateRuns.id });
   if (!run) throw new Error("risk_gate_runs insert returned no row");
 
@@ -71,6 +72,7 @@ export async function riskGate(
         verdict: d.verdict,
         reasons: d.reasons,
         limitsVersion: version,
+        decidedAt: now,
       })),
     );
   }

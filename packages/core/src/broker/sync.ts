@@ -254,6 +254,9 @@ async function writeSnapshot(db: Db, broker: BrokerAdapter, account: Account, no
       equity: account.equity,
       cash: account.cash,
       longMarketValue: account.longMarketValue,
+      // The caller's clock: the equity index splits flows between snapshots by this
+      // instant, so a replay (#57) must record it in replay time, not the database's.
+      recordedAt: now,
     })
     .onConflictDoNothing({ target: equitySnapshots.tradingDate })
     .returning({ tradingDate: equitySnapshots.tradingDate });

@@ -177,6 +177,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
     trades: results.map((r) => ({ ...r.trade, verdict: r.decision?.verdict, reasons: r.decision?.reasons, submitted: r.submitted })) as unknown[],
     notes,
     gateRunId: gate.gateRunId,
+    createdAt: now,
   });
   await recordEvent(db, {
     actor: "system",

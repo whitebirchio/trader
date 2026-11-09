@@ -4,7 +4,7 @@
 
 ## Phase 1: the real code runs under a simulated clock
 
-### T1: `SimBroker` and sim clock
+### T1: `SimBroker` and sim clock ✅ (2026-11-09)
 **Description:** A `BrokerAdapter` over in-memory bars, a calendar and asset facts. It has a settable clock; an account (cash, equity marked to the current price); positions; orders that fill at the configured price model when the clock reaches the next fill point; FIFO-consistent activities (fills, transfers, dividends optional); and `getDailyBars` that never returns data after the clock (today's bar is partial, with open = close = today's open, until the close).
 
 **Acceptance criteria:**
@@ -20,7 +20,7 @@
 **Files likely touched:** `src/replay/sim-broker.ts`, `test/replay/sim-broker.test.ts`
 **Estimated scope:** Medium
 
-### T2: Driver on synthetic data, end to end, plus the wall-clock audit
+### T2: Driver on synthetic data, end to end, plus the wall-clock audit ✅ (2026-11-09)
 **Description:** `replay({ timeline, data, from, to, fill, limits })` creates a PGlite database with the real migrations. It walks the sessions, inserting each strategy version when the clock passes its time and applying transfers. Each session it runs the steps (09:45 sync + rebalance, 10:00 sync + rebalance, 16:15 after-close sync) through the real `syncBroker` and `runRebalance`, then returns the database for reporting. It also audits every `defaultNow()` column and `new Date()` on the decision path, and passes `now` through where a decision reads one.
 
 **Acceptance criteria:**
@@ -38,9 +38,13 @@
 **Estimated scope:** Medium
 
 ## Checkpoint A
-- [ ] Gate green
-- [ ] The synthetic end-to-end replay passes, and the time per session is noted
-- [ ] Tell Scott: Phase 1 done, anything surprising in the wall-clock audit
+- [x] Gate green (core 623)
+- [x] The synthetic end-to-end replay passes: a 2024 replay buys the thesis, stops it out on a later gap (never same-day), idles the rest in VTI, and freezes on a drawdown halt. About **28 ms per session** on the synthetic market (real data will be slower; a 7-year replay is minutes).
+- [x] Found while building:
+  - **SimBroker's `lastEquity`** first used today's cash; it now reports the previous close's state, as Alpaca does.
+  - **Wall-clock audit:** `equity_snapshots.recorded_at` took the database clock, but the equity index splits deposits between snapshots by it, so it now takes the caller's `now`. So do `rebalance_plans.created_at`, `risk_gate_runs.ran_at` and `risk_decisions.decided_at`, for the reports. Production is unchanged (the Lambda's and database's clocks agree). `audit_events.at` and `job_runs.started_at` stay on the database clock: no decision reads them.
+  - **A production finding for Scott:** `resume` doesn't re-base the drawdown peak, so after a 30% halt, `risk:resume` is re-latched at the next sync unless equity has recovered. The replay models production exactly (auto-resume re-halts daily). **Decision needed:** re-base the peak on resume (and how), or keep it.
+- [ ] Tell Scott: Phase 1 done, and the decision above
 
 ## Phase 2: replay Trader's own history (mode 1)
 
