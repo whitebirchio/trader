@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it } from "vitest";
-import { proxy } from "@/proxy";
+import { config as proxyConfig, proxy } from "@/proxy";
 import { SESSION_COOKIE, sign } from "@/lib/session";
 
 const KEY = "k".repeat(48);
@@ -42,6 +42,14 @@ describe("proxy", () => {
     const old = await sign({ t: "session", email: "owner@example.com", exp: Math.floor(Date.now() / 1000) - 1 }, KEY);
     expect((await proxy(req("/", other))).status).toBe(302);
     expect((await proxy(req("/", old))).status).toBe(302);
+  });
+
+  it("runs on the image optimizer's path too, so it needs a session; static assets stay exempt", async () => {
+    const matcher = new RegExp(`^${proxyConfig.matcher[0]}$`);
+    expect(matcher.test("/_next/image")).toBe(true);
+    expect(matcher.test("/holdings")).toBe(true);
+    for (const p of ["/_next/static/chunks/app.js", "/manifest.webmanifest", "/icons/icon-192.png"]) expect(matcher.test(p)).toBe(false);
+    expect((await proxy(req("/_next/image?url=%2Ficons%2Ficon-192.png&w=64&q=75"))).status).toBe(302);
   });
 
   it("leaves the sign-in routes open", async () => {

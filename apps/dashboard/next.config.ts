@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
   transpilePackages: ["@trader/core"],
   poweredByHeader: false,
+  // The dashboard uses no next/image, so the image optimizer (a server-side
+  // fetch-and-transcode endpoint behind several advisories) stays off.
+  images: { unoptimized: true },
   // @trader/core is TypeScript source with NodeNext-style ".js" import paths.
   // Turbopack doesn't map those onto ".ts" files; webpack does, so the
   // dashboard builds with webpack (`next build --webpack`).
