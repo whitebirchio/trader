@@ -67,13 +67,16 @@
 **Description:** Read production's strategy versions (document, author, `created_at`) and capital flows read-only through the ops helper, into a timeline file in `.cache/replay/`. The driver replays them: each version at its time, and deposits and withdrawals as transfers. The starting cash is the first deposit.
 
 **Acceptance criteria:**
-- [ ] The export is read-only (SELECTs only) and writes only to `.cache/replay/`, which is git-ignored.
-- [ ] Old documents that fail today's schema are replayed as the live system treated them (version 0), and listed.
-- [ ] Versions and transfers apply in time order, alongside the session steps.
+- [x] The export is read-only (SELECTs only) and writes only to `.cache/replay/`, which is git-ignored.
+- [x] Old documents that fail today's schema are replayed as the live system treated them (version 0), and listed.
+- [x] Versions and transfers apply in time order, alongside the session steps.
 
 **Verification:**
-- [ ] Tests on a fixture timeline: `npx vitest run replay/timeline`
-- [ ] Manual: export staging's timeline and replay it through T2's driver
+- [x] Tests on a fixture timeline: `npx vitest run replay/timeline`
+- [x] Manual: export staging's timeline and replay it through T2's driver
+
+**Done:** both timelines replay, with nothing rejected, no shortfalls and no halts, at about 66 ms per session. One gap for T6: a version submitted at midday is bought within 15 minutes live, but the next session in the replay, whose last rebalance step is 10:00. That explains each production thesis the replay holds later or not yet. Staging's extra sector ETF is a different gap: live ranks the systematic sleeve every 15 minutes, and the replay ranks it at 09:45. T6 explains both.
+
 
 **Dependencies:** T2, T3
 **Files likely touched:** `src/replay/timeline.ts`, `scripts/replay.ts`, `test/replay/timeline.test.ts`
