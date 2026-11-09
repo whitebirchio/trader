@@ -26,7 +26,11 @@ Screenshots go to `apps/dashboard/.mobile/` (git-ignored).
 **Done when:** it runs with one command and prints a per-page pass/fail; the first run records today's failures as the baseline.
 **Files:** `apps/dashboard/package.json`, `apps/dashboard/scripts/mobile-check.ts`, `.gitignore`
 
-### M2: The app shell
+### M2: The app shell ✅
+**Result:** no page scrolls sideways at 393 px; the menu, refresh and Sign out pass the 44 px check; the desktop is unchanged apart from the current-page highlight and a refresh icon. Two departures from the plan:
+- **No `overflow-x: clip` backstop:** it would hide real overflow from `mobile:check`.
+- **The status bar stays `default`:** `black-translucent` would hide the status bar text in light mode. Check it on the phone.
+
 **What:**
 - the menu as one row that scrolls inside itself on phones (cut-off next item, faded edge, current page scrolled into view), with `aria-current` on every screen size;
 - "Sign out" at the foot of the page on phones;

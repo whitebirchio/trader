@@ -69,7 +69,7 @@ Staging shows a persistent **"STAGING · paper"** banner. Production shows nothi
 - **Charts fit:** shorter date labels on phones ("Nov 2"), fewer ticks, direct labels that fit inside the plot, and a tap that shows the tooltip. Range pickers wrap, with tap targets of at least 44 px.
 - **Home-screen fixes:**
   - padding for the safe areas at the top and bottom;
-  - `black-translucent` status bar over the dark theme;
+  - the status bar: kept as `default`, with the per-scheme theme colours. `black-translucent` draws white status-bar text, which the light theme would hide, so it changes only if Scott's phone shows a problem;
   - text inputs at 16 px or more;
   - a refresh control in the header;
   - an automatic refresh (`router.refresh()`) when the app comes back to the foreground more than a minute after its last load.
