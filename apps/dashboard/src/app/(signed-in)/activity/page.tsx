@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { activityView } from "@trader/core";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, PhoneRow, RowsOnPhone, TableOnWide } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
 import { formatEt, formatQty, formatUsd } from "@/lib/format";
 
@@ -59,11 +59,18 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const a = await activityView(db, new Date(), days);
   return (
     <div className="grid grid-cols-1 gap-4">
-      <div className="flex gap-1 text-sm">
+      <nav aria-label="Period" className="flex flex-wrap gap-1 text-sm">
         {RANGES.map((d) => (
-          <Link key={d} href={`/activity?days=${d}`} className={`rounded-md px-2.5 py-1 ${d === days ? "bg-[var(--text)] text-[var(--background)]" : "hover:bg-[var(--border)]"}`}>{d} days</Link>
+          <Link
+            key={d}
+            href={`/activity?days=${d}`}
+            aria-current={d === days ? "true" : undefined}
+            className={`flex min-h-11 items-center rounded-md px-3 sm:min-h-0 sm:px-2.5 sm:py-1 ${d === days ? "bg-[var(--text)] text-[var(--background)]" : "hover:bg-[var(--border)]"}`}
+          >
+            {d} days
+          </Link>
         ))}
-      </div>
+      </nav>
 
       <Card title="Rebalance steps">
         {a.rebalanceSteps.length === 0 && <p className="text-sm text-[var(--muted)]">No rebalance steps in this period.</p>}
@@ -87,7 +94,18 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
 
       <Card title="Orders">
         {a.orders.length === 0 && <p className="text-sm text-[var(--muted)]">No orders in this period.</p>}
-        <div className="-mx-4 overflow-x-auto px-4">
+        <RowsOnPhone>
+          {a.orders.map((o) => (
+            <PhoneRow
+              key={`${o.at}-${o.symbol}-${o.side}`}
+              title={`${o.side} ${o.symbol}`}
+              value={o.notional ? formatUsd(o.notional) : o.qty ? `${formatQty(o.qty)} sh` : ""}
+              detail={formatEt(o.at)}
+              secondary={`${o.status}${o.filledAvgPrice ? ` @ ${formatUsd(o.filledAvgPrice)}` : ""}`}
+            />
+          ))}
+        </RowsOnPhone>
+        <TableOnWide>
           <table className="w-full min-w-[32rem] text-sm">
             <tbody>
               {a.orders.map((o) => (
@@ -100,7 +118,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
               ))}
             </tbody>
           </table>
-        </div>
+        </TableOnWide>
       </Card>
 
       <Card title="Events">

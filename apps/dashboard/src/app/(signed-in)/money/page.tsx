@@ -1,5 +1,5 @@
 import { moneyView } from "@trader/core";
-import { Badge, Card, StatTile, Status } from "@/components/ui";
+import { Badge, Card, PhoneRow, RowsOnPhone, StatTile, Status, TableOnWide } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
 import { formatEt, formatUsd } from "@/lib/format";
 
@@ -35,7 +35,7 @@ function CommandLink({ kind, children }: { kind: "cancel" | "fund_now"; children
   return (
     <form method="get" action="/money/confirm">
       <input type="hidden" name="kind" value={kind} />
-      <button type="submit" className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{children}</button>
+      <button type="submit" className="min-h-11 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--border)] sm:min-h-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{children}</button>
     </form>
   );
 }
@@ -86,10 +86,10 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
                   autoComplete="off"
                   placeholder="500"
                   pattern="^(\d+(\.\d{1,2})?|[Aa][Ll][Ll])$"
-                  className="w-40 rounded-md border border-[var(--border)] bg-transparent px-2.5 py-1.5"
+                  className="min-h-11 w-40 rounded-md border border-[var(--border)] bg-transparent px-2.5 py-1.5 text-base sm:min-h-0"
                 />
               </label>
-              <button type="submit" className="rounded-md bg-[var(--text)] px-3 py-1.5 font-medium text-[var(--background)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Withdraw…</button>
+              <button type="submit" className="min-h-11 rounded-md bg-[var(--text)] px-3 py-1.5 font-medium sm:min-h-0 text-[var(--background)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Withdraw…</button>
             </form>
           </div>
         )}
@@ -139,7 +139,18 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
 
       <Card title="Transfers">
         {m.ledger.length === 0 && <p className="text-sm text-[var(--muted)]">No transfers recorded.</p>}
-        <div className="-mx-4 overflow-x-auto px-4">
+        <RowsOnPhone>
+          {m.ledger.map((f) => (
+            <PhoneRow
+              key={`${f.at}-${f.amount}`}
+              title={KIND_LABELS[f.kind] ?? f.kind}
+              value={formatUsd(f.amount)}
+              detail={`${formatEt(f.at)}${f.approximate ? " (approx.)" : ""}`}
+              secondary={f.status === "canceled" ? "canceled: left out" : (f.status ?? "")}
+            />
+          ))}
+        </RowsOnPhone>
+        <TableOnWide>
           <table className="w-full min-w-[24rem] text-sm">
             <tbody>
               {m.ledger.map((f) => (
@@ -152,7 +163,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
               ))}
             </tbody>
           </table>
-        </div>
+        </TableOnWide>
       </Card>
 
       {(m.commands.length > 0 || m.past.length > 0) && (

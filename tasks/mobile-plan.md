@@ -56,7 +56,9 @@ Tables stay at 640 px and up.
 **Done when:** no table scrolls sideways at 393 px on either page; each figure is shown or one tap away.
 **Files:** `src/components/holdings-table.tsx`, `src/app/(signed-in)/track-record/page.tsx`, `src/components/ui.tsx` (a shared card or disclosure)
 
-### M4: Cards for Activity, Money and thesis version history; inputs
+### M4: Cards for Activity, Money and thesis version history; inputs ✅
+**Result:** Activity's orders, Money's transfers and the thesis version history are rows on phones; the Activity period links and the withdrawal buttons are 44 px; the withdrawal amount is `text-base` (16 px). Staging has a withdrawal open, so the amount field isn't on screen there for `mobile:check` to measure.
+
 **What:** the same pattern for the activity timeline, the Money page's ledger and commands, and the thesis page's version history. Text inputs at 16 px. "Table view" toggles at 44 px.
 **Done when:** `mobile:check` passes the table and input checks on every page.
 **Files:** `src/app/(signed-in)/activity/page.tsx`, `src/app/(signed-in)/money/page.tsx`, `src/app/(signed-in)/theses/[id]/page.tsx`
