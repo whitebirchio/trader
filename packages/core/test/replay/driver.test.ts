@@ -8,8 +8,11 @@ import { DAYS, HISTORY, REPLAY, REPLAY_TIMEOUT, base, day, doc, market } from ".
 
 describe("replay", () => {
   it("runs the real jobs over a simulated clock: buys the thesis, stops it out on a later day's gap, idles the rest in VTI, in replay time", async () => {
-    const r = await replay(base(market({ aapl: { [day(5)]: 85 } })));
+    const seen: [string, number, number][] = [];
+    const r = await replay({ ...base(market({ aapl: { [day(5)]: 85 } })), onSession: (d, n, total) => void seen.push([d, n, total]) });
     expect(r.sessions).toBe(10);
+    expect(seen.at(0)).toEqual([day(1), 1, 10]);
+    expect(seen.at(-1)).toEqual([day(10), 10, 10]);
     expect(r.rejectedVersions).toEqual([]);
     expect(r.halts).toEqual([]);
 

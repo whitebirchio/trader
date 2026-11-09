@@ -85,4 +85,21 @@ describe("loadMarket", () => {
     expect(r.market.bars.VTI).toHaveLength(1);
     expect(r.missing.bars).toEqual(["BAD"]);
   });
+
+  it("waits out a rate limit on asset records, keeping the ones already fetched", async () => {
+    const d = dir();
+    let n = 0;
+    const waits: number[] = [];
+    const limited = source({
+      getAsset: async (symbol) => {
+        n++;
+        if (n === 2) throw new BrokerHttpError(429, null, "rate limit exceeded");
+        return asset(symbol);
+      },
+    });
+    const r = await loadMarket(["AAPL", "VTI"], "2025-01-02", "2025-01-06", { dir: d, source: limited.s, sleep: async (ms) => void waits.push(ms) });
+    expect(waits).toEqual([60_000]);
+    expect(Object.keys(r.market.assets).sort()).toEqual(["AAPL", "VTI"]);
+    expect(n).toBe(3); // AAPL, VTI limited, VTI again
+  });
 });

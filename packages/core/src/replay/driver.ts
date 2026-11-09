@@ -69,6 +69,8 @@ export interface ReplayInput {
   to: string;
   slippageBps?: number;
   autoResume?: boolean;
+  /** Called after each session, for progress on a long replay. */
+  onSession?: (date: string, done: number, total: number) => void;
 }
 
 export interface ReplayHalt {
@@ -121,7 +123,7 @@ export async function replay(input: ReplayInput): Promise<ReplayResult> {
   let resumePending = false;
 
   const started = Date.now();
-  for (const session of sessions) {
+  for (const [n, session] of sessions.entries()) {
     for (const [i, step] of STEPS.entries()) {
       const at = marketTimeToUtc(session.date, step.time);
 
@@ -163,6 +165,7 @@ export async function replay(input: ReplayInput): Promise<ReplayResult> {
         resumePending = input.autoResume === true;
       }
     }
+    input.onSession?.(session.date, n + 1, sessions.length);
   }
   return { db, pglite, broker, sessions: sessions.length, rejectedVersions, transferShortfalls, halts, msPerSession: Math.round((Date.now() - started) / sessions.length) };
 }

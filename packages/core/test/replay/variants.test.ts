@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TimelineVersion } from "../../src/replay/driver.js";
 import { replay } from "../../src/replay/driver.js";
 import { diffReports, formatDiff, replayReport } from "../../src/replay/report.js";
+import { INSIDER_RULE } from "../../src/replay/rules.js";
 import { combineVariants, parseVariant } from "../../src/replay/variants.js";
 import { strategy, thesis } from "../portfolio/fixtures.js";
 import { REPLAY_TIMEOUT, base, day, doc, market } from "./fixtures.js";
@@ -23,22 +24,31 @@ function without(d: unknown, fields: string[]) {
 
 describe("parseVariant", () => {
   it("stop=N sets every thesis's stop-loss and changes nothing else", () => {
-    const after = parseVariant("stop=20").apply(version(two));
+    const after = parseVariant("stop=20").apply([version(two)])[0]!;
     expect((after.document as Doc).conviction.map((t) => t.stopLossPct)).toEqual(["20", "20"]);
     expect(without(after.document, ["stopLossPct"])).toEqual(without(two, ["stopLossPct"]));
     expect({ ...after, document: null }).toEqual({ ...version(two), document: null });
   });
 
   it("cap=N lowers only the weights above N", () => {
-    const after = parseVariant("cap=10").apply(version(two));
+    const after = parseVariant("cap=10").apply([version(two)])[0]!;
     expect((after.document as Doc).conviction.map((t) => t.targetWeightPct)).toEqual(["10", "8"]);
     expect(without(after.document, ["targetWeightPct"])).toEqual(without(two, ["targetWeightPct"]));
   });
 
-  it("review-days=N reviews every thesis N days after its version", () => {
-    const after = parseVariant("review-days=60").apply(version(two));
-    expect((after.document as Doc).conviction.map((t) => t.reviewBy)).toEqual(["2027-01-01", "2027-01-01"]);
-    expect(without(after.document, ["reviewBy"])).toEqual(without(two, ["reviewBy"]));
+  it("review-days=N reviews every thesis N days after the version that opened it, so a reaffirming version doesn't move it on", () => {
+    const later = { ...version(strategy({ conviction: [two.conviction[0]!, thesis({ id: "n", symbol: "NVDA" })] })), at: new Date("2026-11-20T13:15:00Z") };
+    const [first, second] = parseVariant("review-days=60").apply([version(two), later]);
+    expect((first!.document as Doc).conviction.map((t) => t.reviewBy)).toEqual(["2027-01-01", "2027-01-01"]);
+    expect((second!.document as Doc).conviction.map((t) => [t.id, t.reviewBy])).toEqual([["a", "2027-01-01"], ["n", "2027-01-19"]]);
+    expect(without(first!.document, ["reviewBy"])).toEqual(without(two, ["reviewBy"]));
+  });
+
+  it("makes the same change to a rule's parameters, and only that one", () => {
+    expect(parseVariant("stop=25").rule(INSIDER_RULE)).toEqual({ ...INSIDER_RULE, stopLossPct: "25" });
+    expect(parseVariant("cap=3").rule(INSIDER_RULE)).toEqual({ ...INSIDER_RULE, weightPct: "3" });
+    expect(parseVariant("cap=10").rule(INSIDER_RULE)).toEqual(INSIDER_RULE); // already under the cap
+    expect(parseVariant("review-days=45").rule(INSIDER_RULE)).toEqual({ ...INSIDER_RULE, reviewDays: 45 });
   });
 
   it("refuses an unknown variant or a value the schema wouldn't take, rather than running the baseline", () => {
@@ -52,10 +62,11 @@ describe("parseVariant", () => {
 
   it("passes a document without a conviction list through unchanged, and combines variants in order", () => {
     const old = version({ summary: "an old shape" });
-    expect(parseVariant("stop=20").apply(old)).toBe(old);
+    expect(parseVariant("stop=20").apply([old])[0]).toBe(old);
     const both = combineVariants([parseVariant("stop=20"), parseVariant("cap=10")]);
     expect(both.name).toBe("stop=20 + cap=10");
-    expect((both.apply(version(two)).document as Doc).conviction.map((t) => [t.stopLossPct, t.targetWeightPct])).toEqual([["20", "10"], ["20", "8"]]);
+    expect(both.rule(INSIDER_RULE)).toEqual({ ...INSIDER_RULE, stopLossPct: "20" });
+    expect((both.apply([version(two)])[0]!.document as Doc).conviction.map((t) => [t.stopLossPct, t.targetWeightPct])).toEqual([["20", "10"], ["20", "8"]]);
   });
 });
 
@@ -66,7 +77,7 @@ describe("diffReports", () => {
     const variant = parseVariant("stop=20");
     const opts = { from: day(1), to: day(10), slippageBps: 10 };
     const baseline = await replayReport(await replay(input), opts);
-    const varied = await replayReport(await replay({ ...input, versions: input.versions.map(variant.apply) }), opts);
+    const varied = await replayReport(await replay({ ...input, versions: variant.apply(input.versions) }), opts);
     const d = diffReports(baseline, varied, variant.name);
 
     expect(d.rows.find((r) => r.label === "Stops fired")).toEqual({ label: "Stops fired", baseline: "1", variant: "0", difference: "-1" });
