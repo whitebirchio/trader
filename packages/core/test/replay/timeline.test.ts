@@ -44,5 +44,5 @@ describe("exportTimeline", () => {
     expect(back).toEqual(t);
     expect(back.versions[0]!.at).toBeInstanceOf(Date);
     expect(back.actual!.snapshots[0]!.recordedAt).toBeInstanceOf(Date);
-  });
+  }, 30_000); // a fresh database from every migration, then a dozen inserts: past vitest's 5s default on CI's runners
 });
