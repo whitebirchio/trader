@@ -89,7 +89,9 @@ export interface DeliveryReport {
  * Send every due email. Each is claimed with a conditional update first, so
  * overlapping runs send it once. A run that dies after claiming leaves the row
  * `sending`; it's retried once stale, so the worst case is a duplicate email,
- * never a lost one.
+ * never a lost one. Each such interruption counts as a failed attempt, so an
+ * email whose send keeps killing the run gives up like any other failure
+ * instead of resending forever.
  */
 export async function deliver(db: Db, mailer: Mailer, now: Date): Promise<DeliveryReport> {
   const report: DeliveryReport = { sent: 0, retrying: 0, failed: 0 };
@@ -105,9 +107,21 @@ export async function deliver(db: Db, mailer: Mailer, now: Date): Promise<Delive
     .orderBy(notifications.createdAt);
 
   for (const row of due) {
+    // Re-claiming a stale `sending` row means the previous attempt never finished.
+    const interrupted = row.status === "sending";
+    const attemptsBefore = interrupted ? row.attempts + 1 : row.attempts;
+    if (interrupted && BACKOFF_MINUTES[attemptsBefore - 1] === undefined) {
+      const gaveUp = await db
+        .update(notifications)
+        .set({ status: "failed", attempts: attemptsBefore, lastError: "interrupted mid-send too many times" })
+        .where(and(eq(notifications.id, row.id), eq(notifications.status, "sending"), row.claimedAt ? eq(notifications.claimedAt, row.claimedAt) : undefined))
+        .returning({ id: notifications.id });
+      if (gaveUp.length > 0) report.failed++;
+      continue;
+    }
     const claimed = await db
       .update(notifications)
-      .set({ status: "sending", claimedAt: now })
+      .set({ status: "sending", claimedAt: now, attempts: attemptsBefore })
       .where(and(eq(notifications.id, row.id), eq(notifications.status, row.status), row.claimedAt ? eq(notifications.claimedAt, row.claimedAt) : undefined))
       .returning({ id: notifications.id });
     if (claimed.length === 0) continue;
@@ -117,7 +131,7 @@ export async function deliver(db: Db, mailer: Mailer, now: Date): Promise<Delive
       await db.update(notifications).set({ status: "sent", messageId, sentAt: now, lastError: null }).where(eq(notifications.id, row.id));
       report.sent++;
     } catch (e) {
-      const attempts = row.attempts + 1;
+      const attempts = attemptsBefore + 1;
       const error = (e instanceof Error ? e.message : String(e)).slice(0, 1000);
       const delay = BACKOFF_MINUTES[attempts - 1];
       if (delay === undefined) {
