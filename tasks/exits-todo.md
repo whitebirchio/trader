@@ -37,4 +37,5 @@
 
 ### T6: Judge T5 on the insider replay
 - [x] Replay variants `trailing-stop=N` and `take-profit=N`.
-- [ ] Run them on the 2019–2026 insider rule. Write up beside the replay. Scott decides whether to switch either on.
+- [x] Run them on the 2019–2026 insider rule. Write up beside the replay: `docs/research/thesis-exits-replay-2026-11.md`. Every setting lost to the baseline.
+- [ ] Scott decides whether to switch either on (recommendation: neither).

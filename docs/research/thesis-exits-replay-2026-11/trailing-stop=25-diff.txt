@@ -1,0 +1,97 @@
+Baseline vs trailing-stop=25
+
+                                  baseline     variant  difference
+  Return %                          139.68      130.98        -8.7
+  VTI %                             218.38      218.38           0
+  Return vs VTI, points              -78.7       -87.4        -8.7
+  Theses' excess vs VTI %            -1.56       -1.91       -0.35
+  Theses that beat VTI %             37.19       36.68       -0.51
+  Fills                               6085        5979        -106
+  Turnover %                        2041.9      2041.6        -0.3
+  Realized short-term $          134803.10   123808.11   -10994.99
+  Realized long-term $                0.00     2466.60     +2466.6
+  Wash sales                           633         627          -6
+  Stops fired                          101          96          -5
+  Trailing stops fired                   0          17         +17
+  Profit targets hit                     0           0           0
+  Review-date unwinds                   18          15          -3
+  Stale unwinds                          0           0           0
+  Risk rejections and clips           3956        3969         +13
+  Halts                                  4           4           0
+
+Theses whose outcome changed (75)
+  DOW    removed -5.59%         → removed -5.58%         dow-insiders-2024-12-17
+  MMS    removed -5.01%         → removed -4.99%         mms-insiders-2024-12-18
+  TREE   removed 18.12%         → removed 18.08%         tree-insiders-2024-12-09
+  EL     removed 1.84%          → removed 1.82%          el-insiders-2024-11-20
+  CNC    removed -0.2%          → removed -0.17%         cnc-insiders-2024-11-13
+  SEDG   removed 27.03%         → trailing_stopped 14.65% sedg-insiders-2024-11-14
+  ATEC   stopped -17.47%        → stopped -17.48%        atec-insiders-2024-08-26
+  GT     removed 8.51%          → removed 8.52%          gt-insiders-2024-08-13
+  ECVT   removed 22.38%         → removed 22.1%          ecvt-insiders-2024-08-08
+  MBLY   stopped -19.62%        → stopped -19.66%        mbly-insiders-2024-08-06
+  LW     removed 29.84%         → removed 29.8%          lw-insiders-2024-07-29
+  HPP    removed -1.23%         → trailing_stopped -9.2% hpp-insiders-2024-06-03
+  IRON   removed 8.31%          → removed 8.04%          iron-insiders-2024-06-20
+  CLF    stopped -15.39%        → stopped -15.45%        clf-insiders-2024-06-13
+  VSTS   removed 10.49%         → removed 10.56%         vsts-insiders-2024-05-29
+  MBLY   removed 9.45%          → removed 9.48%          mbly-insiders-2024-02-01
+  GTLS   stopped -15.86%        → stopped -15.85%        gtls-insiders-2023-12-15
+  VYX    stopped -13.48%        → stopped -13.55%        vyx-insiders-2023-12-04
+  RILY   stopped -8.6%          → trailing_stopped -4.86% rily-insiders-2023-11-17
+  TKO    removed 10.12%         → removed 9.89%          tko-insiders-2023-11-14
+  NEOG   removed 9.89%          → trailing_stopped 2.5%  neog-insiders-2023-11-03
+  CLFD   stopped -18.41%        → stopped -15.14%        clfd-insiders-2023-02-14
+  TPL    stopped -16.73%        → stopped -16.45%        tpl-insiders-2023-02-08
+  RILY   stopped -7.8%          → stopped -8.12%         rily-insiders-2022-12-30
+  NRG    overdue 2.07%          → overdue 2.08%          nrg-insiders-2022-12-16
+  HLF    removed 18.43%         → removed 18.34%         hlf-insiders-2022-12-13
+  VFC    stopped -14.29%        → trailing_stopped -9.6% vfc-insiders-2022-12-15
+  WWW    removed 42.84%         → removed 42.6%          www-insiders-2022-12-13
+  WE     stopped -19.05%        → stopped -19.34%        we-insiders-2022-09-06
+  DBRG   stopped -18.7%         → stopped -18.74%        dbrg-insiders-2022-09-01
+  FCX    overdue 28.06%         → overdue 28.12%         fcx-insiders-2022-08-30
+  GRPN   stopped -15%           → stopped -15.5%         grpn-insiders-2022-09-01
+  PRG    stopped -14.38%        → stopped -14.7%         prg-insiders-2022-08-05
+  SPG    removed -1.8%          → removed -1.74%         spg-insiders-2022-07-05
+  CMP    removed 2.12%          → removed 2.08%          cmp-insiders-2022-06-21
+  TUP    overdue 25.57%         → trailing_stopped 22.33% tup-insiders-2022-06-14
+  IHRT   stopped -18.41%        → stopped -19.12%        ihrt-insiders-2022-05-12
+  ATGE   removed 47.11%         → removed 47.15%         atge-insiders-2022-02-23
+  TWOU   overdue 13.71%         → trailing_stopped 10.12% twou-insiders-2022-02-16
+  HYLN   stopped -16.63%        → stopped -16.62%        hyln-insiders-2021-12-20
+  GOCO   stopped -19.95%        → stopped -20.25%        goco-insiders-2021-11-23
+  MGI    removed 52.25%         → removed 50.72%         mgi-insiders-2021-11-16
+  BBBY   stopped -14.91%        → stopped -14.97%        bbby-insiders-2021-11-09
+  RCII   stopped -11.57%        → stopped -11.87%        rcii-insiders-2021-11-09
+  HIBB   removed -6.86%         → trailing_stopped -0.99% hibb-insiders-2021-10-06
+  APPS   removed 13.75%         → trailing_stopped 19.74% apps-insiders-2021-08-19
+  AUPH   removed 17.22%         → removed 19.31%         auph-insiders-2021-05-13
+  KPTI   stopped -9.67%         → stopped -9.79%         kpti-insiders-2021-05-11
+  MAXR   removed 2.47%          → trailing_stopped -2.71% maxr-insiders-2021-05-06
+  SNDX   removed -4.99%         → trailing_stopped -6.48% sndx-insiders-2021-04-28
+  HOFV   removed 49.81%         → removed 49.52%         hofv-insiders-2020-11-20
+  GTHX   removed 48.45%         → removed 48.31%         gthx-insiders-2020-11-19
+  KRTX   removed 14.9%          → removed 15.02%         krtx-insiders-2020-09-11
+  BOH    removed 36.07%         → removed 35.89%         boh-insiders-2020-09-10
+  DDD    removed 45.89%         → trailing_stopped 15.71% ddd-insiders-2020-09-08
+  EHTH   stopped -15.67%        → stopped -15.65%        ehth-insiders-2020-08-10
+  RCUS   stopped -17.24%        → stopped -17.25%        rcus-insiders-2020-08-11
+  DNB    removed 6.54%          → removed 6.49%          dnb-insiders-2020-07-07
+  EVFM   stopped -12.47%        → stopped -12.49%        evfm-insiders-2020-06-18
+  ARNC   removed 38.62%         → trailing_stopped 1.27% arnc-insiders-2020-05-22
+  BXP    removed 4.54%          → removed 4.33%          bxp-insiders-2020-05-27
+  RESI   overdue 33.36%         → overdue 33.38%         resi-insiders-2020-05-15
+  STL    stopped -11.49%        → trailing_stopped -1.39% stl-insiders-2020-05-21
+  ATI    removed 25.56%         → removed 25.23%         ati-insiders-2019-08-15
+  CADE   removed 6.03%          → removed 5.4%           cade-insiders-2019-08-12
+  CARS   removed 30.77%         → removed 30.76%         cars-insiders-2019-08-13
+  CRC    stopped -3.71%         → trailing_stopped 19.47% crc-insiders-2019-08-15
+  CC     removed 37.49%         → removed 39.08%         cc-insiders-2019-08-08
+  ETRN   removed -10.03%        → removed -9.15%         etrn-insiders-2019-08-05
+  LGND   removed 12.5%          → removed 11.96%         lgnd-insiders-2019-08-06
+  MDCO   overdue 42.49%         → overdue 42.5%          mdco-insiders-2018-12-27
+  CHK    overdue 44.08%         → overdue 44.1%          chk-insiders-2018-12-27
+  GTHX   stopped -16.58%        → trailing_stopped -14.78% gthx-insiders-2018-12-27
+  HHC    overdue 12.37%         → overdue 12.38%         hhc-insiders-2018-12-26
+  HOME   overdue 2.03%          → trailing_stopped -2.5% home-insiders-2018-12-26
