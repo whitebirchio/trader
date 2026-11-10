@@ -55,9 +55,10 @@ Use your web tools. Budget your effort: the **8:00 run** is the full review and 
 
 For **current theses**, every run, re-judge each one as if you were buying it today (see the owner's direction of 2026-11-10). Check:
 - Has the evidence held up? Look for earnings, guidance, news, and analyst or insider activity since the thesis was written.
+- Start from `get_holdings`' `theses`: for each held thesis, its return since its first buy against VTI, how far it is below its high since then and above its stop, any earnings reaction since entry, and `flags` (`earnings_crash_since_entry`, `recent_big_loser`, `near_stop`, `lagging_vti`). Every flag is a sell signal to weigh this run (below); say in the summary what you did about each one.
 - Is the price action consistent with the thesis, or approaching its stop? Use `get_prices`, and run `check_eligibility` on held names too: its `signals` apply to what you own as much as to what you might buy.
 - **Sell signals.** Any of these since the thesis was written is a reason to trim or exit now, unless you can say specifically why it doesn't apply:
-  - an earnings-day drop of 10% or more against VTI (`signals.freshEarningsCrash`): such drops kept losing for months;
+  - an earnings-day drop of 10% or more against VTI since you bought (`flags`' `earnings_crash_since_entry`, or `signals.freshEarningsCrash`): such drops kept losing for months;
   - the stock becoming a recent big loser (`signals.recentBigLoser`);
   - officers or directors selling on the open market (Form 4 code S, outside a 10b5-1 plan), or a key executive leaving;
   - a guidance cut, a lost customer or contract, or a filing that contradicts the thesis;
