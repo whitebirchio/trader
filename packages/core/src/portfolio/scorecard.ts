@@ -29,7 +29,7 @@ export interface ScorecardThesisEvent {
   at: Date;
 }
 
-export type ThesisEnding = "open" | "removed" | "stopped" | "stale" | "overdue";
+export type ThesisEnding = "open" | "removed" | "stopped" | "trailing_stopped" | "took_profit" | "stale" | "overdue";
 
 /** One thesis's claim on its symbol, from its first buy until the position is flat after the thesis left. */
 export interface ThesisWindow {
@@ -79,7 +79,7 @@ function listings(document: unknown): Listing[] | null {
 
 type Step =
   | { at: Date; order: 0; kind: "version"; listings: Listing[] }
-  | { at: Date; order: 1; kind: "stopped" | "stale" | "overdue"; thesisId: string }
+  | { at: Date; order: 1; kind: "stopped" | "trailing_stopped" | "took_profit" | "stale" | "overdue"; thesisId: string }
   | { at: Date; order: 2; kind: "fill"; fill: LedgerActivity };
 
 /**
@@ -99,7 +99,7 @@ export function thesisWindows(versions: ScorecardVersion[], events: ScorecardThe
     if (l) steps.push({ at: v.createdAt, order: 0, kind: "version", listings: l });
   }
   for (const e of events) {
-    if (e.kind === "stopped" || e.kind === "stale" || e.kind === "overdue") steps.push({ at: e.at, order: 1, kind: e.kind, thesisId: e.thesisId });
+    if (e.kind === "stopped" || e.kind === "trailing_stopped" || e.kind === "took_profit" || e.kind === "stale" || e.kind === "overdue") steps.push({ at: e.at, order: 1, kind: e.kind, thesisId: e.thesisId });
   }
   for (const a of activities) {
     if (a.type === "FILL" && a.symbol && a.side && a.qty && a.price) steps.push({ at: a.at, order: 2, kind: "fill", fill: a });
@@ -165,7 +165,7 @@ export function thesisWindows(versions: ScorecardVersion[], events: ScorecardThe
       }
       for (const w of open.values()) w.kinds = latest.get(w.ids.at(-1)!)?.kinds ?? w.kinds;
     } else if (s.kind !== "fill") {
-      if (s.kind === "stopped") stopped.add(s.thesisId);
+      if (s.kind === "stopped" || s.kind === "trailing_stopped" || s.kind === "took_profit") stopped.add(s.thesisId);
       for (const [symbol, id] of claims) if (id === s.thesisId) claim(symbol, null, s.at, s.kind);
     } else {
       const f = s.fill;

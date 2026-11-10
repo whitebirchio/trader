@@ -34,6 +34,7 @@ const ROUTES: Record<AuditKind, Route> = {
   "strategy.activated": "urgent", // the strategy changed: meaningful, autonomous
   "strategy.rejected": "urgent", // Claude submitted something invalid: the old version stays
   "thesis.stopped_out": "urgent",
+  "thesis.took_profit": "urgent", // an automatic sale: the profit target was reached (#35)
   "thesis.stale": "urgent", // the research loop may be down
   "thesis.review_overdue": "urgent", // an automatic sale: the review date passed
   "rebalance.planned": "digest",
@@ -77,6 +78,7 @@ export const SEVERITY: Partial<Record<AuditKind, number>> = {
   "risk.buys_paused": 7,
   "job.failed": 8,
   "thesis.stopped_out": 7.5,
+  "thesis.took_profit": 7.55,
   "thesis.stale": 7.6,
   "thesis.review_overdue": 7.65,
   "strategy.rejected": 7.7,

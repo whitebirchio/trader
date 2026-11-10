@@ -147,6 +147,14 @@ describe("strategy and thesis emails", () => {
     expect(email.text).toContain("v2 stays active.");
   });
 
+  it("names a trailing stop and a profit target for what they are (#35)", () => {
+    const trailing = composeUrgent([ev("thesis.stopped_out", { thesisId: "oxy-x", trigger: "trailing_stopped", reason: "OXY closed at $54.00, at or below its 10% trailing stop" }, "OXY")], "production");
+    expect(trailing.subject).toBe("Trader: Trailing stop: selling OXY");
+    const target = composeUrgent([ev("thesis.took_profit", { thesisId: "oxy-x", trigger: "took_profit", reason: "OXY closed at $80.00, at or above its 30% profit target ($78.00 vs $60.00 average cost)" }, "OXY")], "production");
+    expect(target.subject).toBe("Trader: Profit target: selling OXY");
+    expect(target.text).toContain("Thesis oxy-x is closed; re-entry needs a new thesis.");
+  });
+
   it("reports a stop-loss sale and a stale thesis, the stop first", () => {
     const email = composeUrgent(
       [

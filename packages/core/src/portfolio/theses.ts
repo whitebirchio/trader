@@ -6,10 +6,18 @@ import type { Strategy, Thesis } from "./strategy.js";
 /** A thesis not reaffirmed in this long unwinds into the systematic sleeve (SPEC-portfolio). */
 export const STALE_AFTER_MS = 30 * 24 * 60 * 60_000;
 
+/** Which price rule closed a thesis; also the thesis_events kind recorded for it. */
+export type StopTrigger = "stopped" | "trailing_stopped" | "took_profit";
+/** Every thesis_events kind that closes a thesis id for good. */
+export const CLOSING_KINDS: StopTrigger[] = ["stopped", "trailing_stopped", "took_profit"];
+
 export type ThesisState =
   | { state: "active"; thesis: Thesis }
-  /** Hit its stop-loss. Sold, and stays stopped: re-entry needs a new thesis id. */
-  | { state: "stopped"; thesis: Thesis; reason: string; newlyStopped: boolean; price?: string; averageCost?: string }
+  /**
+   * Closed by a price rule: its stop-loss, or (#35) its trailing stop or
+   * profit target. Sold, and stays closed: re-entry needs a new thesis id.
+   */
+  | { state: "stopped"; thesis: Thesis; reason: string; newlyStopped: boolean; trigger?: StopTrigger; price?: string; averageCost?: string }
   /** Not reaffirmed for 30 days (the research loop may be down). Sold into systematic. */
   | { state: "stale"; thesis: Thesis; reason: string }
   /** Past its review date without a later one. Sold into systematic until a version moves the date on. */
@@ -28,6 +36,12 @@ export interface ThesisInputs {
   lots: OpenLot[];
   /** Latest daily close per symbol (decimal strings). */
   lastClose: Record<string, string>;
+  /**
+   * Daily closes per symbol, ascending, back to each thesis's first open lot:
+   * what a trailing stop measures its high from. Without them (the read
+   * tools), a trailing stop isn't checked; the rebalance always passes them.
+   */
+  closes?: Record<string, { t: Date; c: string }[]>;
   now: Date;
 }
 
@@ -43,11 +57,22 @@ export function averageCost(lots: OpenLot[], symbol: string): string | null {
   return compare(qty, "0") > 0 ? div(basis, qty, 6, "half-even") : null;
 }
 
+/** The highest close of `symbol` since its earliest open lot's session; null without lots or closes. */
+export function highSinceEntry(lots: OpenLot[], symbol: string, closes: { t: Date; c: string }[] | undefined): string | null {
+  const first = lots.filter((l) => l.symbol === symbol).reduce<Date | null>((min, l) => (!min || l.openedAt < min ? l.openedAt : min), null);
+  if (!first || !closes) return null;
+  const from = marketDate(first);
+  let high: string | null = null;
+  for (const b of closes) if (marketDate(b.t) >= from && (high === null || compare(b.c, high) > 0)) high = b.c;
+  return high;
+}
+
 /**
- * Each active-strategy thesis's state. Precedence: already stopped > stale >
- * overdue > stop-loss hit now > active. Staleness and the review date come
- * first because either unwinds a thesis whatever its price. A stop is only
- * checked on held positions with a known price.
+ * Each active-strategy thesis's state. Precedence: already closed > stale >
+ * overdue > stop-loss > trailing stop > profit target > active. Staleness and
+ * the review date come first because either unwinds a thesis whatever its
+ * price. The price rules are only checked on held positions with a known
+ * price.
  */
 export function thesisStates(input: ThesisInputs): ThesisState[] {
   const age = input.now.getTime() - (input.active.reaffirmedAt ?? input.active.createdAt).getTime();
@@ -57,7 +82,7 @@ export function thesisStates(input: ThesisInputs): ThesisState[] {
 
   return input.active.strategy.conviction.map((thesis): ThesisState => {
     if (input.stoppedIds.has(thesis.id)) {
-      return { state: "stopped", thesis, reason: "stopped out earlier; re-entry needs a new thesis", newlyStopped: false };
+      return { state: "stopped", thesis, reason: "closed earlier by a stop or profit target; re-entry needs a new thesis", newlyStopped: false };
     }
     if (stale) {
       return { state: "stale", thesis, reason: `not reaffirmed for ${days} days (limit 30)` };
@@ -74,10 +99,40 @@ export function thesisStates(input: ThesisInputs): ThesisState[] {
           state: "stopped",
           thesis,
           newlyStopped: true,
+          trigger: "stopped",
           price,
           averageCost: cost,
           reason: `${thesis.symbol} closed at $${cents(price)}, at or below its ${thesis.stopLossPct}% stop ($${cents(stopAt)} vs $${cents(cost)} average cost)`,
         };
+      }
+      const high = thesis.trailingStopPct ? highSinceEntry(input.lots, thesis.symbol, input.closes?.[thesis.symbol]) : null;
+      if (thesis.trailingStopPct && high) {
+        const trailAt = mul(high, sub("1", div(thesis.trailingStopPct, "100", 6, "half-even")));
+        if (compare(price, trailAt) <= 0) {
+          return {
+            state: "stopped",
+            thesis,
+            newlyStopped: true,
+            trigger: "trailing_stopped",
+            price,
+            averageCost: cost,
+            reason: `${thesis.symbol} closed at $${cents(price)}, at or below its ${thesis.trailingStopPct}% trailing stop ($${cents(trailAt)}, from a high close of $${cents(high)} since it was bought)`,
+          };
+        }
+      }
+      if (thesis.takeProfitPct) {
+        const targetAt = mul(cost, add("1", div(thesis.takeProfitPct, "100", 6, "half-even")));
+        if (compare(price, targetAt) >= 0) {
+          return {
+            state: "stopped",
+            thesis,
+            newlyStopped: true,
+            trigger: "took_profit",
+            price,
+            averageCost: cost,
+            reason: `${thesis.symbol} closed at $${cents(price)}, at or above its ${thesis.takeProfitPct}% profit target ($${cents(targetAt)} vs $${cents(cost)} average cost)`,
+          };
+        }
       }
     }
     return { state: "active", thesis };

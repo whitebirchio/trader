@@ -34,6 +34,15 @@ const evidence = z.object({
 /** The most one thesis may target, % of investable equity. */
 export const MAX_THESIS_WEIGHT_PCT = "20";
 
+/**
+ * Whether a submission may set #35's exit fields. Code enforces either field
+ * wherever a stored document has it, so this is the one switch: both are off
+ * until the owner turns them on, each judged on a replay first (exits plan
+ * T5–T6). A replay stores its versions directly and so can try them.
+ */
+export const EXIT_RULES = { trailingStop: false as boolean, takeProfit: false as boolean };
+export type ExitRules = typeof EXIT_RULES;
+
 /** A real calendar date, YYYY-MM-DD. */
 const isoDate = z
   .string()
@@ -53,6 +62,18 @@ const thesis = z.object({
   thesis: z.string().trim().min(20, "needs at least a sentence of reasoning").max(5000),
   evidence: z.array(evidence).min(1, "needs at least one piece of evidence").max(20),
   stopLossPct: decimalIn("5", "50"),
+  /**
+   * A trailing stop (#35): the thesis closes when the last close is this far
+   * below its highest close since the first buy. Optional, and refused at
+   * submission while EXIT_RULES.trailingStop is off.
+   */
+  trailingStopPct: decimalIn("5", "50").optional(),
+  /**
+   * A profit target (#35): the thesis closes, sold whole, when the last close
+   * is this far above average cost. Optional, and refused at submission while
+   * EXIT_RULES.takeProfit is off.
+   */
+  takeProfitPct: decimalIn("5", "500").optional(),
   /**
    * The last market date the thesis stands without review. After it, the
    * thesis is overdue and unwinds, until a later version moves it on with
@@ -122,6 +143,10 @@ export type Strategy = z.infer<typeof strategySchema>;
  */
 export const STRATEGY_JSON_SCHEMA: Record<string, unknown> = (() => {
   const { $schema: _, ...schema } = z.toJSONSchema(strategySchema, { io: "input", unrepresentable: "any" });
+  // A field that's switched off isn't offered to Claude.
+  const fields = (schema as { properties?: { conviction?: { items?: { properties?: Record<string, unknown> } } } }).properties?.conviction?.items?.properties;
+  if (fields && !EXIT_RULES.trailingStop) delete fields.trailingStopPct;
+  if (fields && !EXIT_RULES.takeProfit) delete fields.takeProfitPct;
   return schema;
 })();
 export type Thesis = Strategy["conviction"][number];

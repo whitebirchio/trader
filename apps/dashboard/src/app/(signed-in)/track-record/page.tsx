@@ -6,7 +6,7 @@ import { formatDays, formatEt, formatPct, formatPts, formatQty, formatSignedUsd,
 
 export const dynamic = "force-dynamic";
 
-const ENDING = { open: "held", removed: "removed", stopped: "stopped out", stale: "went stale", overdue: "review date passed" } as const;
+const ENDING = { open: "held", removed: "removed", stopped: "stopped out", trailing_stopped: "trailing stop", took_profit: "profit target", stale: "went stale", overdue: "review date passed" } as const;
 
 export default async function TrackRecordPage() {
   const { db } = await signedIn();

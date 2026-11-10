@@ -30,6 +30,16 @@ describe("parseVariant", () => {
     expect({ ...after, document: null }).toEqual({ ...version(two), document: null });
   });
 
+  it("trailing-stop=N and take-profit=N add #35's exit fields to every thesis, and change nothing else", () => {
+    const after = combineVariants([parseVariant("trailing-stop=15"), parseVariant("take-profit=40")]).apply([version(two)])[0]!;
+    expect((after.document as { conviction: { trailingStopPct: string; takeProfitPct: string }[] }).conviction.map((t) => [t.trailingStopPct, t.takeProfitPct])).toEqual([["15", "40"], ["15", "40"]]);
+    expect(without(after.document, ["trailingStopPct", "takeProfitPct"])).toEqual(two);
+    expect(parseVariant("trailing-stop=15").rule(INSIDER_RULE)).toEqual({ ...INSIDER_RULE, trailingStopPct: "15" });
+    expect(parseVariant("take-profit=40").rule(INSIDER_RULE)).toEqual({ ...INSIDER_RULE, takeProfitPct: "40" });
+    expect(() => parseVariant("trailing-stop=4")).toThrow(/trailing-stop must be a percentage from 5 to 50/);
+    expect(() => parseVariant("take-profit=600")).toThrow(/take-profit must be a percentage from 5 to 500/);
+  });
+
   it("cap=N lowers only the weights above N", () => {
     const after = parseVariant("cap=10").apply([version(two)])[0]!;
     expect((after.document as Doc).conviction.map((t) => t.targetWeightPct)).toEqual(["10", "8"]);

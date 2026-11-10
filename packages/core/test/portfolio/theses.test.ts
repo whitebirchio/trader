@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenLot } from "../../src/broker/lots.js";
-import { averageCost, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
+import { averageCost, highSinceEntry, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
 import { strategy, thesis } from "./fixtures.js";
 
 const created = new Date("2026-11-02T15:00:00Z");
@@ -152,3 +152,55 @@ describe("reviewDateErrors", () => {
   });
 });
 
+
+describe("trailing stop and profit target (#35)", () => {
+  const close = (daysAfter: number, c: string) => ({ t: new Date(created.getTime() + daysAfter * day), c });
+  // Bought at 200. A higher close before the buy doesn't count.
+  const closes = [close(-3, "300"), close(0, "200"), close(1, "260"), close(2, "250")];
+  const run35 = (over: { trailingStopPct?: string; takeProfitPct?: string }, last: string, o: { closes?: typeof closes | null; stop?: string } = {}) =>
+    thesisStates({
+      active: { strategy: strategy({ conviction: [thesis({ stopLossPct: o.stop ?? "15", ...over })] }), createdAt: created },
+      stoppedIds: new Set(),
+      lots: [lot("AAPL", "1", "200")],
+      lastClose: { AAPL: last },
+      ...(o.closes === null ? {} : { closes: { AAPL: [...(o.closes ?? closes), close(3, last)] } }),
+      now: new Date(created.getTime() + 3 * day),
+    })[0];
+
+  it("finds the highest close since the first lot's session", () => {
+    expect(highSinceEntry([lot("AAPL", "1", "200")], "AAPL", closes)).toBe("260");
+    expect(highSinceEntry([], "AAPL", closes)).toBeNull();
+    expect(highSinceEntry([lot("AAPL", "1", "200")], "AAPL", undefined)).toBeNull();
+  });
+
+  it("closes a thesis at its trailing stop below the high since entry, even at a profit", () => {
+    expect(run35({ trailingStopPct: "10" }, "234.01")).toMatchObject({ state: "active" });
+    expect(run35({ trailingStopPct: "10" }, "234")).toMatchObject({
+      state: "stopped",
+      newlyStopped: true,
+      trigger: "trailing_stopped",
+      price: "234",
+      averageCost: "200",
+      reason: "AAPL closed at $234.00, at or below its 10% trailing stop ($234.00, from a high close of $260.00 since it was bought)",
+    });
+  });
+
+  it("doesn't check a trailing stop without the closes, and the stop-loss comes first when both are hit", () => {
+    expect(run35({ trailingStopPct: "10" }, "220", { closes: null })).toMatchObject({ state: "active" });
+    expect(run35({ trailingStopPct: "10" }, "170")).toMatchObject({ state: "stopped", trigger: "stopped" });
+  });
+
+  it("closes a thesis at its profit target above average cost", () => {
+    expect(run35({ takeProfitPct: "30" }, "259.99", { closes: [close(0, "200")] })).toMatchObject({ state: "active" });
+    expect(run35({ takeProfitPct: "30" }, "260", { closes: [close(0, "200")] })).toMatchObject({
+      state: "stopped",
+      newlyStopped: true,
+      trigger: "took_profit",
+      reason: "AAPL closed at $260.00, at or above its 30% profit target ($260.00 vs $200.00 average cost)",
+    });
+  });
+
+  it("leaves a thesis without either field alone", () => {
+    expect(run35({}, "400")).toMatchObject({ state: "active" });
+  });
+});
