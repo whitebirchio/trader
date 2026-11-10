@@ -102,7 +102,7 @@ export const TOOLS: Tool[] = [
     name: "get_activity",
     title: "Recent activity",
     description:
-      "What happened recently: rebalance steps with the reason for each trade, orders and fills, risk clips and rejections, halts, and strategy submissions.",
+      "What happened recently: rebalance steps that traded, one line per trade with its reason and risk's verdict; orders and fills; risk clips and rejections; halts; and strategy submissions by version and headline (get_strategy has the full document). Steps that planned nothing are counted, with their notes.",
     inputSchema: schema({ days: { type: "integer", minimum: 1, maximum: 90, default: 14, description: "How far back to look." } }),
     readOnly: true,
     handler: (deps, args) => getActivity(deps, intArg(args, "days")),

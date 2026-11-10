@@ -39,12 +39,10 @@ const LABELS: Record<string, string> = {
   "capital.withdrawal_completed": "Withdrawal complete",
 };
 
-type Trade = { proposal?: { side?: string; symbol?: string; notional?: string | null; qty?: string | null; sleeve?: string }; reason?: string };
-
 function eventDetail(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const p = payload as Record<string, unknown>;
-  for (const key of ["reason", "reasons", "summary", "errors"]) {
+  for (const key of ["reason", "reasons", "headline", "errors"]) {
     const v = p[key];
     if (typeof v === "string") return v;
     if (Array.isArray(v) && v.every((x) => typeof x === "string")) return v.join("; ");
@@ -73,16 +71,21 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       </nav>
 
       <Card title="Rebalance steps">
-        {a.rebalanceSteps.length === 0 && <p className="text-sm text-[var(--muted)]">No rebalance steps in this period.</p>}
+        {a.rebalanceSteps.length === 0 && <p className="text-sm text-[var(--muted)]">No trades planned in this period.</p>}
+        {a.quietSteps.count > 0 && (
+          <p className="mb-3 text-sm text-[var(--muted)]">
+            {a.quietSteps.count} step{a.quietSteps.count === 1 ? "" : "s"} planned no trades{a.quietSteps.notes.length > 0 ? `: ${a.quietSteps.notes.join("; ")}` : "."}
+          </p>
+        )}
         <ul className="grid grid-cols-1 gap-3">
           {a.rebalanceSteps.map((s) => (
             <li key={s.at} className="text-sm">
               <div className="font-medium">{formatEt(s.at)} · {s.phase} · v{s.strategyVersion}</div>
               <ul className="mt-1 grid gap-0.5">
-                {(s.trades as Trade[]).map((t, i) => (
+                {s.trades.map((t, i) => (
                   <li key={i}>
-                    <span className="font-medium">{t.proposal?.side} {t.proposal?.symbol}</span>{" "}
-                    {t.proposal?.notional ? formatUsd(t.proposal.notional) : t.proposal?.qty ? `${formatQty(t.proposal.qty)} sh` : ""}
+                    <span className="font-medium">{t.side} {t.symbol}</span>{" "}
+                    {t.notional ? formatUsd(t.notional) : t.qty ? `${formatQty(t.qty)} sh` : ""}
                     {t.reason && <span className="text-[var(--muted)]">: {t.reason}</span>}
                   </li>
                 ))}
