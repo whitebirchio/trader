@@ -236,6 +236,8 @@ export const riskState = pgTable(
     halted: boolean().notNull().default(false),
     haltReason: text(),
     haltedAt: timestamptz(),
+    /** The owner's last resume of a halt: the drawdown re-bases from here until the old peak is regained (ADR-017). */
+    resumedAt: timestamptz(),
     buysPausedOn: date({ mode: "string" }),
     updatedAt: timestamptz().notNull().defaultNow(),
     updatedBy: auditActor().notNull().default("system"),

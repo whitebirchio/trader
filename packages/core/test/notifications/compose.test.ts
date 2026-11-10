@@ -12,7 +12,7 @@ describe("composeUrgent", () => {
     );
     expect(email.subject).toBe("Trader: Trading HALTED");
     expect(email.text).toContain("Why: the account is down 20.08% from its peak (limit 20%).");
-    expect(email.text).toContain("Every order is blocked, sells included, until you run risk:resume.");
+    expect(email.text).toContain("Nothing is bought or resized until you run risk:resume. A thesis that closes (its stop, its review date) or that Claude removes is still sold whole, and the cash waits.");
     expect(email.html).toContain("<h3>Trading HALTED</h3>");
   });
 

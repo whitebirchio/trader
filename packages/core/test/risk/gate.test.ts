@@ -7,7 +7,7 @@ import { auditEvents, brokerAccount, capitalCommands, equitySnapshots, jobRuns, 
 import { runJob } from "../../src/jobs.js";
 import { checkDrawdown, riskGate, roundTripBlocks } from "../../src/risk/gate.js";
 import { LIMITS } from "../../src/risk/limits.js";
-import { getRiskState, setKillSwitch } from "../../src/risk/state.js";
+import { getRiskState, resume, setKillSwitch } from "../../src/risk/state.js";
 import type { Proposal } from "../../src/risk/types.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { FakeMailer } from "../notifications/fake-mailer.js";
@@ -148,6 +148,20 @@ describe("checkDrawdown", () => {
     await db.update(brokerAccount).set({ equity: "1300" });
     await checkDrawdown(db, NOW);
     expect((await getRiskState(db)).halted).toBe(true);
+  });
+
+  it("after the owner resumes, halts again 15% below the level then, with a reason that says so (ADR-017)", async () => {
+    // NOW is Monday 2026-11-02. Peak 1250 on Thursday, 31% down by Friday's close; resumed Friday evening.
+    await snapshots(["2026-10-29", "1250"], ["2026-10-30", "862.5"]);
+    await db.update(brokerAccount).set({ equity: "862.5", lastEquity: "862.5" });
+    expect((await checkDrawdown(db, NOW)).halted).toBe("tripped");
+    await resume(db, { actor: "owner", reason: "reviewed" }, new Date("2026-10-30T23:00:00Z"));
+
+    await db.update(brokerAccount).set({ equity: "740" }); // 14.2% below the resume level
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "14.2029", halted: "no" });
+    await db.update(brokerAccount).set({ equity: "733" }); // 15.01%
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ halted: "tripped" });
+    expect((await getRiskState(db)).haltReason).toBe("the account is down 15.0145% since trading resumed on 2026-10-30 (limit 15% until it regains its old peak; 41.36% below that peak)");
   });
 
   it("doesn't count a deposit as a gain or a withdrawal as a loss", async () => {

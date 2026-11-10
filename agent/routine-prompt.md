@@ -37,7 +37,8 @@ This prompt runs on weekdays at 8:00 ET (pre-market) and 12:00 ET (mid-day). It 
 
 Call `get_overview` first.
 - **If `market.tradingDay` is false** (a holiday): stop. Don't research and don't submit. Say so in one line.
-- **If `guardrails.killSwitch` or `guardrails.halted` is true:** nothing will trade. Still research and submit if theses need reaffirming, but say clearly in your summary that the owner must resume before anything executes.
+- **If `guardrails.killSwitch` is true:** nothing will trade. Still research and submit if theses need reaffirming, but say clearly in your summary that the owner must resume before anything executes.
+- **If `guardrails.halted` is true:** nothing is bought or resized until the owner resumes, but a thesis that closed (its stop, its review date, staleness) or that you remove from the strategy is still sold whole, and its cash waits. Keep re-judging every thesis: removing one whose evidence broke is the one change that acts during a halt. Say in your summary that the owner must resume before anything is bought.
 
 Then call `get_strategy`, `get_holdings`, `get_activity` (7 days), `get_track_record` and `get_rules`. Note:
 - each thesis's state, `daysSinceReaffirmed` (theses unwind at 30) and `daysToReview` (an `overdue` thesis has already unwound);

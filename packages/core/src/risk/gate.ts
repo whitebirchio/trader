@@ -182,7 +182,8 @@ export async function currentIndex(db: Db, account: (AccountEquity & { cash?: st
   const flows = compare(pending, "0") > 0 ? [...recorded, { at: account?.syncedAt ?? now, amount: sub("0", pending) }] : recorded;
   // Before Alpaca reports a prior close, measure the day from our own last snapshot.
   const fallbackPriorClose = account?.lastEquity ?? snapshots.at(-1)?.equity ?? equity;
-  return liveIndex(buildIndex(snapshots, flows), { equity, asOf: account?.syncedAt ?? now, flows, fallbackPriorClose });
+  const { resumedAt } = await getRiskState(db);
+  return liveIndex(buildIndex(snapshots, flows, resumedAt), { equity, asOf: account?.syncedAt ?? now, flows, fallbackPriorClose });
 }
 
 async function ordersToday(db: Db, now: Date): Promise<RiskSnapshot["today"]> {
@@ -239,13 +240,13 @@ export async function checkDrawdown(db: Db, now: Date, limits: Limits = LIMITS):
   const index = await currentIndex(db, account, now);
 
   let halted: DrawdownCheck["halted"] = "no";
-  if (compare(index.drawdownPct, limits.drawdownHaltPct) >= 0) {
-    const result = await latchHalt(
-      db,
-      `the account is down ${index.drawdownPct}% from its peak (limit ${limits.drawdownHaltPct}%)`,
-      { drawdownPct: index.drawdownPct, equity: account.equity },
-      now,
-    );
+  // After a resume, 15% below the level then, until the old peak is regained (ADR-017).
+  const limit = index.rebased ? limits.reHaltPct : limits.drawdownHaltPct;
+  if (compare(index.drawdownPct, limit) >= 0) {
+    const reason = index.rebased
+      ? `the account is down ${index.drawdownPct}% since trading resumed on ${marketDate(index.rebased.resumedAt)} (limit ${limit}% until it regains its old peak; ${index.rebased.prePeakDrawdownPct}% below that peak)`
+      : `the account is down ${index.drawdownPct}% from its peak (limit ${limit}%)`;
+    const result = await latchHalt(db, reason, { drawdownPct: index.drawdownPct, equity: account.equity, ...(index.rebased ? { rebasedFrom: index.rebased.resumedAt.toISOString(), prePeakDrawdownPct: index.rebased.prePeakDrawdownPct } : {}) }, now);
     halted = result.status === "halted" ? "tripped" : "already";
   }
 

@@ -1,7 +1,7 @@
 # ADR-012: Halts freeze everything; only the owner resumes
 
 ## Status
-Accepted
+Accepted. The drawdown halt's freeze is superseded by ADR-017 (2026-11-10): closed theses get out, and a resume re-bases the peak. The kill switch and owner-only resume stand.
 
 ## Date
 2026-10-31

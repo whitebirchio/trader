@@ -19,7 +19,8 @@ When `risk` is done:
 | Rule | Limit | Applies to | When breached |
 |---|---|---|---|
 | **Kill switch** | owner on/off | every order | reject all, including sells |
-| **Drawdown halt** | flow-adjusted equity ≤ **−30% from peak** (−20% until ADR-016) | every order | latch; reject all until **you** run `risk:resume` |
+| **Drawdown halt** | flow-adjusted equity ≤ **−30% from peak** (−20% until ADR-016) | every order except whole exits of closed theses and withdrawal sells (ADR-017, ADR-015) | latch; reject the rest until **you** run `risk:resume` |
+| **Re-halt after a resume** (ADR-017) | after **you** resume a halt: flow-adjusted equity ≤ **−15%** from its level at the resume (the last close before it, or any higher close since), until it regains the pre-halt peak; then the −30% rule again | as the drawdown halt | latch, as the drawdown halt |
 | **Daily loss pause** | flow-adjusted equity ≤ **−8% vs prior close** (−5% until ADR-016) | buys | reject buys for the rest of the day; sells still run; clears itself the next trading day |
 | **No same-day round trips** (`sameDayRoundTrips: false`, ADR-016) | the symbol was bought today (for a sell) or sold today (for a buy): today's fills plus our orders that may still fill | that order | reject; the planner holds it back with a note until the next trading day |
 | **Broker verdict** | `broker_account.trading_allowed` | every order | reject all |
@@ -35,7 +36,7 @@ When `risk` is done:
 | **No shorting** | sell qty ≤ held qty | sells | clip to held qty |
 | **Runaway guard** | ≤ 40 orders per trading day; buy notional ≤ 100% of equity per day | every order | reject the excess |
 
-Sells are never blocked by eligibility, position or sleeve rules: you can always get *out* of something unless the kill switch or the drawdown halt is on. There's no minimum holding period. The PDT rule is retired, and wash sales are a strategy cost, not a rule (ADR-010).
+Sells are never blocked by eligibility, position or sleeve rules: you can always get *out* of something unless the kill switch is on. During the drawdown halt, a whole exit of a single-stock position tagged `purpose: "exit"` (its thesis closed, or it left the strategy) still goes through, but a partial sell, a broad or cash-like ETF sell, or an untagged sell doesn't (ADR-017). There's no minimum holding period. The PDT rule is retired, and wash sales are a strategy cost, not a rule (ADR-010).
 
 ## Assumptions (correct any of these)
 
@@ -85,7 +86,7 @@ packages/core/scripts/risk-{status,kill,resume,check}.ts
 
 | Table | Purpose |
 |---|---|
-| `risk_state` (single row) | `kill_switch`, `kill_reason`, `halted`, `halt_reason`, `halted_at`, `peak_index`, `updated_at`, `updated_by` (`system` / `owner`) |
+| `risk_state` (single row) | `kill_switch`, `kill_reason`, `halted`, `halt_reason`, `halted_at`, `resumed_at` (the owner's last resume of a halt, which re-bases the drawdown; owner-only, like clearing a halt: migration 0022), `peak_index`, `updated_at`, `updated_by` (`system` / `owner`) |
 | `risk_decisions` | One row per evaluated proposal: `evaluated_at`, `gate_run_id`, `intent_key`, `symbol`, `side`, `sleeve`, `requested_notional`/`requested_qty`, `approved_notional`/`approved_qty`, `verdict` (`approved` / `clipped` / `rejected`), `reasons` (jsonb), `limits_version`. Insert-only (added to `APPEND_ONLY_TABLES`). |
 
 ### Audit kinds added
@@ -133,7 +134,7 @@ Every reason is a sentence a person can read in an email ("TQQQ is leveraged or 
 
 ## Resolved Questions (2026-10-31)
 
-1. **Halt scope: freeze everything (Option A).** The kill switch and the −20% drawdown halt both block **all** orders, sells included, until you run `risk:resume`. Neither ever sells on its own. Holdings ride the market like buy-and-hold until a human looks.
+1. **Halt scope: freeze everything (Option A).** *Superseded for the drawdown halt by ADR-017 (2026-11-10): closed theses get out. The kill switch still freezes everything.* The kill switch and the −20% drawdown halt both block **all** orders, sells included, until you run `risk:resume`. Neither ever sells on its own. Holdings ride the market like buy-and-hold until a human looks.
 
    Why: at 70% broad ETFs, a −20% drawdown is almost always a market-wide fall, where holding has historically beaten selling. Freezing also keeps the halted portfolio from behaving worse than its own benchmark (buy-and-hold VTSAX). A single holding collapsing is already bounded by the 20% position cap. The daily −5% pause still allows sells.
 2. **`notifications` comes right after `risk`,** so halts and kill-switch events email you before `portfolio` can place an order.

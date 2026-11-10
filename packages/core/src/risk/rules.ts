@@ -11,15 +11,16 @@ import type { Decision, Proposal, RiskSnapshot } from "./types.js";
  * Proposals are evaluated in the order given, each consuming cash and cap
  * room, so `portfolio` decides which buys get priority. Account-wide stops
  * (kill switch, halt, broker verdict, stale data) reject everything,
- * sells included (Option A, SPEC-risk resolved question 1), with one owner
- * exception: the halt lets withdrawal sells through up to the unfunded
- * amount (ADR-015). Eligibility and caps apply to buys only, so exits are
- * never blocked by them.
+ * sells included (Option A, SPEC-risk resolved question 1), with two
+ * exceptions to the drawdown halt (never the kill switch): withdrawal sells
+ * up to the unfunded amount (ADR-015), and whole exits of single-stock
+ * positions whose thesis closed (ADR-017). Eligibility and caps apply to buys
+ * only, so exits are never blocked by them.
  */
 export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], limits: Limits): Decision[] {
   const stop = accountStop(snapshot, limits);
   if (stop) return proposals.map((proposal) => ({ proposal, verdict: "rejected", reasons: [stop] }));
-  // The drawdown halt's one exception: the owner's withdrawal, bounded by what it still needs.
+  // The drawdown halt's exceptions: the owner's withdrawal, bounded by what it still needs, and whole exits.
   const halted = snapshot.state.halted ? haltMessage(snapshot) : null;
   let withdrawalSold = "0";
 
@@ -37,9 +38,10 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
       return reject(proposal, `The daily limit of ${limits.maxOrdersPerDay} orders has been reached.`);
     }
     if (halted) {
-      if (proposal.side !== "sell" || proposal.purpose !== "withdrawal") return reject(proposal, halted);
+      if (proposal.side !== "sell" || !proposal.purpose) return reject(proposal, halted);
       const roundTrip = sameDayRoundTrip(proposal);
-      return roundTrip ? reject(proposal, roundTrip) : evaluateWithdrawalSell(proposal, halted);
+      if (roundTrip) return reject(proposal, roundTrip);
+      return proposal.purpose === "withdrawal" ? evaluateWithdrawalSell(proposal, halted) : evaluateExitSell(proposal, halted);
     }
     const roundTrip = sameDayRoundTrip(proposal);
     if (roundTrip) return reject(proposal, roundTrip);
@@ -56,6 +58,21 @@ export function evaluateOrders(snapshot: RiskSnapshot, proposals: Proposal[], li
       return `${proposal.symbol} was sold today; buying it back today would be a day trade, so it waits until tomorrow.`;
     }
     return null;
+  }
+
+  /**
+   * While halted: a protective exit (ADR-017) sells a whole position, never
+   * part of one, and never a broad or cash-like ETF, so the tag can't turn a
+   * halt into a rebalance. Which theses closed is portfolio's call; this
+   * bounds what a mistaken tag could sell.
+   */
+  function evaluateExitSell(proposal: Extract<Proposal, { side: "sell" }>, halted: string): Decision {
+    if (capExempt(proposal.symbol, limits)) return reject(proposal, `${halted} ${proposal.symbol} is a broad ETF; only single-stock exits go through a halt.`);
+    const held = state.heldQty.get(proposal.symbol) ?? "0";
+    if (compare(held, "0") > 0 && isPositive(proposal.qty) && compare(proposal.qty, held) < 0) {
+      return reject(proposal, `${halted} A halt lets only whole exits through, and this sells ${proposal.qty} of ${held} ${proposal.symbol} shares.`);
+    }
+    return evaluateSell(proposal);
   }
 
   /**

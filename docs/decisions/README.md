@@ -15,8 +15,9 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 | [009](009-money-as-numeric-and-big.md) | Money is `numeric` in Postgres and `Big` in code, never a JS `number` | Accepted | 2026-10-31 |
 | [010](010-wash-sales-are-a-cost.md) | Wash sales are a cost the strategy weighs, not a rule | Accepted | 2026-10-31 |
 | [011](011-no-broker-order-tools-for-claude.md) | Claude never gets broker order tools | Accepted | 2026-10-31 |
-| [012](012-halts-freeze-owner-resumes.md) | Halts freeze everything; only the owner resumes | Accepted | 2026-10-31 |
+| [012](012-halts-freeze-owner-resumes.md) | Halts freeze everything; only the owner resumes | Accepted (the drawdown halt's freeze superseded by 017) | 2026-10-31 |
 | [013](013-conviction-first-portfolio.md) | A conviction-first portfolio; idle money sits in VTI | Accepted | 2026-11-01 |
 | [014](014-run-on-aws-with-cdk.md) | Run the engine on AWS with CDK; keep Neon and Cloudflare DNS/inbound mail | Accepted | 2026-11-01 |
 | [015](015-owner-capital-flows.md) | Owner capital flows are first-class; withdrawals are strategy-funded requests | Accepted | 2026-11-01 |
 | [016](016-aggressive-swing-no-day-trades.md) | Aggressive swing trading; no systematic sleeve, no day trades | Accepted | 2026-11-04 |
+| [017](017-halts-let-exits-out-resume-rebases.md) | A drawdown halt lets closed theses out, and a resume re-bases the peak | Accepted | 2026-11-10 |

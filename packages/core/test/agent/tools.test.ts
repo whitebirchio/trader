@@ -48,7 +48,7 @@ describe("read tools", () => {
       environment: "staging",
       market: { tradingDay: true, rebalanceWindowEt: `${WINDOW_OPEN}–${WINDOW_CLOSE}` },
       account: { equity: "1000", cash: "1000", todayPct: "0", drawdownFromPeakPct: "0" },
-      guardrails: { killSwitch: false, halted: false, buysPausedToday: false, brokerTradingAllowed: true },
+      guardrails: { killSwitch: false, halted: false, haltRule: "halts 30% below its peak", buysPausedToday: false, brokerTradingAllowed: true },
       strategy: { version: 0, authoredBy: "system" },
       holdings: [],
       vsBenchmark: null,

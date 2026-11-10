@@ -12,11 +12,13 @@ export type Proposal = {
   symbol: string;
   sleeve: Sleeve;
   /**
-   * `withdrawal`: a sell raising cash for the owner's withdrawal. The one
-   * thing a drawdown halt lets through, and only up to what the withdrawal
-   * still needs (SPEC-capital decision 2).
+   * What a drawdown halt lets through (ADR-017):
+   * - `withdrawal`: a sell raising cash for the owner's withdrawal, only up to
+   *   what it still needs (SPEC-capital decision 2);
+   * - `exit`: a whole single-stock position sold because its thesis closed
+   *   (stopped, stale, overdue) or left the strategy. Never a broad ETF.
    */
-  purpose?: "withdrawal";
+  purpose?: "withdrawal" | "exit";
 } & ({ side: Extract<OrderSide, "buy">; notional: string } | { side: Extract<OrderSide, "sell">; qty: string });
 
 export interface Holding {
@@ -44,7 +46,8 @@ export interface RiskSnapshot {
   equity: string;
   cash: string;
   holdings: Holding[];
-  index: { drawdownPct: string; dailyChangePct: string };
+  /** `drawdownPct` is measured from the owner's last resume while `rebased` is set (ADR-017). */
+  index: { drawdownPct: string; dailyChangePct: string; rebased?: { resumedAt: Date; prePeakDrawdownPct: string } };
   broker: { tradingAllowed: boolean; blockedReasons: string[]; syncedAt: Date | null };
   state: { killSwitch: boolean; killReason: string | null; halted: boolean; haltReason: string | null };
   /**

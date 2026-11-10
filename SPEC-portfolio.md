@@ -77,6 +77,8 @@ It runs on **its own EventBridge Scheduler schedule**, `trader-rebalance-<env>`:
 4. **Gate and submit:** proposals → `riskGate` (with sleeve attribution) → `submitOrder` for the approved and clipped ones. Intent keys are `<planId>:<symbol>:<side>`, so re-running a step can't double an order (ADR-007, SPEC-broker).
 5. **Record:** a `rebalance_plans` row holds the targets, the trades, the skips and the risk decisions. It's audited.
 
+**While the drawdown halt is on (ADR-017, 2026-11-10):** the step still plans, records thesis closes, and submits only (a) whole exits, tagged `purpose: "exit"`, of single-stock holdings whose thesis closed (stopped, stale, overdue) or that left the strategy, and (b) the sells an owner withdrawal still needs, net of those exits (SPEC-capital). Nothing is bought or resized, so the cash waits until the owner resumes. With nothing to sell, the step skips (`halted; no closed thesis to sell`). Under the kill switch it plans normally and risk rejects everything.
+
 When targets are already met, the step is a quick no-op. The trading window opens at 9:45 ET, 15 minutes after the open (Scott's choice; the original 10:30 avoided more of the opening volatility), and closes before the last half hour.
 
 ## Changes to other modules (part of this module)

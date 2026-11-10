@@ -356,3 +356,30 @@ describe("owner withdrawals pass the drawdown halt, bounded (SPEC-capital decisi
     expect(run(s({ state: { ...halted, halted: false } }), wsell("VTI", "2"), wsell("AAPL", "2")).map((x) => x.verdict)).toEqual(["approved", "approved"]);
   });
 });
+
+describe("whole exits of closed theses pass the drawdown halt (ADR-017)", () => {
+  const halted = { killSwitch: false, killReason: null, halted: true, haltReason: "down 31% from peak" };
+  const holdings = [
+    { symbol: "VTI", qty: "2", marketValue: "600", sleeve: "systematic" as const },
+    { symbol: "AAPL", qty: "2", marketValue: "400", sleeve: "conviction" as const },
+  ];
+  const exit = (symbol: string, qty: string): Proposal => ({ ...sell(symbol, qty), key: `k:${symbol}:exit`, purpose: "exit" });
+  const s = (over: Partial<RiskSnapshot> = {}) => snapshot({ cash: "0", holdings, state: halted, ...over });
+
+  it("lets a whole single-stock exit through; not part of one, not VTI, not an untagged sell or a buy", () => {
+    const d = run(s(), exit("AAPL", "2"), exit("VTI", "2"), sell("VTI", "1"), buy("AAPL", "10"));
+    expect(d.map((x) => x.verdict)).toEqual(["approved", "rejected", "rejected", "rejected"]);
+    expect(d[0]).toMatchObject({ qty: "2", reasons: [] });
+    expect(d[1]?.reasons[0]).toContain("VTI is a broad ETF; only single-stock exits go through a halt.");
+    expect(run(s(), exit("AAPL", "1"))[0]?.reasons[0]).toContain("A halt lets only whole exits through, and this sells 1 of 2 AAPL shares.");
+  });
+
+  it("still stops at the kill switch, and waits a day after a buy", () => {
+    expect(run(s({ state: { ...halted, killSwitch: true, killReason: "broken" } }), exit("AAPL", "2"))[0]).toMatchObject({ verdict: "rejected" });
+    expect(run(s({ today: { orderCount: 0, buyNotional: "0", bought: ["AAPL"], sold: [] } }), exit("AAPL", "2"))[0]?.reasons[0]).toContain("AAPL was bought today");
+  });
+
+  it("is an ordinary sell when not halted", () => {
+    expect(run(s({ state: { ...halted, halted: false } }), exit("AAPL", "1"), exit("VTI", "2")).map((x) => x.verdict)).toEqual(["approved", "approved"]);
+  });
+});

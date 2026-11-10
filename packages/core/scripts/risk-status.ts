@@ -7,6 +7,7 @@ import { parseArgs } from "node:util";
 import { eq } from "drizzle-orm";
 import { brokerAccount } from "../src/db/schema.js";
 import { checkDrawdownReadOnly } from "./risk-readonly.js";
+import { drawdownFromPeak, haltRule } from "../src/risk/equity-index.js";
 import { LIMITS, limitsVersion } from "../src/risk/limits.js";
 import { getRiskState } from "../src/risk/state.js";
 import { withOps } from "./ops.js";
@@ -22,7 +23,7 @@ await withOps(values.env, async ({ env, db }) => {
   console.log(`Risk status — ${env}`);
   console.log(`  kill switch     ${state.killSwitch ? `ON (${state.killReason})` : "off"}`);
   console.log(`  drawdown halt   ${state.halted ? `HALTED since ${state.haltedAt?.toISOString()} (${state.haltReason})` : "not halted"}`);
-  console.log(`  drawdown        ${index.drawdownPct}% from peak (halt at ${LIMITS.drawdownHaltPct}%)`);
+  console.log(`  drawdown        ${drawdownFromPeak(index)}% from peak${index.rebased ? `, ${index.drawdownPct}% since the resume` : ""} (${haltRule(index, LIMITS)})`);
   console.log(`  today           ${index.dailyChangePct}% vs prior close (buys pause at -${LIMITS.dailyLossPausePct}%)`);
   if (account) {
     console.log(`  broker verdict  ${account.tradingAllowed ? "trading allowed" : `BLOCKED: ${account.blockedReasons.join("; ")}`}`);

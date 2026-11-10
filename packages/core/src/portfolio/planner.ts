@@ -227,6 +227,19 @@ export function planTrades(input: PlanInput): Plan {
 }
 
 /**
+ * While trading is halted (ADR-017): the plan's whole exits of `exitable`
+ * symbols (a thesis that closed, or one no longer in the strategy), tagged
+ * `exit`. Nothing is bought or resized, and the proceeds wait in cash until
+ * the owner resumes.
+ */
+export function haltExits(trades: PlannedTrade[], holdings: PlanHolding[], exitable: ReadonlySet<string>): PlannedTrade[] {
+  const qty = new Map(holdings.map((h) => [h.symbol, h.qty]));
+  return trades
+    .filter((t) => t.proposal.side === "sell" && exitable.has(t.proposal.symbol) && t.proposal.qty === qty.get(t.proposal.symbol))
+    .map((t) => ({ proposal: { ...t.proposal, purpose: "exit" as const }, reason: `${t.reason}; sold while trading is halted, since a halt still lets a closed thesis out` }));
+}
+
+/**
  * While trading is halted (SPEC-capital decision 2): only the plan's sells,
  * in plan order, tagged `withdrawal`, until they cover what the withdrawal
  * still needs. The last is sized to the remainder, its quantity rounded up;
