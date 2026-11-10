@@ -17,6 +17,7 @@ import { EVIDENCE_KINDS, validateStrategy } from "../portfolio/strategy.js";
 import { IDLE_SYMBOL } from "../portfolio/systematic.js";
 import { STALE_AFTER_MS, thesisStates } from "../portfolio/theses.js";
 import { assetFacts, ineligibleReasons } from "../risk/eligibility.js";
+import { drawdownFromPeak, haltRule } from "../risk/equity-index.js";
 import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS, capExempt } from "../risk/limits.js";
 import { headline } from "../notifications/weekly.js";
@@ -71,7 +72,7 @@ export async function getOverview({ db, broker, env, now }: ToolDeps) {
     environment: env,
     asOf: now.toISOString(),
     market: session ? { tradingDay: true, open: session.open.toISOString(), close: session.close.toISOString(), rebalanceWindowEt: `${WINDOW_OPEN}–${WINDOW_CLOSE}` } : { tradingDay: false },
-    account: { equity: snapshot.equity, cash: snapshot.cash, todayPct: snapshot.index.dailyChangePct, drawdownFromPeakPct: snapshot.index.drawdownPct },
+    account: { equity: snapshot.equity, cash: snapshot.cash, todayPct: snapshot.index.dailyChangePct, drawdownFromPeakPct: drawdownFromPeak(snapshot.index), ...(snapshot.index.rebased ? { drawdownSinceResumePct: snapshot.index.drawdownPct } : {}) },
     vsBenchmark: await benchmarkSince(db, broker, now),
     /**
      * Money in and out (SPEC-capital): the money-weighted comparison, transfers since the theses were
@@ -82,6 +83,7 @@ export async function getOverview({ db, broker, env, now }: ToolDeps) {
       killSwitch: snapshot.state.killSwitch,
       halted: snapshot.state.halted,
       haltReason: snapshot.state.haltReason,
+      haltRule: haltRule(snapshot.index, LIMITS),
       buysPausedToday: state?.buysPausedOn === marketDate(now),
       brokerTradingAllowed: snapshot.broker.tradingAllowed,
       brokerBlockedReasons: snapshot.broker.blockedReasons,
@@ -351,7 +353,7 @@ export function getRules() {
       sameDayRoundTrips: LIMITS.sameDayRoundTrips
         ? "allowed"
         : "off: nothing bought today is sold today, and nothing sold today is bought back today (no day trades). Such a trade waits for the next trading day; a thesis bought today and stopped out today is sold tomorrow.",
-      note: "Limits are owner-set; strategies can't change them. The kill switch blocks every order until the owner resumes. The drawdown halt blocks every buy and resize, but still sells whole a thesis that closed (stopped, stale, overdue) or that you removed from the strategy; the cash waits until the owner resumes.",
+      note: "Limits are owner-set; strategies can't change them. The kill switch blocks every order until the owner resumes. The drawdown halt blocks every buy and resize, but still sells whole a thesis that closed (stopped, stale, overdue) or that you removed from the strategy; the cash waits until the owner resumes. After a resume, the halt trips again 15% below the account's level then, until it regains its old peak (get_overview's guardrails.haltRule).",
     },
     withdrawals: [
       "The owner can request a withdrawal (dashboard or CLI). While it's open, its outstanding amount is held back: targets are built on equity minus it, and buys can't use it.",

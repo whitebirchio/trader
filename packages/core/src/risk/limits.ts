@@ -12,6 +12,13 @@ export const LIMITS = {
    * concentrated book of 5+ names swings more than an index.
    */
   drawdownHaltPct: "30",
+  /**
+   * After the owner resumes a halt, the halt trips this far below the level at
+   * the resume (or any new high since), until the index regains the peak from
+   * before it; then drawdownHaltPct from the all-time peak again (Scott,
+   * 2026-11-10, ADR-017).
+   */
+  reHaltPct: "15",
   /** Flow-adjusted equity this far below the prior close pauses buys for the day. */
   dailyLossPausePct: "8",
   /** Reject everything if the last successful broker sync is older than this. */

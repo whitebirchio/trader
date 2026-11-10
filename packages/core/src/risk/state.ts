@@ -68,7 +68,8 @@ export async function resume(
   if (cleared.length === 0) return { status: "nothing_to_resume" };
   await db
     .update(riskState)
-    .set({ killSwitch: false, killReason: null, halted: false, haltReason: null, haltedAt: null, updatedAt: now, updatedBy: "owner" })
+    // Clearing a halt re-bases the drawdown (ADR-017); clearing only the kill switch doesn't.
+    .set({ killSwitch: false, killReason: null, halted: false, haltReason: null, haltedAt: null, ...(before.halted ? { resumedAt: now } : {}), updatedAt: now, updatedBy: "owner" })
     .where(eq(riskState.id, 1));
   await recordEvent(db, { actor: "owner", kind: "risk.resumed", payload: { reason: action.reason, cleared } });
   return { status: "resumed", cleared };

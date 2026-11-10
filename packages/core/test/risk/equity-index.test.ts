@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type DailyEquity, type IndexFlow, buildIndex, liveIndex } from "../../src/risk/equity-index.js";
+import { type DailyEquity, type IndexFlow, buildIndex, drawdownFromPeak, haltRule, liveIndex } from "../../src/risk/equity-index.js";
 import { marketTimeToUtc } from "../../src/time.js";
 
 /** An equity snapshot as sync-broker writes it: 15 minutes after the close. */
@@ -102,5 +102,43 @@ describe("liveIndex", () => {
   it("does not divide by an empty prior close", () => {
     const empty = buildIndex([], []);
     expect(liveIndex(empty, { equity: "1000", asOf: tuesday("11:00"), flows: [], fallbackPriorClose: "0" }).dailyChangePct).toBe("0");
+  });
+});
+
+describe("a resume re-bases the drawdown (ADR-017)", () => {
+  // Peak 1000 on Friday; down 32% by Monday; the owner resumes Tuesday morning.
+  const snaps = [snap("2026-10-30", "1000"), snap("2026-11-02", "680")];
+  const resumedAt = marketTimeToUtc("2026-11-03", "09:00");
+  const live = (equity: string, s = snaps, day = "2026-11-03") => liveIndex(buildIndex(s, [], resumedAt), { equity, asOf: marketTimeToUtc(day, "11:00"), flows: [], fallbackPriorClose: s.at(-1)!.equity });
+
+  it("measures from the last close before the resume, and says so, while below the old peak", () => {
+    expect(live("612")).toEqual({ drawdownPct: "10", dailyChangePct: "-10", rebased: { resumedAt, prePeakDrawdownPct: "38.8" } });
+  });
+
+  it("measures from a new high after the resume", () => {
+    const after = [...snaps, snap("2026-11-03", "800")];
+    expect(live("720", after, "2026-11-04")).toMatchObject({ drawdownPct: "10", rebased: { prePeakDrawdownPct: "28" } });
+  });
+
+  it("goes back to the all-time peak once the old peak is regained", () => {
+    const after = [...snaps, snap("2026-11-03", "1010")];
+    expect(live("900", after, "2026-11-04")).toEqual({ drawdownPct: "10.8911", dailyChangePct: "-10.8911" });
+  });
+
+  it("doesn't re-base without a resume, or without a snapshot before it", () => {
+    expect(buildIndex(snaps, []).rebase).toBeNull();
+    expect(buildIndex(snaps, [], marketTimeToUtc("2026-10-29", "09:00")).rebase).toBeNull();
+  });
+});
+
+describe("drawdownFromPeak and haltRule", () => {
+  const rebased = { drawdownPct: "10", rebased: { resumedAt: marketTimeToUtc("2026-11-03", "09:00"), prePeakDrawdownPct: "38.8" } };
+  const limits = { drawdownHaltPct: "30", reHaltPct: "15" };
+
+  it("give the all-time drawdown and the rule in force, rebased or not", () => {
+    expect(drawdownFromPeak({ drawdownPct: "12" })).toBe("12");
+    expect(drawdownFromPeak(rebased)).toBe("38.8");
+    expect(haltRule({}, limits)).toBe("halts 30% below its peak");
+    expect(haltRule(rebased, limits)).toBe("halts 15% below its level when trading resumed on 2026-11-03, until it regains its old peak; then 30% below the peak again");
   });
 });

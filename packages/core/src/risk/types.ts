@@ -46,7 +46,8 @@ export interface RiskSnapshot {
   equity: string;
   cash: string;
   holdings: Holding[];
-  index: { drawdownPct: string; dailyChangePct: string };
+  /** `drawdownPct` is measured from the owner's last resume while `rebased` is set (ADR-017). */
+  index: { drawdownPct: string; dailyChangePct: string; rebased?: { resumedAt: Date; prePeakDrawdownPct: string } };
   broker: { tradingAllowed: boolean; blockedReasons: string[]; syncedAt: Date | null };
   state: { killSwitch: boolean; killReason: string | null; halted: boolean; haltReason: string | null };
   /**

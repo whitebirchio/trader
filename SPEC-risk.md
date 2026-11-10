@@ -20,6 +20,7 @@ When `risk` is done:
 |---|---|---|---|
 | **Kill switch** | owner on/off | every order | reject all, including sells |
 | **Drawdown halt** | flow-adjusted equity ≤ **−30% from peak** (−20% until ADR-016) | every order except whole exits of closed theses and withdrawal sells (ADR-017, ADR-015) | latch; reject the rest until **you** run `risk:resume` |
+| **Re-halt after a resume** (ADR-017) | after **you** resume a halt: flow-adjusted equity ≤ **−15%** from its level at the resume (the last close before it, or any higher close since), until it regains the pre-halt peak; then the −30% rule again | as the drawdown halt | latch, as the drawdown halt |
 | **Daily loss pause** | flow-adjusted equity ≤ **−8% vs prior close** (−5% until ADR-016) | buys | reject buys for the rest of the day; sells still run; clears itself the next trading day |
 | **No same-day round trips** (`sameDayRoundTrips: false`, ADR-016) | the symbol was bought today (for a sell) or sold today (for a buy): today's fills plus our orders that may still fill | that order | reject; the planner holds it back with a note until the next trading day |
 | **Broker verdict** | `broker_account.trading_allowed` | every order | reject all |
@@ -85,7 +86,7 @@ packages/core/scripts/risk-{status,kill,resume,check}.ts
 
 | Table | Purpose |
 |---|---|
-| `risk_state` (single row) | `kill_switch`, `kill_reason`, `halted`, `halt_reason`, `halted_at`, `peak_index`, `updated_at`, `updated_by` (`system` / `owner`) |
+| `risk_state` (single row) | `kill_switch`, `kill_reason`, `halted`, `halt_reason`, `halted_at`, `resumed_at` (the owner's last resume of a halt, which re-bases the drawdown; owner-only, like clearing a halt: migration 0022), `peak_index`, `updated_at`, `updated_by` (`system` / `owner`) |
 | `risk_decisions` | One row per evaluated proposal: `evaluated_at`, `gate_run_id`, `intent_key`, `symbol`, `side`, `sleeve`, `requested_notional`/`requested_qty`, `approved_notional`/`approved_qty`, `verdict` (`approved` / `clipped` / `rejected`), `reasons` (jsonb), `limits_version`. Insert-only (added to `APPEND_ONLY_TABLES`). |
 
 ### Audit kinds added

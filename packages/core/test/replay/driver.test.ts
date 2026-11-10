@@ -98,17 +98,16 @@ describe("replay", () => {
     }
   }, REPLAY_TIMEOUT * 2);
 
-  it("freezes on a drawdown halt like live trading; autoResume resumes it, and production's check re-latches it while still 30% down", async () => {
+  it("freezes on a drawdown halt like live trading; autoResume resumes it, and the re-based check (ADR-017) doesn't re-latch it at the same level", async () => {
     const crash = { [day(6)]: 55 };
     const frozen = await replay(base(market({ aapl: { [day(6)]: 55 }, vti: { [day(6)]: 165 } })));
     expect(frozen.halts).toEqual([{ date: day(6), reason: expect.any(String), resumed: false }]);
     const after = (await frozen.db.select().from(orders)).filter((o) => marketDate(o.createdAt) > day(6));
     expect(after).toEqual([]);
 
-    // resume doesn't re-base the drawdown peak, so the next sync halts again while the account is still 30%+ down:
-    // the replay shows what production would do (a finding for the owner, not something the replay papers over).
+    // A resume re-bases the drawdown (ADR-017): still 30%+ below the old peak, but flat since the resume, so no new halt.
+    // (Before ADR-017 the next sync re-latched it every session: day 6 through day 10.)
     const resumed = await replay(base(market({ aapl: crash, vti: { [day(6)]: 165 } }), true));
-    expect(resumed.halts[0]).toEqual({ date: day(6), reason: expect.any(String), resumed: true });
-    expect(resumed.halts.map((h) => h.date)).toEqual([day(6), day(7), day(8), day(9), day(10)]);
+    expect(resumed.halts).toEqual([{ date: day(6), reason: expect.any(String), resumed: true }]);
   }, REPLAY_TIMEOUT);
 });

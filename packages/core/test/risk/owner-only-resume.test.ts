@@ -39,6 +39,12 @@ describe("risk_state: only the owner resumes (ADR-012)", () => {
     expect(await getRiskState(db)).toMatchObject({ halted: true, killSwitch: true });
   });
 
+  it("refuses another role moving resumed_at, the re-based halt's base (ADR-017)", async () => {
+    await expect(asApp("UPDATE risk_state SET resumed_at = now()")).rejects.toThrow(/only the owner can move resumed_at/);
+    await pglite.exec("UPDATE risk_state SET resumed_at = '2026-11-01T15:00:00Z'");
+    await expect(asApp("UPDATE risk_state SET resumed_at = NULL")).rejects.toThrow(/only the owner can move resumed_at/);
+  });
+
   it("lets another role turn them on, and change everything else", async () => {
     await pglite.exec("UPDATE risk_state SET halted = false, kill_switch = false");
     await asApp("UPDATE risk_state SET halted = true, halt_reason = 'drawdown 31%'");
@@ -47,8 +53,15 @@ describe("risk_state: only the owner resumes (ADR-012)", () => {
     expect(await getRiskState(db)).toMatchObject({ halted: true, killSwitch: true, buysPausedOn: "2026-11-09" });
   });
 
-  it("lets the owner resume", async () => {
-    expect(await resume(db, { actor: "owner", reason: "reviewed" }, new Date("2026-11-09T14:00:00Z"))).toMatchObject({ status: "resumed" });
-    expect(await getRiskState(db)).toMatchObject({ halted: false, killSwitch: false });
+  it("lets the owner resume, which re-bases the drawdown from then", async () => {
+    const at = new Date("2026-11-09T14:00:00Z");
+    expect(await resume(db, { actor: "owner", reason: "reviewed" }, at)).toMatchObject({ status: "resumed" });
+    expect(await getRiskState(db)).toMatchObject({ halted: false, killSwitch: false, resumedAt: at });
+  });
+
+  it("doesn't re-base when the owner clears only the kill switch", async () => {
+    await pglite.exec("UPDATE risk_state SET halted = false");
+    await resume(db, { actor: "owner", reason: "fixed" }, new Date("2026-11-09T14:00:00Z"));
+    expect(await getRiskState(db)).toMatchObject({ killSwitch: false, resumedAt: null });
   });
 });

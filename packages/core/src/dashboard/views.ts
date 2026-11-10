@@ -29,7 +29,7 @@ import { loadScorecard } from "../portfolio/scorecard.js";
 import { activeStrategy, stoppedThesisIds } from "../portfolio/store.js";
 import { type Thesis, VERSION_0, validateStrategy } from "../portfolio/strategy.js";
 import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
-import { buildIndex } from "../risk/equity-index.js";
+import { buildIndex, drawdownFromPeak } from "../risk/equity-index.js";
 import { currentIndex, loadIndexInputs } from "../risk/gate.js";
 import { marketDate } from "../time.js";
 
@@ -105,7 +105,7 @@ export async function overviewView(db: Db, env: TradingEnv, now: Date, range: Ch
     environment: env,
     asOf: now.toISOString(),
     lastSync: account?.syncedAt?.toISOString() ?? null,
-    account: { equity: account?.equity ?? "0", cash: account?.cash ?? "0", todayPct: live.dailyChangePct, drawdownFromPeakPct: live.drawdownPct },
+    account: { equity: account?.equity ?? "0", cash: account?.cash ?? "0", todayPct: live.dailyChangePct, drawdownFromPeakPct: drawdownFromPeak(live) },
     guardrails: {
       killSwitch: state?.killSwitch ?? false,
       halted: state?.halted ?? false,
