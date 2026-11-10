@@ -1,3 +1,6 @@
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { gte } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { brokerActivities, equitySnapshots, orders, rebalancePlans, riskDecisions, riskGateRuns, thesisEvents } from "../../src/db/schema.js";
@@ -8,8 +11,11 @@ import { DAYS, HISTORY, REPLAY, REPLAY_TIMEOUT, base, day, doc, market } from ".
 
 describe("replay", () => {
   it("runs the real jobs over a simulated clock: buys the thesis, stops it out on a later day's gap, idles the rest in VTI, in replay time", async () => {
-    const r = await replay(base(market({ aapl: { [day(5)]: 85 } })));
+    const seen: [string, number, number][] = [];
+    const r = await replay({ ...base(market({ aapl: { [day(5)]: 85 } })), onSession: (d, n, total) => void seen.push([d, n, total]) });
     expect(r.sessions).toBe(10);
+    expect(seen.at(0)).toEqual([day(1), 1, 10]);
+    expect(seen.at(-1)).toEqual([day(10), 10, 10]);
     expect(r.rejectedVersions).toEqual([]);
     expect(r.halts).toEqual([]);
 
@@ -77,6 +83,20 @@ describe("replay", () => {
     expect(fills).toContainEqual([day(3), "AAPL", "sell"]);
     expect(fills).toContainEqual([day(3), "VTI", "buy"]);
   }, REPLAY_TIMEOUT);
+
+  it("keeps its database on disk when given a directory, with the same result as in memory", async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), "replay-")), "pgdata");
+    try {
+      const input = base(market({ aapl: { [day(5)]: 85 } }));
+      const fills = async (r: Awaited<ReturnType<typeof replay>>) => (await r.db.select().from(brokerActivities)).filter((a) => a.type === "FILL").map((a) => [a.at, a.symbol, a.side, a.qty, a.price]);
+      const onDisk = await replay({ ...input, dataDir: dir });
+      expect(existsSync(dir) && readdirSync(dir).length).toBeTruthy();
+      expect(await fills(onDisk)).toEqual(await fills(await replay(input)));
+      await onDisk.pglite.close();
+    } finally {
+      rmSync(dirname(dir), { recursive: true, force: true });
+    }
+  }, REPLAY_TIMEOUT * 2);
 
   it("freezes on a drawdown halt like live trading; autoResume resumes it, and production's check re-latches it while still 30% down", async () => {
     const crash = { [day(6)]: 55 };

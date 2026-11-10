@@ -69,6 +69,10 @@ export interface ReplayInput {
   to: string;
   slippageBps?: number;
   autoResume?: boolean;
+  /** An empty directory for the replay's database, on disk; in memory if omitted. */
+  dataDir?: string;
+  /** Called after each session, for progress on a long replay. */
+  onSession?: (date: string, done: number, total: number) => void;
 }
 
 export interface ReplayHalt {
@@ -107,7 +111,7 @@ const silentMailer: Mailer = {
 };
 
 export async function replay(input: ReplayInput): Promise<ReplayResult> {
-  const pglite = await migratedPglite();
+  const pglite = await migratedPglite(input.dataDir);
   const db = drizzle(pglite, { casing: "snake_case" }) as unknown as Db;
   const sessions: CalendarDay[] = input.market.calendar.filter((d) => d.date >= input.from && d.date <= input.to);
   if (sessions.length === 0) throw new Error(`no sessions between ${input.from} and ${input.to}`);
@@ -121,7 +125,7 @@ export async function replay(input: ReplayInput): Promise<ReplayResult> {
   let resumePending = false;
 
   const started = Date.now();
-  for (const session of sessions) {
+  for (const [n, session] of sessions.entries()) {
     for (const [i, step] of STEPS.entries()) {
       const at = marketTimeToUtc(session.date, step.time);
 
@@ -163,6 +167,7 @@ export async function replay(input: ReplayInput): Promise<ReplayResult> {
         resumePending = input.autoResume === true;
       }
     }
+    input.onSession?.(session.date, n + 1, sessions.length);
   }
   return { db, pglite, broker, sessions: sessions.length, rejectedVersions, transferShortfalls, halts, msPerSession: Math.round((Date.now() - started) / sessions.length) };
 }

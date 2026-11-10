@@ -61,6 +61,8 @@ export class SimBroker implements BrokerAdapter {
   private readonly orders: BrokerOrder[] = [];
   private readonly activities: Activity[] = [];
   private readonly barsByDate: Record<string, Map<string, Bar>>;
+  /** Each symbol's bar dates, in the bars' order (oldest first): getDailyBars slices by them instead of formatting every bar's date per call. */
+  private readonly barDates: Record<string, string[]>;
   /** Cash and holdings as each session closed, by date: what lastEquity reports, as Alpaca's last_equity does. */
   private readonly atClose = new Map<string, { cash: string; holdings: Map<string, Holding> }>();
   private readonly startingCash: string;
@@ -75,6 +77,7 @@ export class SimBroker implements BrokerAdapter {
     this.startingCash = options.cash;
     this.slippage = div(String(options.slippageBps ?? 10), "10000", 6, "half-even");
     this.barsByDate = Object.fromEntries(Object.entries(market.bars).map(([s, bars]) => [s, new Map(bars.map((b) => [marketDate(b.t), b]))]));
+    this.barDates = Object.fromEntries(Object.entries(market.bars).map(([s, bars]) => [s, bars.map((b) => marketDate(b.t))]));
   }
 
   // --- The simulation's own controls (not part of BrokerAdapter) ----------------
@@ -318,22 +321,31 @@ export class SimBroker implements BrokerAdapter {
     const session = this.session(today);
     const from = marketDate(start);
     const to = marketDate(end < this.now ? end : this.now);
+    // The first index whose date is at least `date` (dates ascending).
+    const firstFrom = (dates: string[], date: string) => {
+      let lo = 0;
+      let hi = dates.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (dates[mid]! < date) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
     return Object.fromEntries(
       symbols.map((s) => {
-        const bars = (this.market.bars[s] ?? []).filter((b) => {
-          const d = marketDate(b.t);
-          if (d < from || d > to) return false;
+        const all = this.market.bars[s] ?? [];
+        const dates = this.barDates[s] ?? [];
+        const out: Bar[] = [];
+        for (let i = firstFrom(dates, from); i < dates.length && dates[i]! <= to; i++) {
+          const d = dates[i]!;
+          const b = all[i]!;
           // Today's bar exists only once the session has opened.
-          return d < today || (!!session && this.now >= session.open);
-        });
-        return [
-          s,
-          bars.map((b) => {
-            // Before the close, today's bar is partial: all we'd know is the open.
-            if (marketDate(b.t) === today && session && this.now < session.close) return { ...b, h: b.o, l: b.o, c: b.o, v: "0" };
-            return { ...b };
-          }),
-        ];
+          if (d === today && !(session && this.now >= session.open)) continue;
+          // Before the close, today's bar is partial: all we'd know is the open.
+          out.push(d === today && session && this.now < session.close ? { ...b, h: b.o, l: b.o, c: b.o, v: "0" } : { ...b });
+        }
+        return [s, out];
       }),
     );
   }

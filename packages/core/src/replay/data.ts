@@ -105,7 +105,23 @@ export async function loadMarket(symbols: string[], from: string, to: string, op
   const assetsFile = join(opts.dir, "assets.json");
   const assets = readJson<Record<string, Asset | null>>(assetsFile) ?? {};
   const unknown = unique.filter((s) => !(s in assets));
-  for (const s of unknown) assets[s] = await opts.source.getAsset(s);
+  for (const [i, s] of unknown.entries()) {
+    for (;;) {
+      try {
+        assets[s] = await opts.source.getAsset(s);
+        break;
+      } catch (e) {
+        if (!(e instanceof BrokerHttpError && e.status === 429)) throw e;
+        writeJson(assetsFile, assets); // keep what's fetched so far
+        log("rate limited; waiting 60s");
+        await sleep(60_000);
+      }
+    }
+    if ((i + 1) % 100 === 0) {
+      writeJson(assetsFile, assets);
+      log(`assets: ${i + 1}/${unknown.length} fetched`);
+    }
+  }
   if (unknown.length) writeJson(assetsFile, assets);
 
   const bars: Record<string, Bar[]> = {};
