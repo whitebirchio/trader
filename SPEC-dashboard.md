@@ -143,6 +143,7 @@ Same as Fred's web app, so both projects share one set of conventions:
    - **New:** an additive table, `benchmark_closes (symbol, trading_date, close)`.
    - `sync-broker` fills it in its after-close phase, and backfills one year on its first run.
    - **#39:** `thesis_closes (symbol, trading_date, close)` holds the adjusted closes of every symbol any strategy version has held as a thesis, from 380 days before its first version (so the 1-year range works from the start; #59). It is recorded the same way, best effort, in one bars request.
+   - *(#89, 2026-11-10)* Both re-read their whole window, so every close stays on one adjustment basis, but write only what's new or changed (`writeChangedCloses`). If a symbol's stored count, last date and sum still match the fetch, only later sessions are written. Otherwise (a split or dividend re-adjusted it) the symbol's window is rewritten.
 6. **IAM:** the function's role can `ssm:GetParameters` on exactly three parameters: `/trader/<env>/DATABASE_READ_URL`, `GOOGLE_CLIENT_SECRET` and `DASHBOARD_SESSION_KEY`. It **cannot read the Alpaca keys**, and has no SES or SNS access. `GOOGLE_CLIENT_ID` isn't secret, so it's a plain environment variable.
 7. **Headers:** a strict CSP (self plus Google's sign-in endpoints), `frame-ancestors 'none'`, `Referrer-Policy: same-origin`, and no-store caching on every page.
 

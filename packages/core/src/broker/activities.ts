@@ -9,7 +9,7 @@ export type LedgerActivity = Omit<Activity, "raw">;
 
 /**
  * Every recorded activity, oldest first, without the raw JSON. Lots are
- * rebuilt from the whole history on each sync and rebalance step, so this
+ * rebuilt from the whole history (memoized by loadLedger, below), so this
  * keeps those reads to the columns they use.
  */
 export async function loadActivities(db: Db): Promise<LedgerActivity[]> {
