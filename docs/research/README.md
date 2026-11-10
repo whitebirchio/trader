@@ -19,6 +19,7 @@ Event studies over 2018–2026, on the stocks risk would let Trader buy. A scrip
 |---|---|---|
 | [The insider rule through Trader's rules](insider-replay-2026-11.md) | #57 | +130% against VTI's +218% over 2019–2026. A 45-day review came closest. |
 | [A trailing stop and a profit target, replayed](thesis-exits-replay-2026-11.md) | #35 | Neither helped: every setting lost 2–13 points. ADR-017's halt changes added about 10. |
+| [How long to hold before review, replayed](review-window-replay-2026-11.md) | — | 6–9 weeks did best (60 days within 4 points of VTI); 30 days was too short. |
 
 A replay runs Trader's real jobs (sync, rebalance, risk, orders) day by day over past daily bars, with a simulated broker and clock, on a throwaway PGlite database. It never touches Neon or Alpaca's trading API. It reports performance against VTI, the thesis scorecard, trading and taxes, risk's decisions and every halt. A variant reruns the same inputs with one change (`stop=N`, `cap=N`, `review-days=N`, `trailing-stop=N`, `take-profit=N`) and diffs the two. All commands run in `packages/core` (`npm run <script> -w @trader/core -- …` from the root):
 
@@ -37,4 +38,4 @@ Market data is fetched with the paper key and cached under `.cache/replay/`. Rep
 - **Anything about companies with no price history.** Delisted names missing from Alpaca's data are left out (survivorship), so read every figure as a best case. Delisted names that do have bars are assumed tradable while they traded.
 - **Taxes, dividends and corporate actions,** beyond Alpaca's adjusted bars. Short-term gains and wash sales are counted but don't reduce the return.
 - **The owner.** A rule-based replay resumes a halt at the next session. Live, that's Scott's decision.
-- **Fast answers.** A multi-year replay takes about three hours ([#89](https://github.com/whitebirchio/trader/issues/89)).
+- **Fast answers.** A multi-year replay takes about 10 minutes since [#89](https://github.com/whitebirchio/trader/issues/89) (it took about three hours before).
