@@ -17,7 +17,7 @@ import {
 
 /**
  * A simulated broker over historical daily bars, for the replay (#57,
- * tasks/replay-plan.md). The real sync, rebalance, risk and order code runs
+ * tasks/done/replay-plan.md). The real sync, rebalance, risk and order code runs
  * against it unchanged, with `now` moved forward by the driver.
  *
  * No lookahead: before a session opens, a symbol's price is its last close;

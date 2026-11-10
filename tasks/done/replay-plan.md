@@ -1,6 +1,6 @@
 # Plan: historical replay (#57)
 
-> **Status: Approved** (Scott, 2026-11-08, with the decisions below). The build starts after Monday 2026-11-09's routine review. Tasks: `tasks/replay-todo.md`.
+> **Status: Built** (2026-11-10, #90; approved by Scott 2026-11-08 with the decisions below). Write-up: [docs/research/insider-replay-2026-11.md](../../docs/research/insider-replay-2026-11.md). Tasks: `tasks/done/replay-todo.md`.
 
 ## Overview
 A local research tool that runs Trader's **real** decision code, day by day, over past market data: `syncBroker` → `runRebalance` → `riskGate` → `submitOrder`, with a simulated broker and clock in place of Alpaca and the wall clock. Given a timeline of strategy documents, it reports what Trader would have done and how it would have performed against VTI, with every guardrail applied. It answers the question the research backtests can't: **does an idea survive Trader's actual rules** (caps, stops, staleness, review dates, no day trades, sells first, drift bands, the drawdown halt), and how does a rule change compare with today's rules on the same history.
@@ -44,7 +44,7 @@ SimBroker + sim clock (T1)
 ```
 
 ## Task list
-See `tasks/replay-todo.md` for acceptance criteria and verification.
+See `tasks/done/replay-todo.md` for acceptance criteria and verification.
 
 ### Phase 1: the real code runs under a simulated clock
 - [ ] T1: `SimBroker` and sim clock
