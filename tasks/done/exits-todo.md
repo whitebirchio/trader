@@ -1,12 +1,12 @@
 # Todo: sell on signals, and exits that get through a halt
 
-> Plan: `tasks/exits-plan.md`. Gate for every task: `npm run typecheck && npm test`. Risk changes run on staging (paper) before they reach `main`.
+> Plan: `tasks/done/exits-plan.md`. Gate for every task: `npm run typecheck && npm test`. Risk changes run on staging (paper) before they reach `main`.
 
 ### T1: Re-judge every thesis every run; six-week review for insider-led theses
 - [x] `agent/routine-prompt.md`: the owner's direction of 2026-11-10; sell signals for current theses; review dates are a backstop.
 - [x] `apps/mcp/src/instructions.ts`: the same, in brief.
 - [x] After merge: update the routine through RemoteTrigger (the prompt is a copy). Done 2026-11-10 after #92 and #94 deployed; the stored prompt matches the file.
-- [ ] The next routine runs re-judge each thesis in their summaries.
+- [x] The next routine runs re-judge each thesis in their summaries. The first run under the new prompt (2026-11-10) exited a holding on the recent-big-loser screen, moved every insider-led review date to six weeks, and gave its reason for holding another through a sharp fall.
 
 ### T2: Signals for held theses in `get_holdings`
 - [x] Per thesis:
@@ -38,4 +38,4 @@
 ### T6: Judge T5 on the insider replay
 - [x] Replay variants `trailing-stop=N` and `take-profit=N`.
 - [x] Run them on the 2019–2026 insider rule. Write up beside the replay: `docs/research/thesis-exits-replay-2026-11.md`. Every setting lost to the baseline.
-- [ ] Scott decides whether to switch either on (recommendation: neither).
+- [x] Scott decides whether to switch either on: **neither** (2026-11-10). `EXIT_RULES` stays off; the code and variants stay for later replays.

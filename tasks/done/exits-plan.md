@@ -1,9 +1,9 @@
 # Plan: sell on signals, and exits that get through a halt
 
-> **Status: Approved** (Scott, 2026-11-10, from the insider replay's two decisions). Tasks: `tasks/exits-todo.md`.
+> **Status: Built** (2026-11-10: #92, #93, #94, #96, #97; approved by Scott the same day from the insider replay's two decisions). #35's trailing stop and profit target stay switched off, by Scott's decision after the replay ([docs/research/thesis-exits-replay-2026-11.md](../../docs/research/thesis-exits-replay-2026-11.md)). Tasks: `tasks/done/exits-todo.md`.
 
 ## Why
-The insider replay ([docs/research/insider-replay-2026-11.md](../docs/research/insider-replay-2026-11.md)) raised two questions, and Scott decided both on 2026-11-10:
+The insider replay ([docs/research/insider-replay-2026-11.md](../../docs/research/insider-replay-2026-11.md)) raised two questions, and Scott decided both on 2026-11-10:
 
 1. **Re-justify sooner, and don't lean on a time window.** Insider-led theses get a review date within about six weeks instead of three months. Beyond that, Scott wants Claude re-judging every position on every run and selling as soon as the signals say so, not waiting for a review date or a stop.
 2. **Halts.**
