@@ -1,6 +1,6 @@
 # The insider rule through Trader's own rules, 2019–2026
 
-> Replay for [#57](https://github.com/whitebirchio/trader/issues/57) T8, run 2026-11-10. It extends the backtest in [insider-buys-vs-vti-2026-11.md](insider-buys-vs-vti-2026-11.md) from "did the signal beat VTI?" to "would Trader, running that signal under its real rules, have beaten VTI?". Method: [tasks/replay-plan.md](../../tasks/replay-plan.md). The full reports are in [insider-replay-2026-11/](insider-replay-2026-11/). The figures are a simulated $100,000 account, not Trader's.
+> Replay for [#57](https://github.com/whitebirchio/trader/issues/57) T8, run 2026-11-10. It extends the backtest in [insider-buys-vs-vti-2026-11.md](insider-buys-vs-vti-2026-11.md) from "did the signal beat VTI?" to "would Trader, running that signal under its real rules, have beaten VTI?". Method: [tasks/done/replay-plan.md](../../tasks/done/replay-plan.md). The full reports are in [insider-replay-2026-11/](insider-replay-2026-11/). The figures are a simulated $100,000 account, not Trader's.
 
 ## Bottom line
 

@@ -1,6 +1,6 @@
 # Todo: historical replay (#57)
 
-> Plan: `tasks/replay-plan.md`. **Approved 2026-11-08 (decisions in the plan); the build starts after Monday 2026-11-09's routine review.** Gate for every task: `npm run typecheck && npm test`; focused tests: `npx vitest run replay` (in packages/core). Every task leaves production behaviour unchanged.
+> Plan: `tasks/done/replay-plan.md`. **Approved 2026-11-08 (decisions in the plan); the build starts after Monday 2026-11-09's routine review.** Gate for every task: `npm run typecheck && npm test`; focused tests: `npx vitest run replay` (in packages/core). Every task leaves production behaviour unchanged.
 
 ## Phase 1: the real code runs under a simulated clock
 
@@ -203,11 +203,11 @@ Withdrawal requests aren't replayed (only completed transfers), and the report n
 **Estimated scope:** Medium
 
 ## Checkpoint D
-- [ ] Gate green
-- [ ] Scott has read the multi-year write-up
-- [ ] Next: #35's trailing stop and profit target, built in production code switched off, each with a replay variant, and judged on this replay before either is switched on
+- [x] Gate green
+- [x] Scott has read the multi-year write-up (closed by Scott, 2026-11-10)
+- [ ] Next (tracked in #35): #35's trailing stop and profit target, built in production code switched off, each with a replay variant, and judged on this replay before either is switched on
 
 ## Done
 - [x] Every task above
 - [x] `docs/research/README` (or the research index) says how to run a replay and what it can't tell you
-- [ ] Plan and todo moved to `tasks/done/`
+- [x] Plan and todo moved to `tasks/done/`

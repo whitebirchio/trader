@@ -13,7 +13,7 @@ import { migratedPglite } from "./db.js";
 import { SimBroker, type SimMarket } from "./sim-broker.js";
 
 /**
- * The replay driver (#57 T2, tasks/replay-plan.md): walk the sessions from
+ * The replay driver (#57 T2, tasks/done/replay-plan.md): walk the sessions from
  * `from` to `to`, running production's own jobs through runJob against a
  * SimBroker and a throwaway PGlite database with the real migrations.
  *
