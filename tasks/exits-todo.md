@@ -5,30 +5,30 @@
 ### T1: Re-judge every thesis every run; six-week review for insider-led theses
 - [x] `agent/routine-prompt.md`: the owner's direction of 2026-11-10; sell signals for current theses; review dates are a backstop.
 - [x] `apps/mcp/src/instructions.ts`: the same, in brief.
-- [ ] After merge: update the routine through RemoteTrigger (the prompt is a copy).
+- [x] After merge: update the routine through RemoteTrigger (the prompt is a copy). Done 2026-11-10 after #92 and #94 deployed; the stored prompt matches the file.
 - [ ] The next routine runs re-judge each thesis in their summaries.
 
 ### T2: Signals for held theses in `get_holdings`
-- [ ] Per thesis:
+- [x] Per thesis:
   - return since its first lot, against VTI over the same days;
   - high close since entry and the % below it;
   - % above its stop;
   - days held;
   - `freshEarningsCrash` and `recentBigLoser`, and any earnings reaction since entry.
-- [ ] A `flags` list, e.g. `earnings_crash_since_entry`, `recent_big_loser`, `near_stop` (within 5%), `lagging_vti` (10+ points).
-- [ ] Tests, SPEC-agent, get_rules.
+- [x] A `flags` list, e.g. `earnings_crash_since_entry`, `recent_big_loser`, `near_stop` (within 5%), `lagging_vti` (10+ points).
+- [x] Tests, SPEC-agent, the MCP description (#93). Checked on staging: LLY and GOOGL reported.
 
 ### T3: Protective exits get through the drawdown halt
-- [ ] Planner: while halted, emit full exits of closed theses, whether stopped, overdue, stale or removed (and later trailing-stopped), with `purpose: "exit"`.
-- [ ] Risk: let `purpose: "exit"` sells through the halt only for a position whose thesis is closed in the snapshot, and only up to the whole position. Not under the kill switch.
-- [ ] A new ADR superseding ADR-012's freeze. SPEC-risk and SPEC-portfolio amendments.
-- [ ] Tests. Staging check: latch a halt on paper and watch a stop sell go through.
+- [x] Planner: while halted, emit full exits of closed theses, whether stopped, overdue, stale or removed (and later trailing-stopped), with `purpose: "exit"`.
+- [x] Risk: let `purpose: "exit"` sells through the halt only for a position whose thesis is closed in the snapshot, and only up to the whole position. Not under the kill switch.
+- [x] A new ADR superseding ADR-012's freeze (ADR-017). SPEC-risk and SPEC-portfolio amendments.
+- [x] Tests. Staging check (2026-11-10, #94): with a forced halt, nothing traded; GOOGL removed from the strategy sold whole, approved through the halt; the next step bought nothing. (No held thesis could hit its stop, so the removed-thesis path stood in for it; the stop path is covered by tests.)
 
 ### T4: Resume re-bases the drawdown peak
-- [ ] `risk_state`: the index level at the last resume (an additive migration).
-- [ ] After a resume, the halt is measured from max(that level, any new high since) at 15%, until the index regains the pre-halt peak; then from the all-time peak at 30%. `limits.ts` gets `reHaltPct: "15"`.
-- [ ] The halt reason, `get_overview` and the halt email say which rule tripped.
-- [ ] Tests. Staging check.
+- [x] `risk_state.resumed_at`, the owner's last resume of a halt (additive migration 0022, owner-only by trigger).
+- [x] After a resume, the halt is measured from max(that level, any new high since) at 15%, until the index regains the pre-halt peak; then from the all-time peak at 30%. `limits.ts` gets `reHaltPct: "15"`.
+- [x] The halt reason, `get_overview` (`guardrails.haltRule`), `risk:status` and the dashboard say which rule is in force.
+- [x] Tests. Staging check: after the resume, `risk:status` measured 0.20% since the resume under the 15% rule.
 
 ### T5: #35 trailing stop and profit target, switched off
 - [ ] Schema: optional `trailingStopPct` (from the high close since entry) and `takeProfitPct` (an exit or a trim to a weight). Old documents stay valid.
