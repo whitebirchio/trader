@@ -31,7 +31,8 @@ import { SimBroker, type SimMarket } from "./sim-broker.js";
  * real submitStrategy, with their original timestamps. A version authored
  * after 12:45 takes effect next session.
  *
- * A drawdown halt or kill switch freezes trading as it would live; with
+ * A drawdown halt or kill switch stops trading as it would live (a halt still
+ * lets closed theses out, ADR-017); with
  * `autoResume`, the owner's resume runs at the next session's first step.
  * Every halt is reported either way. As in production, resume doesn't
  * re-base the drawdown peak, so an account still 30%+ below its peak halts

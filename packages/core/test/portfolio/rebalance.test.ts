@@ -196,8 +196,47 @@ describe("rebalance", () => {
 
       await fillAll({ VTI: "300" });
       // Covered: the halt stops everything again (the $300 is reserved, so there's nothing to buy either).
-      expect(await step()).toEqual({ status: "skipped", reason: "on target" });
+      expect(await step()).toEqual({ status: "skipped", reason: "halted; no closed thesis to sell" });
       expect(broker.orders).toHaveLength(2);
+    });
+
+    /** A 20% AAPL thesis bought and filled on Monday, then Tuesday's session with the account halted. */
+    async function holdThesisThenHalt() {
+      await submitStrategy(db, strategy({ conviction: [thesis({ targetWeightPct: "20", stopLossPct: "15" })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } }), "owner", clock);
+      await step();
+      await fillAll({ VTI: "300", AAPL: "200" });
+      broker.calendar.push({ date: "2026-11-03", open: new Date("2026-11-03T14:30:00Z"), close: new Date("2026-11-03T21:00:00Z") });
+      clock = new Date("2026-11-03T15:35:00Z");
+      await sync();
+      await latchHalt(db, "the account is down 31% from its peak (limit 30%)", {}, clock);
+    }
+
+    it("sells a thesis through its stop, whole, and keeps the cash: nothing is bought (ADR-017)", async () => {
+      await holdThesisThenHalt();
+      expect(await step()).toEqual({ status: "skipped", reason: "halted; no closed thesis to sell" }); // the thesis still stands
+      const before = broker.orders.length;
+
+      broker.bars.AAPL = bars("160"); // -20%, through the 15% stop
+      broker.positions = broker.positions.map((p) => (p.symbol === "AAPL" ? { ...p, currentPrice: "160", marketValue: mul(p.qty, "160") } : p));
+      await sync();
+      const held = broker.positions.find((p) => p.symbol === "AAPL")!.qty;
+      const result = await step();
+      expect(result).toMatchObject({ status: "planned", phase: "sell", notes: expect.arrayContaining([expect.stringContaining("trading is halted: selling only what closed (AAPL)")]) });
+      expect(broker.orders.slice(before).map((o) => [o.symbol, o.side, o.qty])).toEqual([["AAPL", "sell", held]]);
+      expect((await kinds()).filter((k) => k === "thesis.stopped_out")).toHaveLength(1);
+
+      await fillAll({ AAPL: "160" });
+      expect(await step()).toEqual({ status: "skipped", reason: "halted; no closed thesis to sell" }); // the cash waits for the owner
+      expect(broker.orders).toHaveLength(before + 1);
+    });
+
+    it("sells a thesis Claude removed from the strategy, but not VTI", async () => {
+      await holdThesisThenHalt();
+      const before = broker.orders.length;
+      await submitStrategy(db, strategy({ conviction: [], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } }), "claude", clock);
+      const held = broker.positions.find((p) => p.symbol === "AAPL")!.qty;
+      expect(await step()).toMatchObject({ status: "planned", phase: "sell" });
+      expect(broker.orders.slice(before).map((o) => [o.symbol, o.side, o.qty])).toEqual([["AAPL", "sell", held]]);
     });
 
     it("sells nothing with the kill switch on", async () => {

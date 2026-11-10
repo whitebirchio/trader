@@ -33,7 +33,7 @@ export function describe(e: NotifiableEvent): Described {
     case "risk.halted":
       return {
         headline: "Trading HALTED",
-        lines: [`Why: ${str(p.reason)}.`, "Every order is blocked, sells included, until you run risk:resume."],
+        lines: [`Why: ${str(p.reason)}.`, "Nothing is bought or resized until you run risk:resume. A thesis that closes (its stop, its review date) or that Claude removes is still sold whole, and the cash waits."],
       };
     case "risk.kill_switch_on":
       return { headline: "Kill switch ON", lines: [`Reason: ${str(p.reason)}.`, "Every order is blocked until risk:resume."] };

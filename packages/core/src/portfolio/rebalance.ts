@@ -14,9 +14,9 @@ import { getRiskState } from "../risk/state.js";
 import { LIMITS, type Limits } from "../risk/limits.js";
 import { evaluateOrders } from "../risk/rules.js";
 import type { Decision, Sleeve } from "../risk/types.js";
-import { compare, round, sub } from "../money.js";
+import { add, compare, round, sub } from "../money.js";
 import { marketDate, marketTimeToUtc } from "../time.js";
-import { type PlannedTrade, planTrades, washSaleWindow, withdrawalSells } from "./planner.js";
+import { type PlannedTrade, haltExits, planTrades, washSaleWindow, withdrawalSells } from "./planner.js";
 import { activeStrategy, stoppedThesisIds } from "./store.js";
 import type { Strategy } from "./strategy.js";
 import { IDLE_SYMBOL, type DailyClose, rankUniverse, requiredHistory } from "./systematic.js";
@@ -128,14 +128,26 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   let plan = planTrades({ planId, targets, holdings, drift: strategy.drift, exitReasons, sleeveOf, raiseCash: reserve.unfunded, deployCash, spendableCash, blocked });
   notes.push(...(plan.deferred ?? []));
 
-  // Halted, with a withdrawal to fund: only the sells it needs (SPEC-capital decision 2).
-  // The kill switch is absolute, so it gets the normal path, where risk rejects everything.
+  // Halted: only whole exits of closed theses (ADR-017) and the sells a withdrawal needs
+  // (SPEC-capital decision 2). The kill switch is absolute, so it gets the normal path,
+  // where risk rejects everything.
   const guard = await getRiskState(db);
-  if (guard.halted && !guard.killSwitch && compare(reserve.unfunded, "0") > 0) {
-    const trades = withdrawalSells(plan.trades, holdings, reserve.unfunded);
-    if (trades.length === 0) return { status: "skipped", reason: "halted; nothing in the plan raises the withdrawal's cash" };
-    plan = { phase: "sell", trades };
-    notes.push(`trading is halted: selling only the $${round(reserve.unfunded, 2, "up")} your withdrawal needs`);
+  let haltedSkip: string | null = null;
+  if (guard.halted && !guard.killSwitch) {
+    // A thesis that closed, or a single stock no longer in the strategy (one Claude removed).
+    const universe = new Set<string>([...strategy.systematic.universe, IDLE_SYMBOL, ...(strategy.systematic.defensive ? [strategy.systematic.defensive] : [])]);
+    const exitable = new Set(held.map((p) => p.symbol).filter((s) => exitReasons[s] !== undefined || (!convictionSymbols.has(s) && !universe.has(s))));
+    const exits = haltExits(plan.trades, holdings, exitable);
+    const exited = new Set(exits.map((t) => t.proposal.symbol));
+    const proceeds = exits.reduce((sum, t) => add(sum, holdings.find((h) => h.symbol === t.proposal.symbol)?.marketValue ?? "0"), "0");
+    const unfunded = sub(reserve.unfunded, proceeds);
+    const funding = compare(unfunded, "0") > 0 ? withdrawalSells(plan.trades.filter((t) => !exited.has(t.proposal.symbol)), holdings, unfunded) : [];
+    const trades = [...exits, ...funding];
+    // Nothing to sell: still record what closed (below), then skip.
+    if (trades.length === 0) haltedSkip = compare(reserve.unfunded, "0") > 0 ? "halted; nothing in the plan raises the withdrawal's cash" : "halted; no closed thesis to sell";
+    plan = trades.length ? { phase: "sell", trades } : { phase: "none", trades: [] };
+    if (exits.length) notes.push(`trading is halted: selling only what closed (${exits.map((t) => t.proposal.symbol).join(", ")}); the cash waits until the owner resumes`);
+    if (funding.length) notes.push(`trading is halted: selling only the $${round(unfunded, 2, "up")} your withdrawal needs`);
   }
 
   if (opts.dryRun) {
@@ -152,7 +164,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   }
 
   await recordThesisTransitions(db, states, active.version, now);
-  if (plan.phase === "none") return { status: "skipped", reason: "on target" };
+  if (plan.phase === "none") return { status: "skipped", reason: haltedSkip ?? "on target" };
 
   const gate = await riskGate(db, broker, plan.trades.map((t) => t.proposal), now, { sleeveOf, limits });
   const results: { trade: PlannedTrade; decision?: Decision; submitted?: string }[] = [];
