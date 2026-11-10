@@ -35,7 +35,7 @@ describe("thesisSymbols", () => {
 });
 
 describe("recordThesisCloses", () => {
-  it("stores the closes of every symbol any version has held as a thesis, and rewrites them on the next run", async () => {
+  it("stores the closes of every symbol any version has held as a thesis, and on the next run writes only what changed", async () => {
     expect(await recordThesisCloses(db, broker, AFTER_CLOSE)).toBe(0);
     await submitStrategy(db, strategy({ conviction: [thesis({ symbol: "AAPL", id: "aapl-a" })] }), "claude", new Date("2026-11-01T13:00:00Z"));
     await submitStrategy(db, strategy({ conviction: [thesis({ symbol: "MSFT", id: "msft-a" })] }), "claude", new Date("2026-11-02T13:00:00Z"));
@@ -47,8 +47,9 @@ describe("recordThesisCloses", () => {
     }) as typeof broker.getDailyBars;
     expect(await recordThesisCloses(db, broker, AFTER_CLOSE)).toBe(3);
     expect(requests).toEqual([[["AAPL", "MSFT"], "2025-10-17T13:00:00.000Z"]]); // 380 days before the first version
-    broker.bars.AAPL = [bar("2026-10-29", "199.5"), bar("2026-10-30", "201.5")];
-    await recordThesisCloses(db, broker, AFTER_CLOSE);
+    expect(await recordThesisCloses(db, broker, AFTER_CLOSE)).toBe(0); // nothing new: nothing rewritten (#89)
+    broker.bars.AAPL = [bar("2026-10-29", "199.5"), bar("2026-10-30", "201.5")]; // re-adjusted, as after a dividend
+    expect(await recordThesisCloses(db, broker, AFTER_CLOSE)).toBe(2);
     expect(await stored()).toEqual([
       { symbol: "AAPL", tradingDate: "2026-10-29", close: "199.5" },
       { symbol: "AAPL", tradingDate: "2026-10-30", close: "201.5" },

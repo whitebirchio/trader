@@ -1,4 +1,4 @@
-import { asc, eq, gte, isNull, ne, or } from "drizzle-orm";
+import { asc, count, eq, gte, isNull, max, ne, or } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
@@ -15,7 +15,7 @@ import {
 import { add, compare, sub } from "../money.js";
 import { marketDate } from "../time.js";
 import { assetFacts } from "./eligibility.js";
-import { type DailyEquity, type IndexFlow, type LiveIndex, buildIndex, liveIndex } from "./equity-index.js";
+import { type DailyEquity, type IndexFlow, type IndexState, type LiveIndex, buildIndex, liveIndex } from "./equity-index.js";
 import { LIMITS, type Limits, limitsVersion } from "./limits.js";
 import { loadReserve, pendingTransferOut } from "./reserve.js";
 import { evaluateOrders } from "./rules.js";
@@ -155,16 +155,24 @@ export async function loadSnapshot(
  * money that never moved.
  */
 export async function loadIndexInputs(db: Db): Promise<{ snapshots: DailyEquity[]; flows: IndexFlow[] }> {
-  const snapshots = await db
+  return { snapshots: await loadSnapshots(db), flows: await loadFlows(db) };
+}
+
+async function loadSnapshots(db: Db): Promise<DailyEquity[]> {
+  return db
     .select({ tradingDate: equitySnapshots.tradingDate, equity: equitySnapshots.equity, recordedAt: equitySnapshots.recordedAt })
     .from(equitySnapshots)
     .orderBy(asc(equitySnapshots.tradingDate));
-  const flows = await db
+}
+
+async function loadFlows(db: Db): Promise<IndexFlow[]> {
+  return db
     .select({ at: capitalFlows.at, amount: capitalFlows.amount })
     .from(capitalFlows)
     .where(or(isNull(capitalFlows.status), ne(capitalFlows.status, "canceled")));
-  return { snapshots, flows };
 }
+
+const indexes = new WeakMap<Db, { key: string; state: IndexState; lastSnapshotEquity: string | undefined }>();
 
 export interface AccountEquity {
   equity: string;
@@ -175,15 +183,25 @@ export interface AccountEquity {
 
 /** Today's flow-adjusted change and drawdown, from the snapshots plus the last synced equity. */
 export async function currentIndex(db: Db, account: (AccountEquity & { cash?: string }) | undefined, now: Date): Promise<LiveIndex> {
-  const { snapshots, flows: recorded } = await loadIndexInputs(db);
+  const recorded = await loadFlows(db);
   const equity = account?.equity ?? "0";
   // A withdrawal's ACH that has left but not posted counts as money out now (risk/reserve.ts).
   const pending = account?.cash !== undefined ? await pendingTransferOut(db, account.cash) : "0";
   const flows = compare(pending, "0") > 0 ? [...recorded, { at: account?.syncedAt ?? now, amount: sub("0", pending) }] : recorded;
-  // Before Alpaca reports a prior close, measure the day from our own last snapshot.
-  const fallbackPriorClose = account?.lastEquity ?? snapshots.at(-1)?.equity ?? equity;
   const { resumedAt } = await getRiskState(db);
-  return liveIndex(buildIndex(snapshots, flows, resumedAt), { equity, asOf: account?.syncedAt ?? now, flows, fallbackPriorClose });
+  // The index is rebuilt only when its inputs change (#89): snapshots are insert-only, so their count and
+  // latest recorded_at identify them; flows (append-only) and the last resume are small enough to compare whole.
+  const [agg] = await db.select({ n: count(), at: max(equitySnapshots.recordedAt) }).from(equitySnapshots);
+  const key = JSON.stringify([agg?.n ?? 0, agg?.at ?? null, flows, resumedAt]);
+  let built = indexes.get(db);
+  if (built?.key !== key) {
+    const snapshots = await loadSnapshots(db);
+    built = { key, state: buildIndex(snapshots, flows, resumedAt), lastSnapshotEquity: snapshots.at(-1)?.equity };
+    indexes.set(db, built);
+  }
+  // Before Alpaca reports a prior close, measure the day from our own last snapshot.
+  const fallbackPriorClose = account?.lastEquity ?? built.lastSnapshotEquity ?? equity;
+  return liveIndex(built.state, { equity, asOf: account?.syncedAt ?? now, flows, fallbackPriorClose });
 }
 
 async function ordersToday(db: Db, now: Date): Promise<RiskSnapshot["today"]> {

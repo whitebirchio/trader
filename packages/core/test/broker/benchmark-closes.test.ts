@@ -52,7 +52,7 @@ describe("sync-broker records them", () => {
     expect(await stored()).toEqual([]);
     broker.clock.isOpen = false;
     expect(await syncBroker(db, broker, "staging", AFTER_CLOSE)).toMatchObject({ detail: { phase: "after_close", benchmarkCloses: 2 } });
-    expect(await syncBroker(db, broker, "staging", new Date("2026-11-01T15:00:00Z"), { ignoreSession: true })).toMatchObject({ detail: { phase: "forced", benchmarkCloses: 2 } });
+    expect(await syncBroker(db, broker, "staging", new Date("2026-11-01T15:00:00Z"), { ignoreSession: true })).toMatchObject({ detail: { phase: "forced", benchmarkCloses: 0 } }); // unchanged: nothing rewritten (#89)
   });
 
   it("a broker failure fetching bars never blocks the account verdict", async () => {

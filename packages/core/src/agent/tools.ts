@@ -1,7 +1,7 @@
 import { desc, gte, inArray } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
-import { loadActivities } from "../broker/activities.js";
-import { buildLots, estimateSale } from "../broker/lots.js";
+import { loadLedger } from "../broker/activities.js";
+import { type Lots, estimateSale } from "../broker/lots.js";
 import { capitalOverview } from "../capital/overview.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
@@ -55,7 +55,7 @@ function daysUntil(date: string, now: Date): number {
 const MAX_PRICE_DAYS = 730;
 
 async function holdingsWithLots(db: Db) {
-  const lots = buildLots(await loadActivities(db));
+  const lots = (await loadLedger(db)).lots;
   const held = await db.select().from(positions);
   return { lots, held };
 }
@@ -137,7 +137,7 @@ export async function getStrategy({ db, now }: DbDeps, version?: number) {
  * entry against VTI, how far it is off its high and above its stop, the
  * candidate screens, and flags. Theses of the active strategy with open lots.
  */
-async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | undefined, lots: ReturnType<typeof buildLots>, held: { symbol: string; currentPrice: string }[], now: Date): Promise<HeldThesis[]> {
+async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | undefined, lots: Lots, held: { symbol: string; currentPrice: string }[], now: Date): Promise<HeldThesis[]> {
   const active = await activeStrategy(db, now);
   const price = new Map(held.map((p) => [p.symbol, p.currentPrice]));
   const owned = active.strategy.conviction.filter((t) => price.has(t.symbol) && lots.open.some((l) => l.symbol === t.symbol));

@@ -8,8 +8,8 @@ import { compare } from "../money.js";
 import { marketDate } from "../time.js";
 import { recordBenchmarkCloses } from "./benchmark-closes.js";
 import { recordThesisCloses } from "./thesis-closes.js";
-import { loadActivities } from "./activities.js";
-import { buildLots, openQtyBySymbol } from "./lots.js";
+import { loadLedger } from "./activities.js";
+import { openQtyBySymbol } from "./lots.js";
 import { isOurClientOrderId } from "./orders.js";
 import type { Account, AccountConfig, BrokerAdapter, BrokerOrder } from "./port.js";
 
@@ -219,7 +219,7 @@ interface Reconciliation {
  * audited once; the quantities go in the event payload.
  */
 async function reconcileLots(db: Db): Promise<Reconciliation> {
-  const lots = buildLots(await loadActivities(db));
+  const lots = (await loadLedger(db)).lots;
   const held = await db.select({ symbol: positions.symbol, qty: positions.qty }).from(positions);
 
   const lotQty = openQtyBySymbol(lots.open);
@@ -333,8 +333,11 @@ async function syncOrders(db: Db, broker: BrokerAdapter, now: Date): Promise<num
   }
 
   let changed = 0;
+  // One read for every listed order (#89); each update below is still conditional on the status read here.
+  const ids = recent.map((o) => o.clientOrderId);
+  const known = new Map((ids.length ? await db.select().from(orders).where(inArray(orders.clientOrderId, ids)) : []).map((r) => [r.clientOrderId, r]));
   for (const o of recent) {
-    const existing = (await db.select().from(orders).where(eq(orders.clientOrderId, o.clientOrderId)))[0];
+    const existing = known.get(o.clientOrderId);
     if (!existing) {
       const ours = isOurClientOrderId(o.clientOrderId);
       const inserted = await db

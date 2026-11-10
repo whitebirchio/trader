@@ -3,8 +3,7 @@ import { capitalOverview } from "../capital/overview.js";
 import { OPEN_STATUSES } from "../capital/withdrawals.js";
 import { and, asc, desc, eq, gte, inArray, like, lte } from "drizzle-orm";
 import { BENCHMARK } from "../broker/benchmark-closes.js";
-import { loadActivities } from "../broker/activities.js";
-import { buildLots } from "../broker/lots.js";
+import { loadLedger } from "../broker/activities.js";
 import type { Db } from "../db/client.js";
 import {
   auditEvents,
@@ -148,7 +147,7 @@ export async function holdingsView(db: Db, now: Date) {
   const [account] = await db.select({ equity: brokerAccount.equity }).from(brokerAccount).where(eq(brokerAccount.id, 1));
   const equity = account?.equity ?? "0";
   const held = await db.select().from(positions).orderBy(desc(positions.marketValue));
-  const lots = buildLots(await loadActivities(db));
+  const lots = (await loadLedger(db)).lots;
   const active = await activeStrategy(db, now);
   const states = thesisStates({ active, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose: Object.fromEntries(held.map((p) => [p.symbol, p.currentPrice])), now });
   const bySymbol = new Map(states.map((s) => [s.thesis.symbol, s]));
@@ -302,7 +301,7 @@ export async function thesisView(db: Db, id: string, now: Date, requested: Chart
   const held = !!row && !row.closedAt;
   let cost: string | null = null;
   if (held) {
-    cost = averageCost(buildLots(await loadActivities(db)).open, symbol);
+    cost = averageCost((await loadLedger(db)).lots.open, symbol);
   } else if (row) {
     const buys = row.fills.filter((f) => f.side === "buy");
     const qty = buys.reduce((sum, f) => add(sum, f.qty!), "0");

@@ -3,7 +3,7 @@ import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, brokerAccount, capitalCommands, equitySnapshots, jobRuns, riskDecisions, riskGateRuns, withdrawals } from "../../src/db/schema.js";
+import { auditEvents, brokerAccount, brokerActivities, capitalFlows, capitalCommands, equitySnapshots, jobRuns, riskDecisions, riskGateRuns, withdrawals } from "../../src/db/schema.js";
 import { runJob } from "../../src/jobs.js";
 import { checkDrawdown, riskGate, roundTripBlocks } from "../../src/risk/gate.js";
 import { LIMITS } from "../../src/risk/limits.js";
@@ -162,6 +162,19 @@ describe("checkDrawdown", () => {
     await db.update(brokerAccount).set({ equity: "733" }); // 15.01%
     expect(await checkDrawdown(db, NOW)).toMatchObject({ halted: "tripped" });
     expect((await getRiskState(db)).haltReason).toBe("the account is down 15.0145% since trading resumed on 2026-10-30 (limit 15% until it regains its old peak; 41.36% below that peak)");
+  });
+
+  it("rebuilds the index when a snapshot or a flow is added (#89)", async () => {
+    await snapshots(["2026-10-28", "1000"]);
+    await db.update(brokerAccount).set({ equity: "1100", lastEquity: "1100" });
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "0" });
+    await snapshots(["2026-10-29", "1300"], ["2026-10-30", "1200"]); // Thursday's peak, then Friday
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "15.3846" });
+
+    // A $200 deposit before Friday's close makes Friday's 1200 a loss on the index, deepening the drawdown.
+    await db.insert(brokerActivities).values({ id: "csd-1", type: "CSD", at: new Date("2026-10-30T15:00:00Z"), netAmount: "200", raw: {} });
+    await db.insert(capitalFlows).values({ activityId: "csd-1", at: new Date("2026-10-30T15:00:00Z"), amount: "200", kind: "deposit", timedBy: "created_at", status: "executed" });
+    expect(await checkDrawdown(db, NOW)).toMatchObject({ drawdownPct: "29.4872" });
   });
 
   it("doesn't count a deposit as a gain or a withdrawal as a loss", async () => {
