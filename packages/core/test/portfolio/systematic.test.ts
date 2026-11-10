@@ -110,6 +110,14 @@ describe("selectSystematic", () => {
     expect(a.notes[0]).toBe("AAA (rank 1) skipped: sold at a loss in the last 30 days (wash-sale window)");
   });
 
+  it("never skips VTI, where idle money sits: its wash-sale window doesn't push its slot down the ranking (#81)", () => {
+    const p = params({ universe: ["VTI", "BBB", "CCC"] });
+    const ranking = rankUniverse({ VTI: series(30, (i) => (i <= 9 ? 100 : 130)), BBB: series(30, (i) => (i <= 9 ? 100 : 120)), CCC: series(30, () => 100) }, p);
+    const a = selectSystematic(ranking, p, new Set(["VTI", "BBB"]));
+    expect(Object.fromEntries(a.weights)).toEqual({ VTI: 0.5, CCC: 0.5 });
+    expect(a.notes).toEqual(["BBB (rank 2) skipped: sold at a loss in the last 30 days (wash-sale window)", "VTI: rank 1, 30.0% momentum", "CCC: rank 3, 0.0% momentum"]);
+  });
+
   it("sits in VTI when nothing can be ranked", () => {
     const a = selectSystematic({ ranked: [], excluded: [] }, params());
     expect(a).toEqual({ weights: new Map([["VTI", 1]]), picks: [], notes: ["Nothing ranked: the systematic sleeve sits in VTI"] });

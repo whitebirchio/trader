@@ -90,8 +90,9 @@ export interface SystematicAllocation {
 }
 
 /**
- * Pick the top N (skipping `skip`, e.g. open wash-sale windows) and weight
- * them. A slot whose pick is below its trend line goes to `defensive`, or to
+ * Pick the top N (skipping `skip`, e.g. open wash-sale windows, but never
+ * IDLE_SYMBOL: idle money goes back into it whatever the ranking says, so
+ * skipping it only sells more of it, #81) and weight them. A slot whose pick is below its trend line goes to `defensive`, or to
  * IDLE_SYMBOL if there is none, keeping that pick's weight. Weights sum to 1.
  * Nothing ranked means all IDLE_SYMBOL.
  */
@@ -100,7 +101,7 @@ export function selectSystematic(ranking: Ranking, p: SystematicParams, skip: Re
   const eligible: Ranked[] = [];
   for (const r of ranking.ranked) {
     if (eligible.length >= p.topN) break;
-    if (skip.has(r.symbol)) {
+    if (skip.has(r.symbol) && r.symbol !== IDLE_SYMBOL) {
       notes.push(`${r.symbol} (rank ${r.rank}) skipped: sold at a loss in the last 30 days (wash-sale window)`);
       continue;
     }

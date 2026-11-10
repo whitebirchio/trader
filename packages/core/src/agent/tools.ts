@@ -331,7 +331,7 @@ export function getRules() {
       "Conviction theses get their weight of equity first; the systematic sleeve gets the rest.",
       `A systematic name over the ${LIMITS.positionCapPct}% per-name cap is held at the cap; the excess goes down the ranking, then to ${IDLE_SYMBOL}. topN means at least N names.`,
       `Idle money sits in ${IDLE_SYMBOL}, never cash (no cash buffer). Trend-filtered slots go to 'defensive', or ${IDLE_SYMBOL}.`,
-      "Systematic picks sold at a loss in the last 30 days are skipped (wash sales); conviction buys are not, so weigh them yourself.",
+      "Systematic picks sold at a loss in the last 30 days are skipped (wash sales), except VTI, where idle money sits; conviction buys are not, so weigh them yourself.",
       `Owner's direction (2026-11-04): no systematic momentum sleeve. Set systematic to idle-only, universe ["${IDLE_SYMBOL}"], topN 1, trendFilterDays null, weighting equal, defensive null, so everything not in a thesis sits in ${IDLE_SYMBOL}.`,
       `A new or larger thesis is funded by selling what's over target (usually ${IDLE_SYMBOL}), however small the gap, so a fully invested account can always buy it.`,
     ],
