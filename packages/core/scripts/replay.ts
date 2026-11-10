@@ -30,7 +30,7 @@
  * --from defaults to the timeline's first version (required with --rules),
  * --to to yesterday (the last session whose bars are complete).
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
 import { loadMarket } from "../src/replay/data.js";
@@ -120,17 +120,26 @@ const started = Date.now();
 const dir = join(REPLAY_CACHE, "reports");
 mkdirSync(dir, { recursive: true });
 const name = `${basename(file, ".json").replace(/^timeline-/, "")}-${from}-${to}-${slippageBps}bps`;
+/** A fresh on-disk directory for one replay's database: in memory, a multi-year run takes several GB of RAM. Removed after. */
+const dataDir = (label: string) => {
+  const d = join(REPLAY_CACHE, "pgdata", `${name}-${label.replace(/[^a-z0-9.=-]+/gi, "_")}`);
+  rmSync(d, { recursive: true, force: true }); // left by a run that crashed
+  mkdirSync(d, { recursive: true });
+  return d;
+};
 // With --baseline-report, the baseline is read once the variant has replayed (it may still be running when the variant starts).
 let report: ReplayReport | null = null;
 let fidelity: string | null = null;
 if (!values["baseline-report"]) {
-  const result = await replay({ market, versions: timeline.versions, transfers: timeline.transfers, from, to, slippageBps, autoResume, onSession: progress("baseline") });
+  const baseDir = dataDir("baseline");
+  const result = await replay({ market, versions: timeline.versions, transfers: timeline.transfers, from, to, slippageBps, autoResume, dataDir: baseDir, onSession: progress("baseline") });
   report = await replayReport(result, { from, to, slippageBps });
   report.warnings.push(...warnings);
   console.error(`replayed ${result.sessions} sessions in ${Math.round((Date.now() - started) / 1000)}s`);
   const sessions = market.calendar.filter((d) => d.date >= from && d.date <= to).map((d) => d.date);
   if (values["compare-actual"]) fidelity = formatFidelity(compareFidelity({ live: timeline.actual!, replay: await readAccountHistory(result.db), flows: timeline.transfers, sessions, bars: market.bars }));
   await result.pglite.close();
+  rmSync(baseDir, { recursive: true, force: true });
   const text = formatReport(report);
   writeFileSync(join(dir, `${name}.txt`), text);
   writeFileSync(join(dir, `${name}.json`), JSON.stringify(report, null, 2));
@@ -138,10 +147,12 @@ if (!values["baseline-report"]) {
   console.log(`→ ${join(dir, `${name}.txt`)} (and .json)`);
 }
 if (variant) {
-  const varied = await replay({ market, versions: variantVersions(variant), transfers: timeline.transfers, from, to, slippageBps, autoResume, onSession: progress(variant.name) });
+  const variantDir = dataDir(variant.name);
+  const varied = await replay({ market, versions: variantVersions(variant), transfers: timeline.transfers, from, to, slippageBps, autoResume, dataDir: variantDir, onSession: progress(variant.name) });
   const variantReport = await replayReport(varied, { from, to, slippageBps });
   variantReport.warnings.push(...warnings);
   await varied.pglite.close();
+  rmSync(variantDir, { recursive: true, force: true });
   const slug = variant.name.replace(/[^a-z0-9.=-]+/gi, "_");
   writeFileSync(join(dir, `${name}-${slug}.txt`), formatReport(variantReport));
   writeFileSync(join(dir, `${name}-${slug}.json`), JSON.stringify(variantReport, null, 2));
