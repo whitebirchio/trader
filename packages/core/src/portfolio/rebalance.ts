@@ -92,12 +92,15 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   // One bars request: universe, theses, holdings, VTI and the defensive symbol.
   const symbols = new Set<string>([...strategy.systematic.universe, ...strategy.conviction.map((t) => t.symbol), ...held.map((p) => p.symbol), IDLE_SYMBOL]);
   if (strategy.systematic.defensive) symbols.add(strategy.systematic.defensive);
-  const historyDays = Math.ceil(requiredHistory(strategy.systematic) * 1.5) + 10;
+  // A trailing stop measures from the high since its thesis's first lot, so the bars reach back that far.
+  const trailing = new Set(strategy.conviction.filter((t) => t.trailingStopPct).map((t) => t.symbol));
+  const oldestTrailingLot = lots.open.filter((l) => trailing.has(l.symbol)).reduce((min, l) => Math.min(min, l.openedAt.getTime()), now.getTime());
+  const historyDays = Math.max(Math.ceil(requiredHistory(strategy.systematic) * 1.5) + 10, Math.ceil((now.getTime() - oldestTrailingLot) / 86_400_000) + 5);
   const raw = await broker.getDailyBars([...symbols], new Date(now.getTime() - historyDays * 86_400_000), now);
   const bars: Record<string, DailyClose[]> = Object.fromEntries(Object.entries(raw).map(([s, b]) => [s, b.map((x) => ({ t: x.t, c: x.c }))]));
   const lastClose = Object.fromEntries(Object.entries(bars).flatMap(([s, b]) => (b.length ? [[s, b.at(-1)!.c]] : [])));
 
-  const states = thesisStates({ active: { strategy, createdAt: active.createdAt, reaffirmedAt: active.reaffirmedAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, now });
+  const states = thesisStates({ active: { strategy, createdAt: active.createdAt, reaffirmedAt: active.reaffirmedAt }, stoppedIds: await stoppedThesisIds(db), lots: lots.open, lastClose, closes: bars, now });
   const convictionSymbols = new Set(strategy.conviction.map((t) => t.symbol));
   const ranking = rankUniverse(bars, strategy.systematic, convictionSymbols);
   // Cash for an open withdrawal is left out of the targets, and sells raise it (SPEC-capital).
@@ -222,12 +225,12 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   return { status: "planned", phase: plan.phase, strategyVersion: active.version, planId, trades: results, notes };
 }
 
-/** Record each newly stopped, stale or overdue thesis once (thesis_events + an urgent audit event). */
+/** Record each newly closed (stop, trailing stop, profit target), stale or overdue thesis once (thesis_events + an urgent audit event). */
 async function recordThesisTransitions(db: Db, states: ReturnType<typeof thesisStates>, version: number, now: Date): Promise<void> {
   for (const s of states) {
     if (s.state === "stopped" && s.newlyStopped) {
-      await db.insert(thesisEvents).values({ thesisId: s.thesis.id, symbol: s.thesis.symbol, kind: "stopped", strategyVersion: version, price: s.price ?? null, averageCost: s.averageCost ?? null, reason: s.reason, at: now });
-      await recordEvent(db, { actor: "system", kind: "thesis.stopped_out", subject: s.thesis.symbol, payload: { thesisId: s.thesis.id, reason: s.reason, price: s.price, averageCost: s.averageCost } });
+      await db.insert(thesisEvents).values({ thesisId: s.thesis.id, symbol: s.thesis.symbol, kind: s.trigger ?? "stopped", strategyVersion: version, price: s.price ?? null, averageCost: s.averageCost ?? null, reason: s.reason, at: now });
+      await recordEvent(db, { actor: "system", kind: s.trigger === "took_profit" ? "thesis.took_profit" : "thesis.stopped_out", subject: s.thesis.symbol, payload: { thesisId: s.thesis.id, trigger: s.trigger ?? "stopped", reason: s.reason, price: s.price, averageCost: s.averageCost } });
     }
     if (s.state === "stale") {
       const seen = await db

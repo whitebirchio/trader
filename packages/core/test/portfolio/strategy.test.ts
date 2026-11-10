@@ -101,4 +101,15 @@ describe("STRATEGY_JSON_SCHEMA", () => {
     const thesisProps = (STRATEGY_JSON_SCHEMA as { properties: { conviction: { items: { properties: Record<string, { type: string }> } } } }).properties.conviction.items.properties;
     expect(thesisProps.targetWeightPct?.type).toBe("string");
   });
+
+  it("doesn't offer the exit fields while they're switched off, though a stored document may hold them (#35)", () => {
+    const thesisProps = (STRATEGY_JSON_SCHEMA as { properties: { conviction: { items: { properties: Record<string, unknown> } } } }).properties.conviction.items.properties;
+    expect(thesisProps).not.toHaveProperty("trailingStopPct");
+    expect(thesisProps).not.toHaveProperty("takeProfitPct");
+    expect(thesisProps).toHaveProperty("stopLossPct");
+    const doc = { ...VERSION_0, conviction: [{ id: "aapl-x", symbol: "AAPL", targetWeightPct: "10", thesis: "A thesis with both of the new exit fields set.", evidence: [{ kind: "fundamental", summary: "Evidence" }], stopLossPct: "15", trailingStopPct: "12", takeProfitPct: "40" }] };
+    expect(validateStrategy(doc)).toMatchObject({ ok: true });
+    expect(validateStrategy({ ...doc, conviction: [{ ...doc.conviction[0], trailingStopPct: "4" }] })).toMatchObject({ ok: false });
+    expect(validateStrategy({ ...doc, conviction: [{ ...doc.conviction[0], takeProfitPct: "501" }] })).toMatchObject({ ok: false });
+  });
 });

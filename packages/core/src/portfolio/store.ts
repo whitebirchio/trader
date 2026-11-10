@@ -1,11 +1,11 @@
-import { desc, eq, ne } from "drizzle-orm";
+import { desc, eq, inArray, ne } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
 import type { Db } from "../db/client.js";
 import { strategies, thesisEvents } from "../db/schema.js";
 import { add } from "../money.js";
 import { marketDate } from "../time.js";
-import { type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
-import { reviewDateErrors } from "./theses.js";
+import { EXIT_RULES, type ExitRules, type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
+import { CLOSING_KINDS, reviewDateErrors } from "./theses.js";
 
 export interface ActiveStrategy {
   version: number;
@@ -46,9 +46,9 @@ export async function activeStrategy(db: Db, now: Date): Promise<ActiveStrategy>
   return { version: row.version, authoredBy: row.authoredBy, createdAt: row.createdAt, reaffirmedAt, strategy: parsed.strategy };
 }
 
-/** Thesis ids that have been stopped out (permanent). */
+/** Thesis ids closed for good: stopped out, or (#35) trailing-stopped or sold at their profit target. */
 export async function stoppedThesisIds(db: Db): Promise<Set<string>> {
-  const rows = await db.select({ id: thesisEvents.thesisId }).from(thesisEvents).where(eq(thesisEvents.kind, "stopped"));
+  const rows = await db.select({ id: thesisEvents.thesisId }).from(thesisEvents).where(inArray(thesisEvents.kind, CLOSING_KINDS));
   return new Set(rows.map((r) => r.id));
 }
 
@@ -65,9 +65,13 @@ export type SubmitStrategyResult = { status: "activated"; version: number } | { 
  * stopped thesis id reused, and the review-date rules. preview_strategy and
  * submitStrategy both check it, so a preview never passes what submit rejects.
  */
-export async function submissionErrors(db: Db, s: Strategy, now: Date): Promise<string[]> {
+export async function submissionErrors(db: Db, s: Strategy, now: Date, rules: ExitRules = EXIT_RULES): Promise<string[]> {
   const stopped = await stoppedThesisIds(db);
-  const errors = s.conviction.flatMap((t, i) => (stopped.has(t.id) ? [`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`] : []));
+  const errors = s.conviction.flatMap((t, i) => [
+    ...(stopped.has(t.id) ? [`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`] : []),
+    ...(t.trailingStopPct !== undefined && !rules.trailingStop ? [`conviction[${i}].trailingStopPct: trailing stops aren't switched on; leave it out`] : []),
+    ...(t.takeProfitPct !== undefined && !rules.takeProfit ? [`conviction[${i}].takeProfitPct: profit targets aren't switched on; leave it out`] : []),
+  ]);
   const active = await activeStrategy(db, now);
   return [...errors, ...reviewDateErrors(s, active.strategy, marketDate(now))];
 }

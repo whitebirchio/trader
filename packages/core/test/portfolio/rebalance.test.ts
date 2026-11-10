@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, capitalCommands, orders, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
+import { auditEvents, capitalCommands, orders, rebalancePlans, strategies, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { add, compare, div, mul, sub } from "../../src/money.js";
 import { type RebalanceOptions, runRebalance } from "../../src/portfolio/rebalance.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
@@ -293,6 +293,54 @@ describe("rebalance", () => {
     await step();
     expect(broker.orders.filter((o) => o.symbol === "AAPL" && o.side === "buy")).toHaveLength(1); // only the original buy
     expect(await db.select().from(thesisEvents)).toHaveLength(1);
+  });
+
+  describe("#35's exits, on a stored version that sets them (submission refuses them while they're switched off)", () => {
+    /** A 20% AAPL thesis with `exit`, stored directly as a replay stores its versions, bought at 200; then Wednesday at `closes`. */
+    async function holdThenWednesday(exit: { trailingStopPct?: string; takeProfitPct?: string }, tuesday: string, wednesday: string) {
+      const doc = strategy({ conviction: [thesis({ targetWeightPct: "20", stopLossPct: "15", ...exit })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } });
+      await db.insert(strategies).values({ authoredBy: "owner", summary: doc.summary, document: doc as unknown as Record<string, unknown>, createdAt: clock });
+      await step();
+      await fillAll({ VTI: "300", AAPL: "200" });
+      const bar = (date: string, c: string): Bar => ({ t: new Date(`${date}T15:35:00Z`), o: c, h: c, l: c, c, v: "1000000" });
+      broker.bars.AAPL = [...bars("200"), bar("2026-11-02", "200"), bar("2026-11-03", tuesday), bar("2026-11-04", wednesday)];
+      broker.bars.VTI = [...bars("300"), bar("2026-11-02", "300"), bar("2026-11-03", "300"), bar("2026-11-04", "300")];
+      broker.positions = broker.positions.map((p) => (p.symbol === "AAPL" ? { ...p, currentPrice: wednesday, marketValue: mul(p.qty, wednesday) } : p));
+      broker.calendar.push({ date: "2026-11-04", open: new Date("2026-11-04T14:30:00Z"), close: new Date("2026-11-04T21:00:00Z") });
+      clock = new Date("2026-11-04T15:35:00Z");
+      await sync();
+    }
+
+    it("sells a thesis at its trailing stop below the high since entry, though it's above cost and its stop-loss", async () => {
+      await holdThenWednesday({ trailingStopPct: "10" }, "260", "230"); // 11.5% off the high; +15% on cost
+      expect(await step()).toMatchObject({ phase: "sell" });
+      expect(broker.orders.at(-1)).toMatchObject({ symbol: "AAPL", side: "sell" });
+      expect(await db.select().from(thesisEvents)).toEqual([expect.objectContaining({ thesisId: "aapl-services", kind: "trailing_stopped", price: "230", averageCost: "200" })]);
+      const [event] = (await db.select().from(auditEvents)).filter((e) => e.kind === "thesis.stopped_out");
+      expect(event?.payload).toMatchObject({ trigger: "trailing_stopped", reason: expect.stringContaining("10% trailing stop ($234.00, from a high close of $260.00") });
+
+      await fillAll({ VTI: "300", AAPL: "230" });
+      await step();
+      expect(broker.orders.filter((o) => o.symbol === "AAPL" && o.side === "buy")).toHaveLength(1); // closed for good
+      expect(await db.select().from(thesisEvents)).toHaveLength(1);
+    });
+
+    it("sells a thesis whole at its profit target, with its own event", async () => {
+      await holdThenWednesday({ takeProfitPct: "25" }, "240", "250");
+      const held = broker.positions.find((p) => p.symbol === "AAPL")!.qty;
+      expect(await step()).toMatchObject({ phase: "sell" });
+      expect(broker.orders.at(-1)).toMatchObject({ symbol: "AAPL", side: "sell", qty: held });
+      expect(await db.select().from(thesisEvents)).toEqual([expect.objectContaining({ kind: "took_profit" })]);
+      expect(await kinds()).toContain("thesis.took_profit");
+      expect(await kinds()).not.toContain("thesis.stopped_out");
+    });
+
+    it("leaves the thesis alone inside both", async () => {
+      await holdThenWednesday({ trailingStopPct: "10", takeProfitPct: "25" }, "240", "230");
+      expect(await db.select().from(thesisEvents)).toEqual([]);
+      await step();
+      expect(broker.orders.filter((o) => o.symbol === "AAPL" && o.side === "sell")).toEqual([]);
+    });
   });
 
   it("sells a thesis the day after its review date, records it once, and emails it", async () => {

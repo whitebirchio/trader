@@ -47,6 +47,9 @@ export interface InsiderRule {
   minBuyers: number;
   /** A prior drop this large or worse (−0.2 = 20%). */
   dip: number;
+  /** #35's exits, on every thesis when set (variants). */
+  trailingStopPct?: string;
+  takeProfitPct?: string;
 }
 
 export const INSIDER_RULE: InsiderRule = { weightPct: "5", stopLossPct: "15", reviewDays: 90, maxTheses: 8, minBuyers: 2, dip: -0.2 };
@@ -115,6 +118,8 @@ export function insiderTimeline(signals: InsiderSignal[], weeks: string[], rule:
         thesis: `Rule: ${h.signal.buyers} officers or directors bought after a ${Math.round(-h.signal.prior60! * 100)}% drop over 60 sessions.`,
         evidence: [{ kind: "insider", summary: `${h.signal.buyers} insiders bought ${usd(h.signal.dollars)}, last filed ${h.signal.lastFiled}`, asOf: h.signal.lastFiled }],
         stopLossPct: rule.stopLossPct,
+        ...(rule.trailingStopPct ? { trailingStopPct: rule.trailingStopPct } : {}),
+        ...(rule.takeProfitPct ? { takeProfitPct: rule.takeProfitPct } : {}),
         reviewBy: h.reviewBy,
       }));
     versions.push({

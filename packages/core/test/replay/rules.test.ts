@@ -45,6 +45,14 @@ describe("insiderTimeline", () => {
     expect(validateStrategy(first!.document).ok).toBe(true);
   });
 
+  it("writes #35's exit fields on every thesis only when the rule sets them", () => {
+    const one = [signal("A", "2024-01-04")];
+    expect((insiderTimeline(one, WEEKS)[0]!.document as Doc).conviction[0]).not.toHaveProperty("trailingStopPct");
+    const [v] = insiderTimeline(one, WEEKS, { ...INSIDER_RULE, trailingStopPct: "15", takeProfitPct: "40" });
+    expect((v!.document as Doc).conviction[0]).toMatchObject({ trailingStopPct: "15", takeProfitPct: "40" });
+    expect(validateStrategy(v!.document).ok).toBe(true);
+  });
+
   it("keeps a thesis until its review date has passed, then frees the slot; a held ticker isn't added twice", () => {
     const v = insiderTimeline([signal("AAA", "2024-01-04"), signal("AAA", "2024-01-18"), signal("BBB", "2024-04-10")], WEEKS);
     expect(v.map(symbols)).toEqual([["AAA"], ["AAA"], ["AAA"], ["AAA"], [], ["BBB"]]); // AAA's review date is 2024-04-07: gone from the week of 04-08

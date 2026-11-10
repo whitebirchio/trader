@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "../../src/db/client.js";
 import { auditEvents, strategies, thesisEvents } from "../../src/db/schema.js";
-import { activeStrategy, stoppedThesisIds, submitStrategy } from "../../src/portfolio/store.js";
+import { activeStrategy, stoppedThesisIds, submissionErrors, submitStrategy } from "../../src/portfolio/store.js";
 import { VERSION_0 } from "../../src/portfolio/strategy.js";
 import { createTestDb } from "../helpers.js";
 import { strategy, thesis } from "./fixtures.js";
@@ -76,6 +76,25 @@ describe("submitStrategy", () => {
       errors: ['conviction[0].id: "aapl-services" was stopped out; re-entering needs a new thesis id'],
     });
     expect(await submitStrategy(db, strategy({ conviction: [thesis({ id: "aapl-services-v2" })] }), "claude", now)).toMatchObject({ status: "activated" });
+  });
+
+  it("closes an id for good after a trailing stop or a profit target too (#35)", async () => {
+    await db.insert(thesisEvents).values([
+      { thesisId: "a-trailed", symbol: "A", kind: "trailing_stopped", strategyVersion: 1, reason: "trailing stop" },
+      { thesisId: "b-target", symbol: "B", kind: "took_profit", strategyVersion: 1, reason: "profit target" },
+      { thesisId: "c-overdue", symbol: "C", kind: "overdue", strategyVersion: 1, reason: "review" },
+    ]);
+    expect(await stoppedThesisIds(db)).toEqual(new Set(["a-trailed", "b-target"]));
+  });
+
+  it("refuses a trailing stop or profit target while they're switched off, and takes them once on (#35)", async () => {
+    const draft = strategy({ conviction: [thesis({ trailingStopPct: "15", takeProfitPct: "40" })] });
+    expect(await submitStrategy(db, draft, "claude", now)).toEqual({
+      status: "rejected",
+      errors: ["conviction[0].trailingStopPct: trailing stops aren't switched on; leave it out", "conviction[0].takeProfitPct: profit targets aren't switched on; leave it out"],
+    });
+    expect(await submissionErrors(db, draft, now, { trailingStop: true, takeProfit: false })).toEqual(["conviction[0].takeProfitPct: profit targets aren't switched on; leave it out"]);
+    expect(await submissionErrors(db, draft, now, { trailingStop: true, takeProfit: true })).toEqual([]);
   });
 
   it("keeps every version: strategies are insert-only", async () => {

@@ -86,7 +86,9 @@ export function describe(e: NotifiableEvent): Described {
         lines: [...list(p.errors).map((err) => `• ${err}`), `v${str(p.activeVersion)} stays active.`],
       };
     case "thesis.stopped_out":
-      return { headline: `Stop-loss: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
+      return { headline: `${p.trigger === "trailing_stopped" ? "Trailing stop" : "Stop-loss"}: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
+    case "thesis.took_profit":
+      return { headline: `Profit target: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
     case "thesis.stale":
       return {
         headline: `Thesis unwound: ${str(e.subject)} (not reviewed)`,

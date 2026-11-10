@@ -171,7 +171,7 @@ export function formatReport(report: ReplayReport): string {
 
   section("Thesis exits");
   if (report.thesisExits.length === 0) lines.push("  none");
-  for (const e of report.thesisExits) lines.push(`  ${marketDate(e.at)}  ${e.kind.padEnd(8)} ${e.symbol.padEnd(6)} ${e.thesisId}`);
+  for (const e of report.thesisExits) lines.push(`  ${marketDate(e.at)}  ${e.kind.padEnd(16)} ${e.symbol.padEnd(6)} ${e.thesisId}`);
 
   section("Risk");
   const d = report.risk.decisions;
@@ -232,6 +232,8 @@ export function diffReports(baseline: ReplayReport, variant: ReplayReport, name:
     ["Realized long-term $", (r) => r.realized.longTerm],
     ["Wash sales", (r) => String(r.washSales.length)],
     ["Stops fired", (r) => exitCount(r, "stopped")],
+    ["Trailing stops fired", (r) => exitCount(r, "trailing_stopped")],
+    ["Profit targets hit", (r) => exitCount(r, "took_profit")],
     ["Review-date unwinds", (r) => exitCount(r, "overdue")],
     ["Stale unwinds", (r) => exitCount(r, "stale")],
     ["Risk rejections and clips", (r) => String(r.risk.decisions.rejected + r.risk.decisions.clipped)],

@@ -16,6 +16,9 @@ import type { InsiderRule } from "./rules.js";
  *   review-days=N  every thesis reviewed N days after the version that opened it
  *                  (an unwind unless a later version moves it on, which this
  *                  variant doesn't)
+ *   trailing-stop=N  every thesis with a trailing stop N% below its high close
+ *                    since entry (#35; 5 to 50)
+ *   take-profit=N    every thesis sold whole N% above average cost (#35; 5 to 500)
  *
  * Documents are read leniently, like the scorecard reads them: a version
  * whose conviction list isn't an array passes through unchanged.
@@ -63,6 +66,20 @@ const KINDS: Record<string, Kind> = {
         thesis: (t) => (typeof t.targetWeightPct === "string" && compare(t.targetWeightPct, pct) > 0 ? { ...t, targetWeightPct: pct } : t),
         rule: (r) => (compare(r.weightPct, pct) > 0 ? { ...r, weightPct: pct } : r),
       };
+    },
+  },
+  "trailing-stop": {
+    describe: "every thesis with a trailing stop N% below its high close since entry",
+    parse: (value) => {
+      const pct = percent(value, "5", "50", "trailing-stop");
+      return { thesis: (t) => ({ ...t, trailingStopPct: pct }), rule: (r) => ({ ...r, trailingStopPct: pct }) };
+    },
+  },
+  "take-profit": {
+    describe: "every thesis sold whole N% above average cost",
+    parse: (value) => {
+      const pct = percent(value, "5", "500", "take-profit");
+      return { thesis: (t) => ({ ...t, takeProfitPct: pct }), rule: (r) => ({ ...r, takeProfitPct: pct }) };
     },
   },
   "review-days": {
