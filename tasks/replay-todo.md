@@ -181,9 +181,9 @@ Withdrawal requests aren't replayed (only completed transfers), and the report n
 **Estimated scope:** Medium
 
 ## Checkpoint C
-- [ ] Gate green
-- [ ] Scott has seen a variant diff on Trader's history
-- [ ] Agree that Trader's own history only proves the machinery, and move to the multi-year replay
+- [x] Gate green
+- [x] Scott has seen a variant diff on Trader's history
+- [x] Agree that Trader's own history only proves the machinery, and move to the multi-year replay
 
 ## Phase 4: rule-based strategies (mode 2)
 
@@ -191,12 +191,12 @@ Withdrawal requests aren't replayed (only completed transfers), and the report n
 **Description:** Generate a weekly timeline from the cached insider events (#29's data): new clusters become theses at 5%, a 15% stop and a 90-day review, at most 8 at a time, with the rest in VTI. Replay 2019–2026 with auto-resume after halts. Run today's-rule variants on it (stop width, caps, review horizon), and write it up in `docs/research/` beside the backtest it extends.
 
 **Acceptance criteria:**
-- [ ] The generator uses only data dated on or before each week (a test proves no lookahead).
-- [ ] The write-up compares the replay with the insider backtest's result and explains the difference (caps, stops, staleness, costs); it lists every halt, and how each variant changed the outcome.
+- [x] The generator uses only data dated on or before each week (a test proves no lookahead).
+- [x] The write-up compares the replay with the insider backtest's result and explains the difference (caps, stops, staleness, costs); it lists every halt, and how each variant changed the outcome.
 
 **Verification:**
-- [ ] Tests: `npx vitest run replay/rules`
-- [ ] Manual: the replay finishes in reasonable time; the report is committed
+- [x] Tests: `npx vitest run replay/rules`
+- [x] Manual: the replay finishes in reasonable time; the report is committed (about three hours a run, after keeping its database on disk; the slowness is #89)
 
 **Dependencies:** T7
 **Files likely touched:** `src/replay/rules.ts`, `scripts/replay.ts`, `test/replay/rules.test.ts`, `docs/research/insider-replay-*.md`
@@ -208,6 +208,6 @@ Withdrawal requests aren't replayed (only completed transfers), and the report n
 - [ ] Next: #35's trailing stop and profit target, built in production code switched off, each with a replay variant, and judged on this replay before either is switched on
 
 ## Done
-- [ ] Every task above
-- [ ] `docs/research/README` (or the research index) says how to run a replay and what it can't tell you
+- [x] Every task above
+- [x] `docs/research/README` (or the research index) says how to run a replay and what it can't tell you
 - [ ] Plan and todo moved to `tasks/done/`
