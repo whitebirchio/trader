@@ -19,7 +19,7 @@ Event studies over 2018–2026, on the stocks risk would let Trader buy. A scrip
 |---|---|---|
 | [The insider rule through Trader's rules](insider-replay-2026-11.md) | #57 | +130% against VTI's +218% over 2019–2026. A 45-day review came closest. |
 
-A replay runs Trader's real jobs (sync, rebalance, risk, orders) day by day over past daily bars, with a simulated broker and clock, on a throwaway PGlite database. It never touches Neon or Alpaca's trading API. It reports performance against VTI, the thesis scorecard, trading and taxes, risk's decisions and every halt. A variant reruns the same inputs with one change (`stop=N`, `cap=N`, `review-days=N`) and diffs the two. All commands run in `packages/core` (`npm run <script> -w @trader/core -- …` from the root):
+A replay runs Trader's real jobs (sync, rebalance, risk, orders) day by day over past daily bars, with a simulated broker and clock, on a throwaway PGlite database. It never touches Neon or Alpaca's trading API. It reports performance against VTI, the thesis scorecard, trading and taxes, risk's decisions and every halt. A variant reruns the same inputs with one change (`stop=N`, `cap=N`, `review-days=N`, `trailing-stop=N`, `take-profit=N`) and diffs the two. All commands run in `packages/core` (`npm run <script> -w @trader/core -- …` from the root):
 
 ```sh
 npm run replay:export -- --env staging|production   # an account's history as a timeline (live figures: stays local)

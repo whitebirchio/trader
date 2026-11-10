@@ -31,10 +31,10 @@
 - [x] Tests. Staging check: after the resume, `risk:status` measured 0.20% since the resume under the 15% rule.
 
 ### T5: #35 trailing stop and profit target, switched off
-- [ ] Schema: optional `trailingStopPct` (from the high close since entry) and `takeProfitPct` (an exit or a trim to a weight). Old documents stay valid.
-- [ ] Thesis states: `trailing_stopped` and `took_profit`, with audit kinds routed. A trailing stop is a halt-proof exit (T3).
-- [ ] A switch in code, off in production until Scott turns it on.
+- [x] Schema: optional `trailingStopPct` (from the high close since entry) and `takeProfitPct` (a whole exit; a trim to a weight is left until the replay shows a target is worth having). Old documents stay valid.
+- [x] Thesis events `trailing_stopped` and `took_profit` (the state stays `stopped`, with a trigger), with audit kinds routed. Both are halt-proof exits (T3).
+- [x] A switch in code (`EXIT_RULES`), off in production until Scott turns it on: submissions that set either field are refused.
 
 ### T6: Judge T5 on the insider replay
-- [ ] Replay variants `trailing-stop=N` and `take-profit=N`.
+- [x] Replay variants `trailing-stop=N` and `take-profit=N`.
 - [ ] Run them on the 2019–2026 insider rule. Write up beside the replay. Scott decides whether to switch either on.
