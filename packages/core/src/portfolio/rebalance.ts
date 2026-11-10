@@ -179,6 +179,22 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
     gateRunId: gate.gateRunId,
     createdAt: now,
   });
+  // Funding sells for a systematic buy: a note for Claude's next run (#82). Conviction funding is routine.
+  const systematicBuys = plan.funding?.buys.filter((b) => b.sleeve === "systematic") ?? [];
+  if (plan.phase === "sell" && plan.funding && systematicBuys.length > 0) {
+    await recordEvent(db, {
+      actor: "system",
+      kind: "rebalance.buys_funded",
+      subject: systematicBuys.map((b) => b.symbol).join(", "),
+      payload: {
+        planId,
+        buys: plan.funding.buys,
+        shortfall: plan.funding.shortfall,
+        uncovered: plan.funding.uncovered,
+        sold: results.filter((r) => r.submitted === "submitted").map((r) => r.trade.proposal.symbol),
+      },
+    });
+  }
   await recordEvent(db, {
     actor: "system",
     kind: "rebalance.planned",

@@ -37,6 +37,7 @@ const ROUTES: Record<AuditKind, Route> = {
   "thesis.stale": "urgent", // the research loop may be down
   "thesis.review_overdue": "urgent", // an automatic sale: the review date passed
   "rebalance.planned": "digest",
+  "rebalance.buys_funded": "digest", // the planner trimmed holdings to pay for a systematic buy (#82)
 
   "capital.deposit_received": "digest", // your own action; invested at the next rebalance step
   "capital.transfer_reversed": "urgent", // e.g. a returned instant ACH: money taken back

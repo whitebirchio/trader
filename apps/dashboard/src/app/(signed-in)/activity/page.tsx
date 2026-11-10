@@ -24,6 +24,7 @@ const LABELS: Record<string, string> = {
   "strategy.rejected": "Strategy rejected",
   "thesis.stopped_out": "Thesis stopped out",
   "thesis.stale": "Thesis went stale",
+  "rebalance.buys_funded": "Trimmed holdings to fund a buy",
   "capital.deposit_received": "Deposit received",
   "capital.transfer_reversed": "Transfer reversed",
   "capital.transfer_canceled": "Transfer canceled",

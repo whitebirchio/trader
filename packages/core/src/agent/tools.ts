@@ -154,6 +154,7 @@ const ACTIVITY_KINDS = [
   "order.submitted", "order.filled", "order.partially_filled", "order.canceled", "order.rejected", "order.external",
   "risk.order_clipped", "risk.order_rejected", "risk.halted", "risk.kill_switch_on", "risk.resumed", "risk.buys_paused",
   "strategy.activated", "strategy.rejected", "thesis.stopped_out", "thesis.stale", "thesis.review_overdue",
+  "rebalance.buys_funded",
 ];
 
 type StoredTrade = { proposal?: { side?: string; symbol?: string; sleeve?: string; notional?: string; qty?: string }; reason?: string; verdict?: string; reasons?: string[]; submitted?: string };
@@ -334,6 +335,7 @@ export function getRules() {
       "Systematic picks sold at a loss in the last 30 days are skipped (wash sales), except VTI, where idle money sits; conviction buys are not, so weigh them yourself.",
       `Owner's direction (2026-11-04): no systematic momentum sleeve. Set systematic to idle-only, universe ["${IDLE_SYMBOL}"], topN 1, trendFilterDays null, weighting equal, defensive null, so everything not in a thesis sits in ${IDLE_SYMBOL}.`,
       `A new or larger thesis is funded by selling what's over target (usually ${IDLE_SYMBOL}), however small the gap, so a fully invested account can always buy it.`,
+      "So is a systematic buy the spare cash can't cover. Each time, get_activity shows a rebalance.buys_funded event: a sign the allocation may want a fresh look as a whole at your next run.",
     ],
     lifecycle: [
       "A thesis whose price closes at or below average cost × (1 − stopLossPct) is sold and stays stopped; re-entry needs a new id.",

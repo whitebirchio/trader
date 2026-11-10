@@ -37,6 +37,7 @@ export const AUDIT_KINDS = [
   "thesis.stale",
   "thesis.review_overdue",
   "rebalance.planned",
+  "rebalance.buys_funded",
   // Money in and out (SPEC-capital).
   "capital.deposit_received",
   "capital.transfer_reversed",
