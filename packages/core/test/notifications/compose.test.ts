@@ -103,6 +103,12 @@ describe("composeDigest", () => {
 });
 
 describe("composeDigest trade lines", () => {
+  it("says which holdings were trimmed to pay for a systematic buy, and what's still unfunded (#82)", () => {
+    const funded = (uncovered: string) => composeDigest({ ...base, events: [ev("rebalance.buys_funded", { shortfall: "48.10", uncovered, sold: ["VTI", "XLF"] }, "XLK")] }, "production").text;
+    expect(funded("0")).toContain("Sold VTI, XLF toward target to pay for XLK ($48.10 short in cash)");
+    expect(funded("5.00")).toContain("Sold VTI, XLF toward target to pay for XLK ($48.10 short in cash; $5.00 still unfunded)");
+  });
+
   it("words a broker rejection without a side", () => {
     const email = composeDigest({ ...base, events: [ev("order.rejected", { reason: "insufficient buying power" }, "VTI")] }, "production");
     expect(email.text).toContain("Broker rejected an order for VTI: insufficient buying power");

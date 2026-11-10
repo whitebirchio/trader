@@ -263,6 +263,8 @@ function tradeLine(e: NotifiableEvent): string | null {
       return `Canceled/expired: ${str(p.side)} ${sym} (${str(p.to)})`;
     case "order.rejected":
       return `Broker rejected an order for ${sym}: ${str(p.reason)}`;
+    case "rebalance.buys_funded":
+      return `Sold ${list(p.sold).join(", ")} toward target to pay for ${sym} ($${str(p.shortfall)} short in cash${p.uncovered && p.uncovered !== "0" ? `; $${str(p.uncovered)} still unfunded` : ""})`;
     default:
       return null;
   }

@@ -32,8 +32,14 @@ export interface Plan {
   /** `sell` if any sells are due (buys wait for a later step), else `buy`, else `none`. */
   phase: "sell" | "buy" | "none";
   trades: PlannedTrade[];
-  /** Trades held back by the same-day round-trip guard, as notes. */
+  /** Trades held back by the same-day round-trip guard, and buys nothing can fund, as notes. */
   deferred?: string[];
+  /**
+   * Buys the spare cash couldn't cover, and what's still short after every
+   * position over target was counted (`uncovered`, "0" if nothing). Present
+   * whenever funding sells were needed.
+   */
+  funding?: { buys: { symbol: string; sleeve: Sleeve; dollars: string }[]; shortfall: string; uncovered: string };
 }
 
 export interface PlanInput {
@@ -62,11 +68,13 @@ export interface PlanInput {
    */
   deployCash?: boolean;
   /**
-   * Cash free to spend (beyond any withdrawal reserve and buffer). When
-   * conviction buys need more than this, positions over target inside their
-   * band are sold back toward it to fund them, largest gap first, the same
-   * way as for a withdrawal. Without it, a new thesis smaller than the band
-   * could never be bought in a fully invested account. Omitted: no funding sells.
+   * Cash free to spend (beyond any withdrawal reserve and buffer). When the
+   * buys need more than this, positions over target inside their band are
+   * sold back toward it to fund them, largest gap first, the same way as for
+   * a withdrawal. Without it, a new thesis smaller than the band could never
+   * be bought in a fully invested account, and an underweight systematic
+   * holding would be proposed (and rejected for cash) every step (#82).
+   * Omitted: no funding sells.
    */
   spendableCash?: string;
   /**
@@ -149,15 +157,21 @@ export function planTrades(input: PlanInput): Plan {
     }
   }
 
-  // Conviction buys the spare cash can't cover are funded like a withdrawal:
-  // from positions over target, however small the gap (the band would
-  // otherwise keep a fully invested account from ever buying a new thesis).
-  const convictionNeed = buys.filter((b) => b.sleeve === "conviction").reduce((sum, b) => add(sum, b.dollars), "0");
-  const shortfall = input.spendableCash === undefined ? "0" : sub(convictionNeed, input.spendableCash);
+  // Buys the spare cash can't cover are funded like a withdrawal: from
+  // positions over target, however small the gap (the band would otherwise
+  // keep a fully invested account from ever buying a new thesis, or an
+  // underweight systematic holding waiting until prices crossed a band, #82).
+  const total = (sleeve?: Sleeve) => buys.filter((b) => !sleeve || b.sleeve === sleeve).reduce((sum, b) => add(sum, b.dollars), "0");
+  const shortfall = input.spendableCash === undefined ? "0" : sub(total(), input.spendableCash);
   const funding = compare(shortfall, MIN_TRADE_USD) >= 0 ? shortfall : null;
-  const purpose = raise && funding ? "your withdrawal and the conviction buys" : raise ? "your withdrawal" : "the conviction buys";
+  // Conviction buys go first, so the systematic ones are short only once the conviction ones have the cash.
+  const convictionShort = input.spendableCash !== undefined && compare(total("conviction"), input.spendableCash) > 0;
+  const systematicShort = compare(total("systematic"), "0") > 0;
+  const buysFunded = convictionShort && systematicShort ? "the conviction and systematic buys" : convictionShort ? "the conviction buys" : "the systematic buys";
+  const purpose = raise && funding ? `your withdrawal and ${buysFunded}` : raise ? "your withdrawal" : buysFunded;
   /** Funding sources the same-day guard held back. */
   const fundingBlocked: string[] = [];
+  let uncovered = "0";
   if (raise || funding) {
     let needed = sub(add(raise ?? "0", funding ?? "0"), selling);
     // VTI and the systematic sleeve first, theses last (their own buys would
@@ -179,10 +193,15 @@ export function planTrades(input: PlanInput): Plan {
       });
       needed = sub(needed, mul(qty, h.currentPrice));
     }
+    // What's left is the buys' share at most (the rest is a withdrawal's, which has its own notes).
+    const left = funding && compare(needed, funding) > 0 ? funding : needed;
+    if (funding) uncovered = compare(left, MIN_TRADE_USD) >= 0 ? round(left, 2, "up") : "0";
   }
 
-  // Risk's same-day round-trip guard: what can't trade today waits for tomorrow.
   const deferred: string[] = [];
+  if (compare(uncovered, "0") > 0) deferred.push(`$${uncovered} of ${buysFunded} can't be funded: nothing else is over its target`);
+
+  // Risk's same-day round-trip guard: what can't trade today waits for tomorrow.
   const defer = (symbol: string, side: "buy" | "sell") =>
     deferred.push(`${symbol}: ${side} waits until tomorrow (it was ${side === "sell" ? "bought" : "sold"} today, and same-day round trips are off)`);
   const allowed = (side: "buy" | "sell") => (t: PlannedTrade) => {
@@ -190,14 +209,15 @@ export function planTrades(input: PlanInput): Plan {
     defer(t.proposal.symbol, side);
     return false;
   };
-  const plan = (phase: Plan["phase"], trades: PlannedTrade[]): Plan => (deferred.length > 0 ? { phase, trades, deferred } : { phase, trades });
+  const fundingNote = funding ? { funding: { buys: buys.map((b) => ({ symbol: b.proposal.symbol, sleeve: b.sleeve, dollars: b.dollars })), shortfall: round(funding, 2, "up"), uncovered } } : {};
+  const plan = (phase: Plan["phase"], trades: PlannedTrade[]): Plan => ({ phase, trades, ...(deferred.length > 0 ? { deferred } : {}), ...fundingNote });
 
   const sellsNow = sells.filter(allowed("sell"));
   if (sellsNow.length > 0) return plan("sell", sellsNow);
   for (const symbol of fundingBlocked) defer(symbol, "sell");
   if (funding && (fundingBlocked.length > 0 || sells.length > 0)) {
-    // The sells that would fund the conviction buys wait for tomorrow, so the buys do too.
-    deferred.push(`the conviction buys wait for the sells that fund them ($${round(funding, 2, "up")} short in cash)`);
+    // The sells that would fund the buys wait for tomorrow, so the buys do too.
+    deferred.push(`${buysFunded} wait for the sells that fund them ($${round(funding, 2, "up")} short in cash)`);
     return plan("none", []);
   }
   const buysNow = buys.filter(allowed("buy"));

@@ -161,6 +161,26 @@ describe("planTrades: funding conviction buys in a fully invested account", () =
   it("keeps the old behaviour without spendableCash (no funding sells)", () => {
     expect(plan(targets, holdings).phase).toBe("buy");
   });
+
+  it("funds an underweight systematic holding the same way, rather than proposing a buy the cash can't cover every step (#82)", () => {
+    // VTI is $60 under target (past its $40 band) with no cash; XLF and XLK are $30 over, inside theirs.
+    const sys = [t("VTI", "200"), t("XLF", "270"), t("XLK", "170")];
+    const held = [h("VTI", "1", "140", "140"), h("XLF", "3", "300", "100"), h("XLK", "2", "200", "100")];
+    const p = plan(sys, held, { spendableCash: "0" });
+    expect(p.phase).toBe("sell");
+    expect(sold(p)).toEqual([["XLF", "0.3"], ["XLK", "0.3"]]);
+    expect(p.trades[0]?.reason).toBe("XLF is $30 over its $270 target; selling $30 of it to raise cash for the systematic buys");
+    expect(p.funding).toEqual({ buys: [{ symbol: "VTI", sleeve: "systematic", dollars: "60" }], shortfall: "60", uncovered: "0" });
+    // Once the sells have filled, the cash covers the buy.
+    expect(plan(sys, [h("VTI", "1", "140", "140"), h("XLF", "2.7", "270", "100"), h("XLK", "1.7", "170", "100")], { spendableCash: "60" })).toMatchObject({ phase: "buy", trades: [{ proposal: { symbol: "VTI", notional: "60" } }] });
+  });
+
+  it("names both sleeves when both are short, and notes what nothing can fund", () => {
+    const p = plan([t("BA", "50", "conviction"), t("VTI", "200"), t("XLF", "290")], [h("VTI", "1", "140", "140"), h("XLF", "3", "300", "100")], { spendableCash: "0" });
+    expect(p.trades[0]?.reason).toBe("XLF is $10 over its $290 target; selling $10 of it to raise cash for the conviction and systematic buys");
+    expect(p.funding).toMatchObject({ shortfall: "110", uncovered: "100" });
+    expect(p.deferred).toEqual(["$100 of the conviction and systematic buys can't be funded: nothing else is over its target"]);
+  });
 });
 
 describe("planTrades: same-day round-trip guard", () => {

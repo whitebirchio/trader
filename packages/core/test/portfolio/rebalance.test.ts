@@ -151,6 +151,34 @@ describe("rebalance", () => {
     expect(broker.orders.at(-1)).toMatchObject({ symbol: "AAPL", side: "buy" });
   });
 
+  it("funds an underweight systematic holding from the ones over target, and leaves Claude a note (#82)", async () => {
+    for (const symbol of ["XLK", "XLF"]) broker.assets.push({ symbol, name: `${symbol} Select Sector SPDR`, status: "active", tradable: true, fractionable: true, marginRequirementLong: "30" });
+    broker.bars = { ...broker.bars, XLK: bars("100"), XLF: bars("100") };
+    const three = { universe: ["VTI", "XLK", "XLF"], lookbackDays: 252, skipRecentDays: 21, topN: 3, trendFilterDays: null, weighting: "equal" as const, volatilityDays: 63, defensive: null };
+    await submitStrategy(db, strategy({ conviction: [], systematic: three }), "owner", clock);
+    await step();
+    await fillAll({ VTI: "300", XLK: "100", XLF: "100" }); // XLK and XLF held at the 20% cap, $200 each; VTI takes the overflow
+    // XLK falls 30% (the account 6%): $48 under its $188 target, past its band; VTI ($36) and XLF ($12) are over, inside theirs.
+    const xlk = broker.positions.find((p) => p.symbol === "XLK")!;
+    Object.assign(xlk, { currentPrice: "70", marketValue: mul(xlk.qty, "70") });
+    broker.account.equity = broker.positions.reduce((sum, p) => add(sum, p.marketValue), broker.account.cash);
+    clock = new Date(clock.getTime() + 86_400_000);
+    broker.calendar.push({ date: "2026-11-03", open: new Date("2026-11-03T14:30:00Z"), close: new Date("2026-11-03T21:00:00Z") });
+    broker.bars = { ...broker.bars, XLK: bars("70") };
+    await sync();
+
+    expect(await step()).toMatchObject({ status: "planned", phase: "sell" });
+    expect(broker.orders.filter((o) => o.status === "accepted").map((o) => [o.symbol, o.side]).sort()).toEqual([["VTI", "sell"], ["XLF", "sell"]]);
+    const [note] = (await db.select().from(auditEvents)).filter((e) => e.kind === "rebalance.buys_funded");
+    expect(note).toMatchObject({ actor: "system", subject: "XLK", payload: { buys: [{ symbol: "XLK", sleeve: "systematic" }], uncovered: "0" } });
+    expect((note!.payload as { sold: string[] }).sold.sort()).toEqual(["VTI", "XLF"]);
+
+    await fillAll({ VTI: "300", XLK: "70", XLF: "100" });
+    expect(await step()).toMatchObject({ status: "planned", phase: "buy" });
+    expect(broker.orders.at(-1)).toMatchObject({ symbol: "XLK", side: "buy" });
+    expect(await kinds()).not.toContain("risk.order_rejected");
+  });
+
   describe("while halted (SPEC-capital decision 2)", () => {
     async function holdVtiWithWithdrawal(amount: string) {
       await step();
