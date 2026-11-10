@@ -1,0 +1,1044 @@
+Replay 2019-01-02 → 2026-11-06: 1974 sessions, 6335 ms per session
+
+Performance (flow-adjusted)
+  Portfolio +139.68%  vs  VTI +218.38%  (2018-12-31 → 2026-11-06)
+
+Theses vs the same dollars in VTI
+  199 theses, 199 scored, 199 closed; excess -1.56% of $2061607.86 bought; beat VTI 37.19%; median 83 days held
+  WGS    removed    90d  +34.74% vs VTI +0.81% (excess +33.93%)  wgs-insiders-2026-06-08
+  FRPT   removed    90d  +35.9% vs VTI +1.2% (excess +34.71%)  frpt-insiders-2026-05-22
+  GEHC   removed    90d  +12.83% vs VTI +1.15% (excess +11.69%)  gehc-insiders-2026-05-26
+  OI     stopped    65d  -15.88% vs VTI +0.08% (excess -15.96%)  oi-insiders-2026-05-19
+  SHAK   stopped    12d  -15.84% vs VTI -1.35% (excess -14.49%)  shak-insiders-2026-05-18
+  VITL   overdue    90d  +12.27% vs VTI +2.09% (excess +10.18%)  vitl-insiders-2026-05-21
+  BMI    removed    90d  +4.84% vs VTI +3.71% (excess +1.14%)  bmi-insiders-2026-04-23
+  LULU   stopped    20d  -16.56% vs VTI +3.95% (excess -20.51%)  lulu-insiders-2026-04-03
+  CSGP   stopped    27d  -17.64% vs VTI +3.33% (excess -20.97%)  csgp-insiders-2026-03-09
+  IBM    removed    90d  +32.9% vs VTI +9.05% (excess +23.85%)  ibm-insiders-2026-02-25
+  PODD   stopped    27d  -14.72% vs VTI -7.33% (excess -7.39%)  podd-insiders-2026-02-26
+  ASST   removed    91d  +76.71% vs VTI +4.85% (excess +71.86%)  asst-insiders-2026-02-19
+  ZBIO   stopped    28d  -18.76% vs VTI -3.48% (excess -15.28%)  zbio-insiders-2026-02-13
+  VRNS   stopped     6d  -15.69% vs VTI +0.64% (excess -16.32%)  vrns-insiders-2026-02-10
+  MSTR   stopped     8d  -17.11% vs VTI -1.04% (excess -16.08%)  mstr-insiders-2026-01-21
+  WBI    removed    90d  +22.51% vs VTI -1.38% (excess +23.89%)  wbi-insiders-2026-01-07
+  IRDM   removed    90d  +13.9% vs VTI +1.93% (excess +11.97%)  irdm-insiders-2025-11-03
+  SMMT   stopped    21d  -15.53% vs VTI -3.79% (excess -11.75%)  smmt-insiders-2025-10-23
+  FDS    removed    90d  +4.5% vs VTI +3.97% (excess +0.52%)  fds-insiders-2025-10-08
+  KMX    stopped    23d  -17.22% vs VTI +0.6% (excess -17.82%)  kmx-insiders-2025-10-06
+  NEXT   stopped    22d  -15.72% vs VTI +0.55% (excess -16.27%)  next-insiders-2025-09-25
+  FRPT   removed    90d  +19.1% vs VTI +2.18% (excess +16.91%)  frpt-insiders-2025-09-18
+  RYAN   removed    90d  +0.02% vs VTI +2.27% (excess -2.25%)  ryan-insiders-2025-09-15
+  CAI    removed    12d  -11.32% vs VTI +0.76% (excess -12.08%)  cai-insiders-2025-06-23
+  CE     stopped    44d  -15.13% vs VTI +2.74% (excess -17.87%)  ce-insiders-2025-09-09
+  OXM    removed    90d  +6.96% vs VTI +4.57% (excess +2.39%)  oxm-insiders-2025-06-20
+  CABO   removed    90d  +18.28% vs VTI +5.87% (excess +12.41%)  cabo-insiders-2025-06-16
+  NEO    stopped    56d  -21.15% vs VTI +5.64% (excess -26.79%)  neo-insiders-2025-05-28
+  VSTS   stopped    69d  -13.82% vs VTI +4.74% (excess -18.56%)  vsts-insiders-2025-05-28
+  ENR    overdue    90d  +16.22% vs VTI +6.71% (excess +9.51%)  enr-insiders-2025-05-22
+  UNH    stopped    65d  -13.06% vs VTI +3.81% (excess -16.88%)  unh-insiders-2025-05-16
+  FRPT   stopped    15d  -15.95% vs VTI -5.29% (excess -10.67%)  frpt-insiders-2025-03-17
+  GTLS   stopped    10d  -26.75% vs VTI -11.7% (excess -15.04%)  gtls-insiders-2025-03-14
+  CMCO   stopped    17d  -23.97% vs VTI -10.58% (excess -13.4%)  cmco-insiders-2025-03-07
+  RCUS   stopped    13d  -15.28% vs VTI -2.86% (excess -12.42%)  rcus-insiders-2025-02-27
+  VMEO   stopped    30d  -15.21% vs VTI -7.77% (excess -7.44%)  vmeo-insiders-2025-02-24
+  BZH    stopped    38d  -19.3% vs VTI -14.11% (excess -5.19%)  bzh-insiders-2025-02-14
+  HP     stopped    38d  -15.45% vs VTI -13.2% (excess -2.25%)  hp-insiders-2025-02-19
+  CASK   stopped    44d  -16.79% vs VTI -15.29% (excess -1.5%)  cask-insiders-2025-02-13
+  DOW    removed    90d  -5.59% vs VTI -2.89% (excess -2.69%)  dow-insiders-2024-12-17
+  MMS    removed    90d  -5.01% vs VTI -3.08% (excess -1.93%)  mms-insiders-2024-12-18
+  TREE   removed    90d  +18.12% vs VTI -5% (excess +23.12%)  tree-insiders-2024-12-09
+  EL     removed    90d  +1.84% vs VTI -0.63% (excess +2.47%)  el-insiders-2024-11-20
+  CNC    removed    91d  -0.2% vs VTI +2.87% (excess -3.07%)  cnc-insiders-2024-11-13
+  CROX   removed    91d  +9.13% vs VTI +3.19% (excess +5.95%)  crox-insiders-2024-11-14
+  SEDG   removed    91d  +27.03% vs VTI +2.17% (excess +24.86%)  sedg-insiders-2024-11-14
+  TYRA   stopped    83d  -16.5% vs VTI +3.16% (excess -19.66%)  tyra-insiders-2024-11-13
+  LESL   stopped    71d  -11.04% vs VTI +4.72% (excess -15.76%)  lesl-insiders-2024-09-06
+  HUMA   stopped    71d  -9.7% vs VTI +5.53% (excess -15.24%)  huma-insiders-2024-09-03
+  ATEC   stopped     6d  -17.47% vs VTI -0.73% (excess -16.74%)  atec-insiders-2024-08-26
+  GT     removed    90d  +8.51% vs VTI +4.98% (excess +3.52%)  gt-insiders-2024-08-13
+  ECVT   removed    90d  +22.38% vs VTI +13.01% (excess +9.37%)  ecvt-insiders-2024-08-08
+  MBLY   stopped    24d  -19.62% vs VTI +0.87% (excess -20.48%)  mbly-insiders-2024-08-06
+  LW     removed    90d  +29.84% vs VTI +8.31% (excess +21.52%)  lw-insiders-2024-07-29
+  HPP    removed    59d  -1.23% vs VTI -1.1% (excess -0.13%)  hpp-insiders-2024-06-03
+  IRON   removed    90d  +8.31% vs VTI +4.42% (excess +3.89%)  iron-insiders-2024-06-20
+  CLF    stopped    78d  -15.39% vs VTI +1.43% (excess -16.83%)  clf-insiders-2024-06-13
+  VSTS   removed    91d  +10.49% vs VTI +3.78% (excess +6.71%)  vsts-insiders-2024-05-29
+  BHVN   stopped     8d  -25% vs VTI -1.09% (excess -23.92%)  bhvn-insiders-2024-05-15
+  TBBK   removed    90d  +34.8% vs VTI +2.7% (excess +32.1%)  tbbk-insiders-2024-05-08
+  CVS    removed    90d  +4.21% vs VTI -0.25% (excess +4.46%)  cvs-insiders-2024-05-02
+  NEOG   removed    90d  +30.06% vs VTI +7.64% (excess +22.43%)  neog-insiders-2024-04-17
+  AAOI   stopped    15d  -17.47% vs VTI -1.17% (excess -16.31%)  aaoi-insiders-2024-03-19
+  HLF    removed    90d  +14.27% vs VTI +2.96% (excess +11.31%)  hlf-insiders-2024-03-13
+  FLNC   removed    90d  +29.2% vs VTI +2.32% (excess +26.88%)  flnc-insiders-2024-03-04
+  RIG    removed    90d  +15.65% vs VTI +2.07% (excess +13.58%)  rig-insiders-2024-02-29
+  WOLF   stopped    13d  -16.2% vs VTI +0.87% (excess -17.06%)  wolf-insiders-2024-02-05
+  MBLY   removed    90d  +9.45% vs VTI +3.47% (excess +5.98%)  mbly-insiders-2024-02-01
+  GTLS   stopped    33d  -15.86% vs VTI +2.76% (excess -18.62%)  gtls-insiders-2023-12-15
+  VYX    stopped    80d  -13.48% vs VTI +9.29% (excess -22.77%)  vyx-insiders-2023-12-04
+  RILY   stopped    85d  -8.6% vs VTI +4.7% (excess -13.3%)  rily-insiders-2023-11-17
+  TKO    removed    91d  +10.12% vs VTI +8.47% (excess +1.64%)  tko-insiders-2023-11-14
+  MED    stopped    64d  -13.69% vs VTI +6.94% (excess -20.63%)  med-insiders-2023-11-09
+  NEOG   removed    90d  +9.89% vs VTI +10.45% (excess -0.56%)  neog-insiders-2023-11-03
+  STAA   stopped    23d  -16.67% vs VTI -0.81% (excess -15.86%)  staa-insiders-2023-10-06
+  MODV   stopped     8d  -21.09% vs VTI -1.62% (excess -19.48%)  modv-insiders-2023-09-19
+  TSE    stopped     9d  -20.48% vs VTI -1.73% (excess -18.75%)  tse-insiders-2023-09-18
+  FWRD   overdue    90d  -5.48% vs VTI +1.58% (excess -7.07%)  fwrd-insiders-2023-08-30
+  SKIN   stopped    45d  -11.08% vs VTI -1.82% (excess -9.25%)  skin-insiders-2023-08-21
+  LTH    stopped    45d  -15.7% vs VTI -1.95% (excess -13.75%)  lth-insiders-2023-08-17
+  CERE   removed    90d  +6.7% vs VTI -1.92% (excess +8.62%)  cere-insiders-2023-08-07
+  LESL   stopped    27d  -14.04% vs VTI +0.13% (excess -14.18%)  lesl-insiders-2023-08-09
+  CNXC   stopped    52d  -14.39% vs VTI -1.4% (excess -12.99%)  cnxc-insiders-2023-07-07
+  AAP    stopped    84d  -11.38% vs VTI +1.54% (excess -12.92%)  aap-insiders-2023-06-13
+  DG     stopped    71d  -16.97% vs VTI +2.41% (excess -19.38%)  dg-insiders-2023-06-12
+  EGBN   overdue    90d  +21.63% vs VTI +6.98% (excess +14.65%)  egbn-insiders-2023-05-22
+  ADT    removed    90d  +7.26% vs VTI +6.57% (excess +0.68%)  adt-insiders-2023-05-08
+  SCHW   removed    90d  +6.5% vs VTI +6.26% (excess +0.24%)  schw-insiders-2023-03-29
+  CVBF   stopped    27d  -16.17% vs VTI +4.71% (excess -20.89%)  cvbf-insiders-2023-03-15
+  DVN    removed    91d  +7.04% vs VTI +8.28% (excess -1.24%)  dvn-insiders-2023-03-15
+  HASI   removed    91d  +10.18% vs VTI +7.77% (excess +2.41%)  hasi-insiders-2023-03-16
+  PACW   stopped     3d  -18.67% vs VTI +0.43% (excess -19.1%)  pacw-insiders-2023-03-13
+  CLFD   stopped    21d  -18.41% vs VTI -2.95% (excess -15.46%)  clfd-insiders-2023-02-14
+  TPL    stopped    29d  -16.73% vs VTI -6.17% (excess -10.57%)  tpl-insiders-2023-02-08
+  RILY   stopped    62d  -7.8% vs VTI -0.62% (excess -7.17%)  rily-insiders-2022-12-30
+  NRG    overdue    90d  +2.07% vs VTI +3.34% (excess -1.27%)  nrg-insiders-2022-12-16
+  HLF    removed    90d  +18.43% vs VTI +2.73% (excess +15.7%)  hlf-insiders-2022-12-13
+  VFC    stopped    83d  -14.29% vs VTI +0.14% (excess -14.43%)  vfc-insiders-2022-12-15
+  WWW    removed    90d  +42.84% vs VTI +2.86% (excess +39.97%)  www-insiders-2022-12-13
+  HPP    removed    90d  -2.17% vs VTI +5.48% (excess -7.65%)  hpp-insiders-2022-10-04
+  JELD   removed    91d  +10.5% vs VTI +3.91% (excess +6.59%)  jeld-insiders-2022-09-26
+  RAMP   removed    91d  +25.36% vs VTI +3.88% (excess +21.48%)  ramp-insiders-2022-09-26
+  WE     stopped     6d  -19.05% vs VTI -4.94% (excess -14.1%)  we-insiders-2022-09-06
+  DBRG   stopped    16d  -18.7% vs VTI -5.37% (excess -13.34%)  dbrg-insiders-2022-09-01
+  FCX    overdue    90d  +28.06% vs VTI +0.93% (excess +27.12%)  fcx-insiders-2022-08-30
+  GRPN   stopped    16d  -15% vs VTI -5.35% (excess -9.65%)  grpn-insiders-2022-09-01
+  PRG    stopped    38d  -14.38% vs VTI -12.88% (excess -1.5%)  prg-insiders-2022-08-05
+  SPG    removed    90d  -1.8% vs VTI -4.69% (excess +2.89%)  spg-insiders-2022-07-05
+  CMP    removed    90d  +2.12% vs VTI -3.18% (excess +5.3%)  cmp-insiders-2022-06-21
+  TUP    overdue    89d  +25.57% vs VTI +3.9% (excess +21.67%)  tup-insiders-2022-06-14
+  CROX   stopped    16d  -15.11% vs VTI -10.78% (excess -4.33%)  crox-insiders-2022-05-26
+  CVNA   stopped     1d  -21.77% vs VTI +1.37% (excess -23.14%)  cvna-insiders-2022-05-26
+  ENVX   stopped    28d  -19.35% vs VTI -6.73% (excess -12.63%)  envx-insiders-2022-05-23
+  HLF    overdue    90d  +17.81% vs VTI -2.19% (excess +20%)  hlf-insiders-2022-05-25
+  IHRT   stopped     8d  -18.41% vs VTI -0.39% (excess -18.02%)  ihrt-insiders-2022-05-12
+  PRPL   stopped    13d  -17.59% vs VTI -2.56% (excess -15.03%)  prpl-insiders-2022-04-04
+  SOFI   stopped    15d  -14.68% vs VTI -2.1% (excess -12.58%)  sofi-insiders-2022-03-18
+  COMM   stopped    15d  -16.67% vs VTI -0.1% (excess -16.56%)  comm-insiders-2022-03-15
+  ATGE   removed    91d  +47.11% vs VTI -5.38% (excess +52.48%)  atge-insiders-2022-02-23
+  KOD    stopped     0d  -78.98% vs VTI -1.84% (excess -77.14%)  kod-insiders-2022-02-17
+  LOB    stopped    36d  -16.32% vs VTI +4.73% (excess -21.05%)  lob-insiders-2022-02-11
+  TWOU   overdue    90d  +13.71% vs VTI -5.77% (excess +19.48%)  twou-insiders-2022-02-16
+  BIGZ   stopped     9d  -15.67% vs VTI -2.62% (excess -13.05%)  bigz-insiders-2022-02-09
+  BBIO   stopped     8d  -18.67% vs VTI -3.28% (excess -15.39%)  bbio-insiders-2022-01-06
+  HYLN   stopped    14d  -16.63% vs VTI -1.81% (excess -14.83%)  hyln-insiders-2021-12-20
+  XELA   stopped     9d  -16.64% vs VTI +4.56% (excess -21.21%)  xela-insiders-2021-12-14
+  GOCO   stopped    38d  -19.95% vs VTI -0.41% (excess -19.54%)  goco-insiders-2021-11-23
+  MGI    removed    91d  +52.25% vs VTI -5.88% (excess +58.12%)  mgi-insiders-2021-11-16
+  TRHC   stopped     9d  -15.73% vs VTI -2.65% (excess -13.08%)  trhc-insiders-2021-11-17
+  BBBY   stopped    15d  -14.91% vs VTI -4.25% (excess -10.65%)  bbby-insiders-2021-11-09
+  RCII   stopped    79d  -11.57% vs VTI -5.6% (excess -5.96%)  rcii-insiders-2021-11-09
+  HIBB   removed    90d  -6.86% vs VTI +3.8% (excess -10.67%)  hibb-insiders-2021-10-06
+  OSCR   stopped    14d  -14.25% vs VTI -1.72% (excess -12.53%)  oscr-insiders-2021-09-17
+  SLQT   stopped    48d  -16.74% vs VTI +5.86% (excess -22.6%)  slqt-insiders-2021-09-13
+  APPS   removed    90d  +13.75% vs VTI +1.64% (excess +12.11%)  apps-insiders-2021-08-19
+  COMM   stopped    42d  -13.92% vs VTI -2.19% (excess -11.73%)  comm-insiders-2021-08-17
+  CDE    removed    90d  +3.68% vs VTI +3.35% (excess +0.33%)  cde-insiders-2021-08-10
+  TNL    removed    90d  +4.55% vs VTI +3.8% (excess +0.75%)  tnl-insiders-2021-08-09
+  CVM    stopped     6d  -16.93% vs VTI -3.16% (excess -13.77%)  cvm-insiders-2021-07-07
+  EVFM   stopped     9d  -20.09% vs VTI +0.08% (excess -20.17%)  evfm-insiders-2021-06-21
+  SAGE   stopped    27d  -15.83% vs VTI +0.01% (excess -15.84%)  sage-insiders-2021-06-17
+  AUPH   removed    90d  +17.22% vs VTI +4.72% (excess +12.5%)  auph-insiders-2021-05-13
+  KPTI   stopped    78d  -9.67% vs VTI +3.71% (excess -13.39%)  kpti-insiders-2021-05-11
+  NFE    stopped    57d  -10.57% vs VTI +3.17% (excess -13.74%)  nfe-insiders-2021-05-13
+  MAXR   removed    90d  +2.47% vs VTI +3.79% (excess -1.32%)  maxr-insiders-2021-05-06
+  SNDX   removed    90d  -4.99% vs VTI +2.64% (excess -7.63%)  sndx-insiders-2021-04-28
+  SLDB   stopped    14d  -15.53% vs VTI +3.93% (excess -19.46%)  sldb-insiders-2021-03-23
+  KNSL   removed    90d  -4.16% vs VTI +5.09% (excess -9.25%)  knsl-insiders-2021-03-11
+  HOFV   removed    90d  +49.81% vs VTI +6.29% (excess +43.52%)  hofv-insiders-2020-11-20
+  GTHX   removed    90d  +48.45% vs VTI +4.26% (excess +44.19%)  gthx-insiders-2020-11-19
+  PBF    stopped    21d  -16.67% vs VTI -0.49% (excess -16.19%)  pbf-insiders-2020-10-01
+  KRTX   removed    90d  +14.9% vs VTI +9.31% (excess +5.59%)  krtx-insiders-2020-09-11
+  BOH    removed    90d  +36.07% vs VTI +7.21% (excess +28.86%)  boh-insiders-2020-09-10
+  DDD    removed    90d  +45.89% vs VTI +6.04% (excess +39.85%)  ddd-insiders-2020-09-08
+  EHTH   stopped    10d  -15.67% vs VTI +3.34% (excess -19.01%)  ehth-insiders-2020-08-10
+  RCUS   stopped    35d  -17.24% vs VTI -1.72% (excess -15.52%)  rcus-insiders-2020-08-11
+  DNB    removed    90d  +6.54% vs VTI +10.2% (excess -3.65%)  dnb-insiders-2020-07-07
+  EVFM   stopped    80d  -12.47% vs VTI +5.19% (excess -17.65%)  evfm-insiders-2020-06-18
+  ARNC   removed    90d  +38.62% vs VTI +9.74% (excess +28.88%)  arnc-insiders-2020-05-22
+  BXP    removed    90d  +4.54% vs VTI +10.55% (excess -6.01%)  bxp-insiders-2020-05-27
+  RESI   overdue    90d  +33.36% vs VTI +14.16% (excess +19.2%)  resi-insiders-2020-05-15
+  STL    stopped    44d  -11.49% vs VTI +5.39% (excess -16.87%)  stl-insiders-2020-05-21
+  HI     stopped     2d  -16.97% vs VTI -10.07% (excess -6.9%)  hi-insiders-2020-03-03
+  NGVT   stopped     2d  -16.22% vs VTI -10.26% (excess -5.96%)  ngvt-insiders-2020-03-05
+  R      stopped     6d  -17.76% vs VTI -11.56% (excess -6.2%)  r-insiders-2020-02-28
+  VVI    stopped     2d  -20.62% vs VTI -10.2% (excess -10.42%)  vvi-insiders-2020-03-05
+  BKR    stopped     6d  -18.31% vs VTI -11.4% (excess -6.91%)  bkr-insiders-2020-02-26
+  KN     stopped    19d  -14.63% vs VTI -17.88% (excess +3.25%)  kn-insiders-2020-02-12
+  ATGE   removed    90d  -1.08% vs VTI +2.52% (excess -3.6%)  atge-insiders-2019-11-18
+  ATNX   removed    91d  +18.46% vs VTI +4.72% (excess +13.74%)  atnx-insiders-2019-11-12
+  CHK    stopped     1d  -17.92% vs VTI -0.29% (excess -17.63%)  chk-insiders-2019-11-14
+  REZI   removed    91d  -2.55% vs VTI +5.19% (excess -7.74%)  rezi-insiders-2019-11-14
+  TDC    removed    91d  -10.17% vs VTI +6.48% (excess -16.64%)  tdc-insiders-2019-11-13
+  TNET   removed    91d  +9.91% vs VTI +6.63% (excess +3.28%)  tnet-insiders-2019-11-14
+  DBD    removed    90d  +25.11% vs VTI +4.86% (excess +20.25%)  dbd-insiders-2019-11-05
+  ATI    removed    90d  +25.56% vs VTI +5.7% (excess +19.86%)  ati-insiders-2019-08-15
+  AXGN   stopped    41d  -20.41% vs VTI +1.75% (excess -22.15%)  axgn-insiders-2019-08-15
+  CADE   removed    90d  +6.03% vs VTI +5.46% (excess +0.57%)  cade-insiders-2019-08-12
+  CARS   removed    90d  +30.77% vs VTI +5.28% (excess +25.49%)  cars-insiders-2019-08-13
+  CRC    stopped    44d  -3.71% vs VTI -0.4% (excess -3.31%)  crc-insiders-2019-08-15
+  CC     removed    90d  +37.49% vs VTI +5.47% (excess +32.02%)  cc-insiders-2019-08-08
+  ETRN   removed    90d  -10.03% vs VTI +5.49% (excess -15.52%)  etrn-insiders-2019-08-05
+  LGND   removed    90d  +12.5% vs VTI +5.79% (excess +6.71%)  lgnd-insiders-2019-08-06
+  AMRX   stopped    27d  -18.55% vs VTI +1.66% (excess -20.22%)  amrx-insiders-2019-05-16
+  CWH    stopped    79d  -22.09% vs VTI +3.49% (excess -25.59%)  cwh-insiders-2019-05-13
+  LCI    removed    90d  +15.96% vs VTI +2.4% (excess +13.56%)  lci-insiders-2019-05-15
+  MOS    removed    90d  -7.17% vs VTI +2.17% (excess -9.35%)  mos-insiders-2019-05-10
+  OSUR   stopped    87d  -13.42% vs VTI +1.96% (excess -15.38%)  osur-insiders-2019-05-14
+  RLGY   stopped    30d  -17.75% vs VTI +2.62% (excess -20.37%)  rlgy-insiders-2019-05-08
+  BIIB   removed    90d  +4.11% vs VTI -2.46% (excess +6.57%)  biib-insiders-2019-05-02
+  TLRD   stopped    30d  -18.84% vs VTI -2.57% (excess -16.26%)  tlrd-insiders-2019-04-15
+  KYN    overdue    90d  +22.49% vs VTI +14.65% (excess +7.84%)  kyn-insiders-2018-12-28
+  MDCO   overdue    90d  +42.49% vs VTI +12.05% (excess +30.45%)  mdco-insiders-2018-12-27
+  MHK    overdue    90d  +9.43% vs VTI +13.37% (excess -3.94%)  mhk-insiders-2018-12-28
+  OII    overdue    90d  +25.65% vs VTI +10.83% (excess +14.82%)  oii-insiders-2018-12-28
+  CHK    overdue    90d  +44.08% vs VTI +10.57% (excess +33.51%)  chk-insiders-2018-12-27
+  GTHX   stopped    74d  -16.58% vs VTI +13.8% (excess -30.38%)  gthx-insiders-2018-12-27
+  HHC    overdue    90d  +12.37% vs VTI +13.67% (excess -1.3%)  hhc-insiders-2018-12-26
+  HOME   overdue    90d  +2.03% vs VTI +10.28% (excess -8.25%)  home-insiders-2018-12-26
+
+Trading
+  6085 fills (2927 buys, 3158 sells); bought $3575730.71, sold $3475746.62; turnover 2041.9% of average equity
+  Realized: short-term $134803.10, long-term $0.00
+  Wash sales: 633
+    BIIB sold at a $0.81 loss on 2019-05-20, bought back 2019-05-24
+    AMRX sold at a $0.28 loss on 2019-05-23, bought back 2019-05-24
+    CWH sold at a $3.63 loss on 2019-05-24, bought back 2019-05-30
+    MOS sold at a $0.27 loss on 2019-05-24, bought back 2019-05-28
+    RLGY sold at a $21.52 loss on 2019-05-28, bought back 2019-05-30
+    AMRX sold at a $2.07 loss on 2019-05-28, bought back 2019-05-29
+    RLGY sold at a $12.07 loss on 2019-05-29, bought back 2019-05-30
+    MOS sold at a $4.43 loss on 2019-05-30, bought back 2019-06-14
+    LGND sold at a $2.95 loss on 2019-08-14, bought back 2019-08-16
+    ETRN sold at a $1.65 loss on 2019-08-14, bought back 2019-08-15
+    LGND sold at a $0.40 loss on 2019-08-15, bought back 2019-08-16
+    CC sold at a $7.14 loss on 2019-08-15, bought back 2019-08-16
+    ETRN sold at a $6.81 loss on 2019-08-16, bought back 2019-08-19
+    ETRN sold at a $2.28 loss on 2019-09-18, bought back 2019-09-20
+    ETRN sold at a $2.40 loss on 2019-09-19, bought back 2019-09-20
+    ETRN sold at a $2.65 loss on 2019-09-23, bought back 2019-09-27
+    ETRN sold at a $1.78 loss on 2019-09-24, bought back 2019-09-27
+    ETRN sold at a $3.42 loss on 2019-09-25, bought back 2019-09-27
+    CARS sold at a $1.15 loss on 2019-09-26, bought back 2019-09-27
+    DBD sold at a $10.56 loss on 2019-11-26, bought back 2019-11-27
+    REZI sold at a $1.55 loss on 2019-11-26, bought back 2019-11-27
+    DBD sold at a $20.99 loss on 2019-11-29, bought back 2019-12-20
+    ATGE sold at a $0.38 loss on 2019-12-02, bought back 2019-12-04
+    ATGE sold at a $2.16 loss on 2019-12-03, bought back 2019-12-04
+    TNET sold at a $0.02 loss on 2019-12-03, bought back 2019-12-04
+    REZI sold at a $7.87 loss on 2019-12-04, bought back 2019-12-09
+    DBD sold at a $6.15 loss on 2019-12-05, bought back 2019-12-20
+    DBD sold at a $7.94 loss on 2019-12-06, bought back 2019-12-20
+    ATGE sold at a $1.66 loss on 2019-12-09, bought back 2019-12-10
+    TDC sold at a $0.87 loss on 2019-12-09, bought back 2019-12-10
+    DBD sold at a $6.07 loss on 2019-12-10, bought back 2019-12-20
+    ATGE sold at a $0.83 loss on 2019-12-11, bought back 2019-12-17
+    DBD sold at a $3.24 loss on 2019-12-12, bought back 2019-12-20
+    ATGE sold at a $0.11 loss on 2019-12-12, bought back 2019-12-17
+    TDC sold at a $0.22 loss on 2020-01-07, bought back 2020-01-08
+    TDC sold at a $0.01 loss on 2020-01-22, bought back 2020-01-24
+    TDC sold at a $3.45 loss on 2020-02-06, bought back 2020-02-10
+    TDC sold at a $6.49 loss on 2020-02-07, bought back 2020-02-10
+    TDC sold at a $5.36 loss on 2020-02-11, bought back 2020-02-12
+    ATGE sold at a $4.12 loss on 2020-02-12, bought back 2020-02-19
+    ATGE sold at a $1.01 loss on 2020-02-13, bought back 2020-02-19
+    KN sold at a $10.32 loss on 2020-02-25, bought back 2020-03-03
+    KN sold at a $10.90 loss on 2020-02-26, bought back 2020-03-03
+    KN sold at a $14.01 loss on 2020-02-27, bought back 2020-03-03
+    KN sold at a $6.17 loss on 2020-02-28, bought back 2020-03-03
+    KN sold at a $9.26 loss on 2020-03-02, bought back 2020-03-03
+    KN sold at a $7.85 loss on 2020-03-04, bought back 2020-03-05
+    VTI sold at a $59.16 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $0.06 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $7.39 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $9.49 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $7.70 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $6.54 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $12.47 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $13.64 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $29.25 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $8.84 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $3.22 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $4.26 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $0.68 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $48.46 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $111.26 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $39.94 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $64.07 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $11.00 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $209.16 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $0.66 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $0.68 loss on 2020-03-09, bought back 2020-03-12
+    VTI sold at a $8.20 loss on 2020-03-10, bought back 2020-03-12
+    VTI sold at a $0.01 loss on 2020-03-10, bought back 2020-03-12
+    VTI sold at a $0.99 loss on 2020-03-10, bought back 2020-03-12
+    VTI sold at a $0.16 loss on 2020-03-11, bought back 2020-03-12
+    VTI sold at a $4.71 loss on 2020-03-13, bought back 2020-03-17
+    VTI sold at a $13.58 loss on 2020-03-13, bought back 2020-03-17
+    VTI sold at a $57.70 loss on 2020-03-20, bought back 2020-03-23
+    VTI sold at a $72.02 loss on 2020-03-24, bought back 2020-04-01
+    VTI sold at a $81.11 loss on 2020-03-25, bought back 2020-04-01
+    VTI sold at a $23.69 loss on 2020-03-26, bought back 2020-04-01
+    VTI sold at a $24.73 loss on 2020-03-27, bought back 2020-04-01
+    VTI sold at a $6.85 loss on 2020-03-30, bought back 2020-04-01
+    VTI sold at a $26.69 loss on 2020-03-31, bought back 2020-04-01
+    VTI sold at a $30.54 loss on 2020-04-03, bought back 2020-04-08
+    VTI sold at a $35.82 loss on 2020-04-06, bought back 2020-04-08
+    VTI sold at a $41.16 loss on 2020-04-07, bought back 2020-04-08
+    VTI sold at a $19.32 loss on 2020-04-09, bought back 2020-04-13
+    VTI sold at a $5.17 loss on 2020-04-14, bought back 2020-04-15
+    VTI sold at a $1.89 loss on 2020-04-16, bought back 2020-04-20
+    VTI sold at a $5.83 loss on 2020-04-17, bought back 2020-04-20
+    VTI sold at a $4.09 loss on 2020-04-22, bought back 2020-04-30
+    VTI sold at a $2.87 loss on 2020-04-23, bought back 2020-04-30
+    VTI sold at a $0.82 loss on 2020-04-24, bought back 2020-04-30
+    VTI sold at a $3.71 loss on 2020-04-27, bought back 2020-04-30
+    VTI sold at a $3.40 loss on 2020-05-05, bought back 2020-05-11
+    VTI sold at a $0.39 loss on 2020-05-06, bought back 2020-05-11
+    VTI sold at a $0.06 loss on 2020-05-07, bought back 2020-05-11
+    VTI sold at a $2.36 loss on 2020-05-15, bought back 2020-05-22
+    EVFM sold at a $5.41 loss on 2020-06-24, bought back 2020-06-25
+    VTI sold at a $3.30 loss on 2020-06-25, bought back 2020-06-26
+    STL sold at a $4.57 loss on 2020-06-26, bought back 2020-06-29
+    VTI sold at a $5.53 loss on 2020-06-29, bought back 2020-06-30
+    VTI sold at a $2.02 loss on 2020-06-29, bought back 2020-06-30
+    DNB sold at a $1.87 loss on 2020-07-16, bought back 2020-07-22
+    DNB sold at a $1.12 loss on 2020-07-20, bought back 2020-07-22
+    DNB sold at a $0.22 loss on 2020-07-21, bought back 2020-07-22
+    DNB sold at a $0.93 loss on 2020-07-24, bought back 2020-07-29
+    DNB sold at a $0.18 loss on 2020-07-27, bought back 2020-07-29
+    DNB sold at a $0.17 loss on 2020-07-28, bought back 2020-07-29
+    DNB sold at a $0.92 loss on 2020-07-30, bought back 2020-07-31
+    DNB sold at a $5.73 loss on 2020-08-03, bought back 2020-08-06
+    DNB sold at a $0.70 loss on 2020-08-04, bought back 2020-08-06
+    DNB sold at a $3.81 loss on 2020-08-10, bought back 2020-08-11
+    DNB sold at a $2.44 loss on 2020-08-12, bought back 2020-08-14
+    DNB sold at a $6.72 loss on 2020-08-13, bought back 2020-08-14
+    DNB sold at a $2.89 loss on 2020-08-17, bought back 2020-08-18
+    DNB sold at a $0.06 loss on 2020-08-17, bought back 2020-08-18
+    DNB sold at a $6.56 loss on 2020-08-20, bought back 2020-08-24
+    DNB sold at a $1.12 loss on 2020-08-21, bought back 2020-08-24
+    DNB sold at a $0.85 loss on 2020-08-25, bought back 2020-08-28
+    RCUS sold at a $20.61 loss on 2020-09-11, bought back 2020-09-14
+    DNB sold at a $17.32 loss on 2020-09-11, bought back 2020-09-14
+    VTI sold at a $137.61 loss on 2020-09-21, bought back 2020-09-22
+    VTI sold at a $5.09 loss on 2020-09-21, bought back 2020-09-22
+    DDD sold at a $1.26 loss on 2020-09-21, bought back 2020-09-22
+    DNB sold at a $8.29 loss on 2020-10-05, bought back 2020-10-06
+    BOH sold at a $2.96 loss on 2020-10-05, bought back 2020-10-12
+    KRTX sold at a $8.83 loss on 2020-10-06, bought back 2020-10-08
+    KRTX sold at a $13.77 loss on 2020-10-23, bought back 2020-10-26
+    KRTX sold at a $7.55 loss on 2020-10-27, bought back 2020-10-30
+    KRTX sold at a $8.40 loss on 2020-10-28, bought back 2020-10-30
+    KRTX sold at a $1.76 loss on 2020-10-29, bought back 2020-10-30
+    KRTX sold at a $2.30 loss on 2020-11-02, bought back 2020-11-06
+    KNSL sold at a $0.29 loss on 2021-04-06, bought back 2021-04-08
+    KNSL sold at a $1.66 loss on 2021-04-07, bought back 2021-04-08
+    SLDB sold at a $29.80 loss on 2021-04-08, bought back 2021-04-09
+    KNSL sold at a $5.35 loss on 2021-04-09, bought back 2021-04-14
+    KNSL sold at a $0.67 loss on 2021-04-12, bought back 2021-04-14
+    KNSL sold at a $0.71 loss on 2021-04-13, bought back 2021-04-14
+    KNSL sold at a $1.18 loss on 2021-04-15, bought back 2021-04-16
+    KNSL sold at a $4.69 loss on 2021-04-21, bought back 2021-04-29
+    KNSL sold at a $4.10 loss on 2021-04-22, bought back 2021-04-29
+    KNSL sold at a $0.92 loss on 2021-04-23, bought back 2021-04-29
+    SNDX sold at a $5.19 loss on 2021-05-06, bought back 2021-05-07
+    KNSL sold at a $0.48 loss on 2021-05-07, bought back 2021-05-10
+    SNDX sold at a $5.46 loss on 2021-05-10, bought back 2021-05-11
+    MAXR sold at a $31.50 loss on 2021-05-12, bought back 2021-05-13
+    SNDX sold at a $3.94 loss on 2021-05-12, bought back 2021-05-17
+    MAXR sold at a $0.25 loss on 2021-05-14, bought back 2021-05-18
+    KNSL sold at a $23.59 loss on 2021-05-17, bought back 2021-05-18
+    MAXR sold at a $1.68 loss on 2021-05-17, bought back 2021-05-18
+    MAXR sold at a $0.03 loss on 2021-05-17, bought back 2021-05-18
+    KNSL sold at a $0.12 loss on 2021-05-17, bought back 2021-05-18
+    KNSL sold at a $0.12 loss on 2021-05-17, bought back 2021-05-18
+    MAXR sold at a $0.03 loss on 2021-05-17, bought back 2021-05-18
+    MAXR sold at a $2.88 loss on 2021-05-19, bought back 2021-05-21
+    KNSL sold at a $2.30 loss on 2021-05-19, bought back 2021-05-24
+    MAXR sold at a $7.75 loss on 2021-05-20, bought back 2021-05-21
+    KNSL sold at a $8.37 loss on 2021-05-20, bought back 2021-05-24
+    KNSL sold at a $8.82 loss on 2021-05-21, bought back 2021-05-24
+    MAXR sold at a $0.75 loss on 2021-05-24, bought back 2021-05-25
+    MAXR sold at a $21.83 loss on 2021-05-26, bought back 2021-06-01
+    KNSL sold at a $1.72 loss on 2021-05-26, bought back 2021-05-27
+    MAXR sold at a $1.30 loss on 2021-05-27, bought back 2021-06-01
+    KNSL sold at a $0.59 loss on 2021-05-28, bought back 2021-06-02
+    KNSL sold at a $3.09 loss on 2021-06-01, bought back 2021-06-02
+    KNSL sold at a $3.60 loss on 2021-06-03, bought back 2021-06-04
+    KNSL sold at a $3.25 loss on 2021-06-07, bought back 2021-06-08
+    KNSL sold at a $1.31 loss on 2021-06-09, bought back 2021-06-10
+    NFE sold at a $0.81 loss on 2021-06-15, bought back 2021-06-18
+    NFE sold at a $6.26 loss on 2021-06-29, bought back 2021-07-01
+    NFE sold at a $3.17 loss on 2021-06-30, bought back 2021-07-01
+    NFE sold at a $5.36 loss on 2021-07-02, bought back 2021-07-06
+    SAGE sold at a $0.90 loss on 2021-07-12, bought back 2021-07-14
+    KPTI sold at a $0.56 loss on 2021-07-19, bought back 2021-07-29
+    CDE sold at a $9.40 loss on 2021-08-24, bought back 2021-08-25
+    TNL sold at a $1.96 loss on 2021-08-24, bought back 2021-08-27
+    CDE sold at a $7.92 loss on 2021-08-27, bought back 2021-08-31
+    CDE sold at a $0.03 loss on 2021-09-13, bought back 2021-09-15
+    COMM sold at a $2.40 loss on 2021-09-14, bought back 2021-09-15
+    COMM sold at a $3.81 loss on 2021-09-16, bought back 2021-09-20
+    COMM sold at a $1.67 loss on 2021-09-17, bought back 2021-09-20
+    CDE sold at a $18.04 loss on 2021-09-21, bought back 2021-09-23
+    COMM sold at a $2.78 loss on 2021-09-21, bought back 2021-09-22
+    CDE sold at a $11.53 loss on 2021-09-22, bought back 2021-09-23
+    COMM sold at a $24.18 loss on 2021-09-24, bought back 2021-09-27
+    CDE sold at a $13.06 loss on 2021-09-27, bought back 2021-09-28
+    SLQT sold at a $10.54 loss on 2021-09-28, bought back 2021-09-29
+    COMM sold at a $15.24 loss on 2021-09-28, bought back 2021-09-29
+    CDE sold at a $27.71 loss on 2021-09-29, bought back 2021-09-30
+    COMM sold at a $12.58 loss on 2021-09-30, bought back 2021-10-04
+    SLQT sold at a $11.05 loss on 2021-09-30, bought back 2021-10-05
+    CDE sold at a $26.26 loss on 2021-10-01, bought back 2021-10-04
+    SLQT sold at a $4.02 loss on 2021-10-01, bought back 2021-10-05
+    COMM sold at a $1.08 loss on 2021-10-01, bought back 2021-10-04
+    SLQT sold at a $0.52 loss on 2021-10-04, bought back 2021-10-05
+    CDE sold at a $12.21 loss on 2021-10-07, bought back 2021-10-11
+    OSCR sold at a $3.09 loss on 2021-10-07, bought back 2021-10-08
+    CDE sold at a $29.36 loss on 2021-10-08, bought back 2021-10-11
+    SLQT sold at a $14.15 loss on 2021-10-08, bought back 2021-10-11
+    SLQT sold at a $21.56 loss on 2021-10-12, bought back 2021-10-18
+    CDE sold at a $13.02 loss on 2021-10-12, bought back 2021-10-15
+    CDE sold at a $1.49 loss on 2021-10-13, bought back 2021-10-15
+    SLQT sold at a $1.43 loss on 2021-10-13, bought back 2021-10-18
+    CDE sold at a $17.83 loss on 2021-10-14, bought back 2021-10-15
+    SLQT sold at a $16.91 loss on 2021-10-14, bought back 2021-10-18
+    HIBB sold at a $4.33 loss on 2021-10-14, bought back 2021-10-18
+    SLQT sold at a $4.40 loss on 2021-10-15, bought back 2021-10-18
+    HIBB sold at a $0.07 loss on 2021-10-15, bought back 2021-10-18
+    SLQT sold at a $3.21 loss on 2021-10-20, bought back 2021-10-22
+    CDE sold at a $12.40 loss on 2021-10-21, bought back 2021-10-26
+    SLQT sold at a $0.37 loss on 2021-10-21, bought back 2021-10-22
+    CDE sold at a $9.64 loss on 2021-10-22, bought back 2021-10-26
+    CDE sold at a $3.64 loss on 2021-10-25, bought back 2021-10-26
+    SLQT sold at a $5.37 loss on 2021-10-26, bought back 2021-10-27
+    CDE sold at a $1.47 loss on 2021-10-27, bought back 2021-10-28
+    TNL sold at a $0.08 loss on 2021-10-27, bought back 2021-11-01
+    SLQT sold at a $13.93 loss on 2021-10-29, bought back 2021-11-01
+    CDE sold at a $23.65 loss on 2021-11-01, bought back 2021-11-03
+    CDE sold at a $15.79 loss on 2021-11-02, bought back 2021-11-03
+    SLQT sold at a $4.16 loss on 2021-11-02, bought back 2021-11-03
+    SLQT sold at a $2.19 loss on 2021-11-04, bought back 2021-11-05
+    RCII sold at a $3.83 loss on 2021-11-19, bought back 2021-12-01
+    RCII sold at a $0.66 loss on 2021-11-22, bought back 2021-12-01
+    GOCO sold at a $0.84 loss on 2021-12-01, bought back 2021-12-16
+    GOCO sold at a $5.13 loss on 2021-12-02, bought back 2021-12-16
+    HIBB sold at a $32.66 loss on 2021-12-30, bought back 2022-01-04
+    HYLN sold at a $42.94 loss on 2021-12-31, bought back 2022-01-04
+    HIBB sold at a $6.12 loss on 2021-12-31, bought back 2022-01-04
+    HYLN sold at a $5.75 loss on 2022-01-03, bought back 2022-01-04
+    VTI sold at a $0.91 loss on 2022-02-14, bought back 2022-02-15
+    VTI sold at a $35.81 loss on 2022-02-14, bought back 2022-02-15
+    VTI sold at a $4.78 loss on 2022-02-14, bought back 2022-02-15
+    VTI sold at a $102.86 loss on 2022-02-22, bought back 2022-02-23
+    VTI sold at a $79.07 loss on 2022-02-22, bought back 2022-02-23
+    VTI sold at a $217.80 loss on 2022-02-22, bought back 2022-02-23
+    VTI sold at a $6.86 loss on 2022-02-22, bought back 2022-02-23
+    VTI sold at a $0.66 loss on 2022-02-22, bought back 2022-02-23
+    LOB sold at a $2.56 loss on 2022-02-23, bought back 2022-02-24
+    VTI sold at a $0.85 loss on 2022-02-28, bought back 2022-03-14
+    LOB sold at a $4.04 loss on 2022-02-28, bought back 2022-03-14
+    VTI sold at a $29.82 loss on 2022-04-11, bought back 2022-04-13
+    VTI sold at a $60.31 loss on 2022-04-11, bought back 2022-04-13
+    VTI sold at a $14.98 loss on 2022-04-11, bought back 2022-04-13
+    VTI sold at a $0.01 loss on 2022-04-11, bought back 2022-04-13
+    VTI sold at a $81.38 loss on 2022-05-16, bought back 2022-05-24
+    VTI sold at a $833.61 loss on 2022-05-16, bought back 2022-05-24
+    VTI sold at a $0.84 loss on 2022-05-16, bought back 2022-05-24
+    VTI sold at a $169.09 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $66.22 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $44.40 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $115.06 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $6.90 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $56.71 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $67.02 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $46.06 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $15.64 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $44.12 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $1.03 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $27.79 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $2.15 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $9.38 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $44.02 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $24.94 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $10.69 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $542.15 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $0.14 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $2.65 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $28.62 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $638.61 loss on 2022-05-31, bought back 2022-06-02
+    VTI sold at a $2.03 loss on 2022-05-31, bought back 2022-06-02
+    ENVX sold at a $0.98 loss on 2022-06-02, bought back 2022-06-17
+    HLF sold at a $8.39 loss on 2022-06-17, bought back 2022-06-22
+    VTI sold at a $143.14 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $0.44 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $18.06 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $93.40 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $65.71 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $30.16 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $132.79 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $48.89 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $35.85 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $285.31 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $137.13 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $725.60 loss on 2022-06-21, bought back 2022-06-29
+    ENVX sold at a $17.47 loss on 2022-06-21, bought back 2022-06-22
+    VTI sold at a $1.74 loss on 2022-06-21, bought back 2022-06-29
+    VTI sold at a $69.73 loss on 2022-06-22, bought back 2022-06-29
+    VTI sold at a $1108.41 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $0.39 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $6.67 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $88.45 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $97.62 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $14.23 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $14.73 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $284.15 loss on 2022-06-27, bought back 2022-06-29
+    VTI sold at a $171.83 loss on 2022-06-27, bought back 2022-06-29
+    CMP sold at a $1.16 loss on 2022-06-29, bought back 2022-06-30
+    VTI sold at a $64.95 loss on 2022-06-30, bought back 2022-07-05
+    VTI sold at a $126.71 loss on 2022-07-01, bought back 2022-07-05
+    HLF sold at a $14.56 loss on 2022-07-05, bought back 2022-07-06
+    VTI sold at a $663.54 loss on 2022-07-11, bought back 2022-08-04
+    VTI sold at a $698.04 loss on 2022-07-11, bought back 2022-08-04
+    VTI sold at a $205.22 loss on 2022-07-11, bought back 2022-08-04
+    VTI sold at a $160.73 loss on 2022-08-15, bought back 2022-08-30
+    VTI sold at a $158.96 loss on 2022-08-15, bought back 2022-08-30
+    VTI sold at a $223.65 loss on 2022-08-15, bought back 2022-08-30
+    VTI sold at a $0.80 loss on 2022-08-15, bought back 2022-08-30
+    VTI sold at a $848.23 loss on 2022-09-06, bought back 2022-09-08
+    VTI sold at a $246.56 loss on 2022-09-06, bought back 2022-09-08
+    VTI sold at a $83.79 loss on 2022-09-06, bought back 2022-09-08
+    VTI sold at a $1075.65 loss on 2022-09-06, bought back 2022-09-08
+    VTI sold at a $28.07 loss on 2022-09-06, bought back 2022-09-08
+    VTI sold at a $1252.04 loss on 2022-09-06, bought back 2022-09-08
+    VTI sold at a $811.34 loss on 2022-09-06, bought back 2022-09-08
+    VTI sold at a $2.41 loss on 2022-09-06, bought back 2022-09-08
+    PRG sold at a $19.14 loss on 2022-09-06, bought back 2022-09-09
+    VTI sold at a $2.46 loss on 2022-09-06, bought back 2022-09-08
+    PRG sold at a $0.10 loss on 2022-09-06, bought back 2022-09-09
+    VTI sold at a $361.23 loss on 2022-09-07, bought back 2022-09-08
+    VTI sold at a $15.13 loss on 2022-09-07, bought back 2022-09-08
+    PRG sold at a $11.97 loss on 2022-09-07, bought back 2022-09-09
+    DBRG sold at a $1.00 loss on 2022-09-07, bought back 2022-09-08
+    VTI sold at a $0.19 loss on 2022-09-07, bought back 2022-09-08
+    PRG sold at a $7.85 loss on 2022-09-08, bought back 2022-09-09
+    FCX sold at a $0.12 loss on 2022-09-08, bought back 2022-09-13
+    VTI sold at a $149.11 loss on 2022-09-12, bought back 2022-09-19
+    VTI sold at a $418.22 loss on 2022-09-12, bought back 2022-09-19
+    VTI sold at a $0.45 loss on 2022-09-12, bought back 2022-09-19
+    VTI sold at a $0.47 loss on 2022-09-12, bought back 2022-09-19
+    VTI sold at a $47.27 loss on 2022-09-13, bought back 2022-09-19
+    PRG sold at a $25.95 loss on 2022-09-19, bought back 2022-09-20
+    VTI sold at a $21.47 loss on 2022-09-21, bought back 2022-09-23
+    PRG sold at a $2.52 loss on 2022-09-21, bought back 2022-09-22
+    VTI sold at a $15.52 loss on 2022-09-22, bought back 2022-09-23
+    VTI sold at a $303.89 loss on 2022-10-03, bought back 2022-10-10
+    VTI sold at a $259.05 loss on 2022-10-03, bought back 2022-10-10
+    VTI sold at a $430.17 loss on 2022-10-03, bought back 2022-10-10
+    VTI sold at a $839.40 loss on 2022-10-03, bought back 2022-10-10
+    VTI sold at a $196.47 loss on 2022-10-03, bought back 2022-10-10
+    VTI sold at a $135.42 loss on 2022-10-03, bought back 2022-10-10
+    VTI sold at a $2.83 loss on 2022-10-03, bought back 2022-10-10
+    VTI sold at a $792.84 loss on 2022-11-14, bought back 2022-11-18
+    VTI sold at a $0.85 loss on 2022-11-14, bought back 2022-11-18
+    VTI sold at a $31.24 loss on 2022-11-15, bought back 2022-11-18
+    VTI sold at a $22.11 loss on 2022-11-16, bought back 2022-11-18
+    VTI sold at a $94.40 loss on 2022-11-17, bought back 2022-11-18
+    VTI sold at a $72.63 loss on 2022-11-21, bought back 2022-11-22
+    VTI sold at a $13.74 loss on 2022-11-23, bought back 2022-11-29
+    VTI sold at a $15.61 loss on 2022-11-25, bought back 2022-11-29
+    VTI sold at a $0.99 loss on 2022-11-28, bought back 2022-11-29
+    VTI sold at a $21.46 loss on 2022-12-02, bought back 2022-12-05
+    VTI sold at a $40.30 loss on 2022-12-07, bought back 2022-12-09
+    VTI sold at a $6.50 loss on 2022-12-07, bought back 2022-12-09
+    VTI sold at a $41.40 loss on 2022-12-08, bought back 2022-12-09
+    VTI sold at a $38.75 loss on 2022-12-14, bought back 2022-12-15
+    VTI sold at a $29.86 loss on 2022-12-16, bought back 2022-12-21
+    VTI sold at a $905.13 loss on 2022-12-19, bought back 2022-12-21
+    VTI sold at a $1096.31 loss on 2022-12-19, bought back 2022-12-21
+    VTI sold at a $538.63 loss on 2022-12-19, bought back 2022-12-21
+    VTI sold at a $34.43 loss on 2022-12-19, bought back 2022-12-21
+    VTI sold at a $0.19 loss on 2022-12-19, bought back 2022-12-21
+    VTI sold at a $0.19 loss on 2022-12-19, bought back 2022-12-21
+    VTI sold at a $15.85 loss on 2022-12-20, bought back 2022-12-21
+    HLF sold at a $3.52 loss on 2022-12-21, bought back 2022-12-27
+    WWW sold at a $1.29 loss on 2022-12-21, bought back 2022-12-22
+    HPP sold at a $1.29 loss on 2022-12-21, bought back 2022-12-22
+    VTI sold at a $2.33 loss on 2022-12-22, bought back 2022-12-23
+    VFC sold at a $4.80 loss on 2022-12-23, bought back 2022-12-27
+    WWW sold at a $1.20 loss on 2022-12-23, bought back 2022-12-29
+    HPP sold at a $3.09 loss on 2022-12-23, bought back 2022-12-28
+    VTI sold at a $69.81 loss on 2022-12-27, bought back 2022-12-28
+    VTI sold at a $36.91 loss on 2022-12-27, bought back 2022-12-28
+    HPP sold at a $1.62 loss on 2022-12-27, bought back 2022-12-28
+    VTI sold at a $0.06 loss on 2022-12-27, bought back 2022-12-28
+    VTI sold at a $0.06 loss on 2022-12-27, bought back 2022-12-28
+    VTI sold at a $14.01 loss on 2022-12-29, bought back 2022-12-30
+    HPP sold at a $0.42 loss on 2022-12-30, bought back 2023-01-03
+    NRG sold at a $0.01 loss on 2023-01-04, bought back 2023-01-05
+    HPP sold at a $3.51 loss on 2023-01-05, bought back 2023-01-06
+    NRG sold at a $0.35 loss on 2023-01-19, bought back 2023-01-20
+    NRG sold at a $0.55 loss on 2023-03-15, bought back 2023-03-24
+    VTI sold at a $134.57 loss on 2023-03-20, bought back 2023-03-24
+    VTI sold at a $1.23 loss on 2023-03-20, bought back 2023-03-24
+    VTI sold at a $8.82 loss on 2023-04-03, bought back 2023-04-17
+    SCHW sold at a $0.64 loss on 2023-05-01, bought back 2023-05-02
+    SCHW sold at a $4.89 loss on 2023-05-01, bought back 2023-05-02
+    SCHW sold at a $19.27 loss on 2023-05-05, bought back 2023-05-09
+    SCHW sold at a $2.77 loss on 2023-05-08, bought back 2023-05-09
+    SCHW sold at a $11.13 loss on 2023-05-10, bought back 2023-05-11
+    SCHW sold at a $17.12 loss on 2023-05-12, bought back 2023-05-19
+    SCHW sold at a $12.57 loss on 2023-05-15, bought back 2023-05-19
+    SCHW sold at a $0.70 loss on 2023-05-16, bought back 2023-05-19
+    SCHW sold at a $1.12 loss on 2023-05-17, bought back 2023-05-19
+    SCHW sold at a $1.43 loss on 2023-05-18, bought back 2023-05-19
+    SCHW sold at a $0.17 loss on 2023-05-22, bought back 2023-05-25
+    SCHW sold at a $0.15 loss on 2023-05-23, bought back 2023-05-25
+    SCHW sold at a $0.70 loss on 2023-05-24, bought back 2023-05-25
+    HASI sold at a $0.02 loss on 2023-05-30, bought back 2023-06-05
+    HASI sold at a $1.47 loss on 2023-05-31, bought back 2023-06-05
+    HASI sold at a $0.28 loss on 2023-06-01, bought back 2023-06-05
+    ADT sold at a $1.13 loss on 2023-06-05, bought back 2023-06-06
+    AAP sold at a $0.47 loss on 2023-06-22, bought back 2023-06-23
+    ADT sold at a $0.89 loss on 2023-06-26, bought back 2023-06-28
+    AAP sold at a $4.63 loss on 2023-06-27, bought back 2023-06-28
+    ADT sold at a $1.70 loss on 2023-06-27, bought back 2023-06-28
+    ADT sold at a $0.71 loss on 2023-06-29, bought back 2023-06-30
+    AAP sold at a $0.87 loss on 2023-06-29, bought back 2023-06-30
+    AAP sold at a $0.49 loss on 2023-07-11, bought back 2023-07-13
+    CNXC sold at a $0.52 loss on 2023-07-20, bought back 2023-07-21
+    CNXC sold at a $3.52 loss on 2023-07-24, bought back 2023-07-28
+    CNXC sold at a $0.61 loss on 2023-07-25, bought back 2023-07-28
+    CNXC sold at a $9.43 loss on 2023-08-03, bought back 2023-08-04
+    CNXC sold at a $4.46 loss on 2023-08-11, bought back 2023-08-15
+    CNXC sold at a $6.77 loss on 2023-08-14, bought back 2023-08-15
+    CNXC sold at a $0.23 loss on 2023-08-14, bought back 2023-08-15
+    CNXC sold at a $25.74 loss on 2023-08-17, bought back 2023-08-22
+    CNXC sold at a $7.95 loss on 2023-08-18, bought back 2023-08-22
+    AAP sold at a $0.03 loss on 2023-08-18, bought back 2023-08-22
+    CNXC sold at a $3.59 loss on 2023-08-21, bought back 2023-08-22
+    DG sold at a $0.05 loss on 2023-08-21, bought back 2023-08-22
+    CERE sold at a $6.14 loss on 2023-08-22, bought back 2023-08-29
+    CERE sold at a $0.04 loss on 2023-08-23, bought back 2023-08-29
+    AAP sold at a $2.28 loss on 2023-08-23, bought back 2023-08-25
+    DG sold at a $0.15 loss on 2023-08-23, bought back 2023-08-24
+    LESL sold at a $0.69 loss on 2023-08-28, bought back 2023-08-31
+    LESL sold at a $14.03 loss on 2023-08-29, bought back 2023-08-31
+    AAP sold at a $8.79 loss on 2023-08-29, bought back 2023-09-05
+    AAP sold at a $3.32 loss on 2023-08-31, bought back 2023-09-05
+    SKIN sold at a $1.27 loss on 2023-08-31, bought back 2023-09-05
+    FWRD sold at a $1.30 loss on 2023-09-08, bought back 2023-09-11
+    AAP sold at a $11.88 loss on 2023-09-11, bought back 2023-09-12
+    SKIN sold at a $3.62 loss on 2023-09-12, bought back 2023-09-14
+    FWRD sold at a $0.20 loss on 2023-09-13, bought back 2023-09-15
+    FWRD sold at a $2.03 loss on 2023-09-14, bought back 2023-09-15
+    FWRD sold at a $6.42 loss on 2023-09-18, bought back 2023-09-20
+    FWRD sold at a $3.37 loss on 2023-09-19, bought back 2023-09-20
+    FWRD sold at a $7.82 loss on 2023-09-22, bought back 2023-09-26
+    CERE sold at a $7.29 loss on 2023-09-22, bought back 2023-09-25
+    FWRD sold at a $10.97 loss on 2023-09-25, bought back 2023-09-26
+    FWRD sold at a $0.09 loss on 2023-09-25, bought back 2023-09-26
+    CERE sold at a $13.38 loss on 2023-09-26, bought back 2023-09-29
+    CERE sold at a $8.22 loss on 2023-09-27, bought back 2023-09-29
+    FWRD sold at a $5.84 loss on 2023-09-27, bought back 2023-09-28
+    SKIN sold at a $3.62 loss on 2023-09-27, bought back 2023-10-03
+    SKIN sold at a $35.05 loss on 2023-09-28, bought back 2023-10-03
+    CERE sold at a $6.98 loss on 2023-09-28, bought back 2023-09-29
+    TSE sold at a $1.56 loss on 2023-09-28, bought back 2023-10-02
+    FWRD sold at a $10.23 loss on 2023-09-29, bought back 2023-10-13
+    TSE sold at a $1.60 loss on 2023-09-29, bought back 2023-10-02
+    SKIN sold at a $4.01 loss on 2023-09-29, bought back 2023-10-03
+    MODV sold at a $43.44 loss on 2023-10-02, bought back 2023-10-03
+    SKIN sold at a $4.56 loss on 2023-10-02, bought back 2023-10-03
+    FWRD sold at a $1.85 loss on 2023-10-02, bought back 2023-10-13
+    CERE sold at a $0.14 loss on 2023-10-02, bought back 2023-10-03
+    TSE sold at a $3.73 loss on 2023-10-03, bought back 2023-10-04
+    FWRD sold at a $1.81 loss on 2023-10-03, bought back 2023-10-13
+    FWRD sold at a $8.58 loss on 2023-10-04, bought back 2023-10-13
+    CERE sold at a $7.25 loss on 2023-10-05, bought back 2023-10-16
+    SKIN sold at a $6.31 loss on 2023-10-05, bought back 2023-10-06
+    FWRD sold at a $0.95 loss on 2023-10-05, bought back 2023-10-13
+    CERE sold at a $15.78 loss on 2023-10-06, bought back 2023-10-16
+    FWRD sold at a $1.37 loss on 2023-10-06, bought back 2023-10-13
+    RILY sold at a $17.31 loss on 2024-01-29, bought back 2024-02-05
+    RILY sold at a $39.62 loss on 2024-02-13, bought back 2024-02-14
+    WOLF sold at a $1.74 loss on 2024-02-14, bought back 2024-02-16
+    WOLF sold at a $0.25 loss on 2024-02-15, bought back 2024-02-16
+    VYX sold at a $2.95 loss on 2024-02-21, bought back 2024-02-22
+    WOLF sold at a $32.18 loss on 2024-02-22, bought back 2024-02-23
+    VYX sold at a $0.04 loss on 2024-02-26, bought back 2024-02-27
+    MBLY sold at a $26.63 loss on 2024-02-27, bought back 2024-03-01
+    MBLY sold at a $5.96 loss on 2024-02-28, bought back 2024-03-01
+    MBLY sold at a $2.28 loss on 2024-02-29, bought back 2024-03-01
+    FLNC sold at a $36.14 loss on 2024-03-18, bought back 2024-03-19
+    HLF sold at a $0.01 loss on 2024-03-19, bought back 2024-03-20
+    FLNC sold at a $17.19 loss on 2024-03-20, bought back 2024-03-27
+    FLNC sold at a $6.14 loss on 2024-03-21, bought back 2024-03-27
+    AAOI sold at a $0.20 loss on 2024-04-01, bought back 2024-04-02
+    AAOI sold at a $18.39 loss on 2024-04-04, bought back 2024-04-05
+    HLF sold at a $29.50 loss on 2024-04-08, bought back 2024-04-12
+    HLF sold at a $21.40 loss on 2024-04-09, bought back 2024-04-12
+    HLF sold at a $31.74 loss on 2024-04-10, bought back 2024-04-12
+    HLF sold at a $2.52 loss on 2024-04-11, bought back 2024-04-12
+    HLF sold at a $28.56 loss on 2024-04-16, bought back 2024-04-24
+    HLF sold at a $2.74 loss on 2024-04-17, bought back 2024-04-24
+    HLF sold at a $1.02 loss on 2024-04-18, bought back 2024-04-24
+    HLF sold at a $17.39 loss on 2024-04-19, bought back 2024-04-24
+    HLF sold at a $3.30 loss on 2024-04-22, bought back 2024-04-24
+    HLF sold at a $0.16 loss on 2024-04-29, bought back 2024-04-30
+    CVS sold at a $0.31 loss on 2024-05-08, bought back 2024-05-09
+    CVS sold at a $0.48 loss on 2024-05-10, bought back 2024-05-28
+    CVS sold at a $0.18 loss on 2024-05-13, bought back 2024-05-28
+    TBBK sold at a $1.68 loss on 2024-05-29, bought back 2024-06-10
+    VSTS sold at a $6.19 loss on 2024-06-21, bought back 2024-06-26
+    CLF sold at a $0.12 loss on 2024-06-24, bought back 2024-06-25
+    VSTS sold at a $1.70 loss on 2024-06-24, bought back 2024-06-26
+    VSTS sold at a $1.04 loss on 2024-06-25, bought back 2024-06-26
+    VSTS sold at a $1.30 loss on 2024-06-27, bought back 2024-06-28
+    IRON sold at a $3.18 loss on 2024-07-05, bought back 2024-07-10
+    VSTS sold at a $6.98 loss on 2024-07-09, bought back 2024-07-11
+    VSTS sold at a $7.13 loss on 2024-08-05, bought back 2024-08-19
+    ATEC sold at a $1.43 loss on 2024-09-04, bought back 2024-09-05
+    GT sold at a $5.57 loss on 2024-09-09, bought back 2024-09-10
+    GT sold at a $2.98 loss on 2024-09-13, bought back 2024-09-20
+    GT sold at a $3.87 loss on 2024-09-16, bought back 2024-09-20
+    GT sold at a $13.00 loss on 2024-09-17, bought back 2024-09-20
+    GT sold at a $2.31 loss on 2024-09-18, bought back 2024-09-20
+    GT sold at a $7.07 loss on 2024-09-19, bought back 2024-09-20
+    LESL sold at a $1.73 loss on 2024-09-19, bought back 2024-09-23
+    LESL sold at a $0.29 loss on 2024-09-20, bought back 2024-09-23
+    GT sold at a $1.69 loss on 2024-09-23, bought back 2024-09-24
+    LESL sold at a $0.96 loss on 2024-09-24, bought back 2024-09-25
+    HUMA sold at a $0.49 loss on 2024-09-24, bought back 2024-09-26
+    LESL sold at a $2.95 loss on 2024-09-26, bought back 2024-09-27
+    GT sold at a $4.24 loss on 2024-09-27, bought back 2024-10-02
+    LESL sold at a $11.63 loss on 2024-10-04, bought back 2024-10-07
+    GT sold at a $1.67 loss on 2024-10-07, bought back 2024-10-08
+    LESL sold at a $15.46 loss on 2024-10-09, bought back 2024-10-10
+    GT sold at a $0.92 loss on 2024-10-09, bought back 2024-10-14
+    GT sold at a $2.37 loss on 2024-10-10, bought back 2024-10-14
+    GT sold at a $0.15 loss on 2024-10-11, bought back 2024-10-14
+    LESL sold at a $14.43 loss on 2024-10-15, bought back 2024-10-17
+    LESL sold at a $19.36 loss on 2024-10-16, bought back 2024-10-17
+    GT sold at a $0.15 loss on 2024-10-16, bought back 2024-10-17
+    GT sold at a $0.94 loss on 2024-10-18, bought back 2024-10-22
+    LESL sold at a $24.82 loss on 2024-10-21, bought back 2024-10-28
+    HUMA sold at a $6.49 loss on 2024-10-22, bought back 2024-10-28
+    LESL sold at a $4.51 loss on 2024-10-22, bought back 2024-10-28
+    LESL sold at a $34.76 loss on 2024-10-23, bought back 2024-10-28
+    GT sold at a $5.39 loss on 2024-10-24, bought back 2024-10-28
+    LESL sold at a $2.57 loss on 2024-10-24, bought back 2024-10-28
+    LESL sold at a $1.24 loss on 2024-10-25, bought back 2024-10-28
+    GT sold at a $3.85 loss on 2024-10-29, bought back 2024-10-30
+    LESL sold at a $9.36 loss on 2024-10-30, bought back 2024-11-01
+    LESL sold at a $0.25 loss on 2024-10-31, bought back 2024-11-01
+    LESL sold at a $15.34 loss on 2024-11-04, bought back 2024-11-11
+    SEDG sold at a $0.07 loss on 2024-11-19, bought back 2024-12-03
+    TREE sold at a $0.21 loss on 2024-12-19, bought back 2024-12-20
+    TREE sold at a $0.51 loss on 2024-12-23, bought back 2024-12-24
+    TREE sold at a $0.01 loss on 2024-12-23, bought back 2024-12-24
+    TREE sold at a $0.01 loss on 2024-12-23, bought back 2024-12-24
+    TREE sold at a $0.83 loss on 2024-12-26, bought back 2024-12-30
+    DOW sold at a $0.02 loss on 2024-12-26, bought back 2024-12-31
+    DOW sold at a $0.61 loss on 2024-12-30, bought back 2024-12-31
+    MMS sold at a $0.60 loss on 2024-12-30, bought back 2025-01-06
+    TREE sold at a $1.49 loss on 2025-01-02, bought back 2025-01-03
+    DOW sold at a $1.90 loss on 2025-01-08, bought back 2025-01-16
+    DOW sold at a $0.70 loss on 2025-01-10, bought back 2025-01-16
+    DOW sold at a $5.04 loss on 2025-01-13, bought back 2025-01-16
+    DOW sold at a $0.70 loss on 2025-01-14, bought back 2025-01-16
+    DOW sold at a $6.94 loss on 2025-02-03, bought back 2025-02-04
+    DOW sold at a $7.05 loss on 2025-02-05, bought back 2025-02-06
+    DOW sold at a $8.08 loss on 2025-02-07, bought back 2025-02-18
+    DOW sold at a $1.07 loss on 2025-02-10, bought back 2025-02-18
+    DOW sold at a $6.68 loss on 2025-02-24, bought back 2025-02-25
+    DOW sold at a $0.02 loss on 2025-02-24, bought back 2025-02-25
+    CASK sold at a $1.63 loss on 2025-02-25, bought back 2025-02-26
+    MMS sold at a $6.99 loss on 2025-02-25, bought back 2025-02-27
+    MMS sold at a $12.04 loss on 2025-02-26, bought back 2025-02-27
+    DOW sold at a $1.40 loss on 2025-02-26, bought back 2025-02-27
+    MMS sold at a $17.39 loss on 2025-02-28, bought back 2025-03-03
+    HP sold at a $1.31 loss on 2025-02-28, bought back 2025-03-04
+    DOW sold at a $4.81 loss on 2025-02-28, bought back 2025-03-04
+    DOW sold at a $1.29 loss on 2025-03-03, bought back 2025-03-04
+    DOW sold at a $0.02 loss on 2025-03-03, bought back 2025-03-04
+    DOW sold at a $0.02 loss on 2025-03-03, bought back 2025-03-04
+    CASK sold at a $7.14 loss on 2025-03-04, bought back 2025-03-17
+    MMS sold at a $30.28 loss on 2025-03-04, bought back 2025-03-06
+    MMS sold at a $36.90 loss on 2025-03-05, bought back 2025-03-06
+    BZH sold at a $17.21 loss on 2025-03-05, bought back 2025-03-17
+    HP sold at a $7.18 loss on 2025-03-05, bought back 2025-03-06
+    VMEO sold at a $2.56 loss on 2025-03-05, bought back 2025-03-06
+    CASK sold at a $0.59 loss on 2025-03-05, bought back 2025-03-17
+    BZH sold at a $9.70 loss on 2025-03-06, bought back 2025-03-17
+    HP sold at a $7.80 loss on 2025-03-17, bought back 2025-03-24
+    UNH sold at a $0.93 loss on 2025-05-29, bought back 2025-06-03
+    UNH sold at a $0.65 loss on 2025-05-30, bought back 2025-06-03
+    VTI sold at a $88.05 loss on 2025-06-02, bought back 2025-06-04
+    VTI sold at a $0.37 loss on 2025-06-02, bought back 2025-06-04
+    VTI sold at a $0.36 loss on 2025-06-02, bought back 2025-06-04
+    VTI sold at a $7.54 loss on 2025-06-03, bought back 2025-06-04
+    ENR sold at a $3.31 loss on 2025-06-04, bought back 2025-06-06
+    VTI sold at a $3.27 loss on 2025-06-05, bought back 2025-06-09
+    ENR sold at a $1.80 loss on 2025-06-05, bought back 2025-06-06
+    VTI sold at a $1.92 loss on 2025-06-06, bought back 2025-06-09
+    ENR sold at a $1.43 loss on 2025-06-09, bought back 2025-06-10
+    VTI sold at a $0.35 loss on 2025-06-12, bought back 2025-06-20
+    VTI sold at a $2.54 loss on 2025-06-13, bought back 2025-06-20
+    VSTS sold at a $0.02 loss on 2025-06-13, bought back 2025-06-16
+    VTI sold at a $2.04 loss on 2025-06-16, bought back 2025-06-20
+    VTI sold at a $1.22 loss on 2025-06-17, bought back 2025-06-20
+    VTI sold at a $2.12 loss on 2025-06-18, bought back 2025-06-20
+    VSTS sold at a $4.69 loss on 2025-06-18, bought back 2025-06-23
+    VSTS sold at a $6.96 loss on 2025-06-20, bought back 2025-06-23
+    NEO sold at a $2.11 loss on 2025-06-20, bought back 2025-06-23
+    VTI sold at a $52.55 loss on 2025-06-23, bought back 2025-06-24
+    ENR sold at a $27.06 loss on 2025-06-24, bought back 2025-06-25
+    VSTS sold at a $5.71 loss on 2025-06-24, bought back 2025-06-30
+    NEO sold at a $1.90 loss on 2025-06-24, bought back 2025-06-26
+    VSTS sold at a $0.57 loss on 2025-06-25, bought back 2025-06-30
+    ENR sold at a $9.20 loss on 2025-06-27, bought back 2025-06-30
+    VSTS sold at a $7.51 loss on 2025-07-02, bought back 2025-07-07
+    ENR sold at a $34.64 loss on 2025-07-02, bought back 2025-07-07
+    ENR sold at a $7.33 loss on 2025-07-03, bought back 2025-07-07
+    ENR sold at a $12.83 loss on 2025-07-09, bought back 2025-07-15
+    VSTS sold at a $1.28 loss on 2025-07-09, bought back 2025-07-11
+    ENR sold at a $4.98 loss on 2025-07-10, bought back 2025-07-15
+    ENR sold at a $4.99 loss on 2025-07-11, bought back 2025-07-15
+    ENR sold at a $1.41 loss on 2025-07-14, bought back 2025-07-15
+    VSTS sold at a $1.19 loss on 2025-07-15, bought back 2025-07-17
+    CABO sold at a $1.50 loss on 2025-07-15, bought back 2025-07-16
+    VSTS sold at a $1.28 loss on 2025-07-16, bought back 2025-07-17
+    ENR sold at a $5.95 loss on 2025-07-17, bought back 2025-07-22
+    CABO sold at a $2.16 loss on 2025-07-17, bought back 2025-07-25
+    CABO sold at a $2.81 loss on 2025-07-18, bought back 2025-07-25
+    NEO sold at a $26.97 loss on 2025-07-23, bought back 2025-07-25
+    NEO sold at a $6.22 loss on 2025-07-24, bought back 2025-07-25
+    UNH sold at a $5.02 loss on 2025-07-28, bought back 2025-07-29
+    UNH sold at a $4.26 loss on 2025-07-30, bought back 2025-07-31
+    ENR sold at a $5.54 loss on 2025-08-01, bought back 2025-08-07
+    VSTS sold at a $1.61 loss on 2025-08-01, bought back 2025-08-04
+    VSTS sold at a $0.02 loss on 2025-08-01, bought back 2025-08-04
+    ENR sold at a $0.03 loss on 2025-08-01, bought back 2025-08-07
+    OXM sold at a $0.44 loss on 2025-08-05, bought back 2025-08-07
+    VSTS sold at a $3.55 loss on 2025-08-05, bought back 2025-08-06
+    MSTR sold at a $8.73 loss on 2026-02-02, bought back 2026-02-03
+    ASST sold at a $24.07 loss on 2026-02-25, bought back 2026-02-27
+    ZBIO sold at a $2.09 loss on 2026-03-03, bought back 2026-03-05
+    ZBIO sold at a $2.61 loss on 2026-03-04, bought back 2026-03-05
+    PODD sold at a $0.51 loss on 2026-03-05, bought back 2026-03-09
+    PODD sold at a $0.85 loss on 2026-03-06, bought back 2026-03-09
+    ZBIO sold at a $5.61 loss on 2026-03-09, bought back 2026-03-11
+    PODD sold at a $1.44 loss on 2026-03-10, bought back 2026-03-11
+    PODD sold at a $2.65 loss on 2026-03-12, bought back 2026-03-13
+    ZBIO sold at a $3.50 loss on 2026-03-13, bought back 2026-03-16
+
+Thesis exits
+  2019-03-18  stopped          GTHX   gthx-insiders-2018-12-27
+  2019-04-03  overdue          CHK    chk-insiders-2018-12-27
+  2019-04-03  overdue          HHC    hhc-insiders-2018-12-26
+  2019-04-03  overdue          HOME   home-insiders-2018-12-26
+  2019-04-03  overdue          KYN    kyn-insiders-2018-12-28
+  2019-04-03  overdue          MDCO   mdco-insiders-2018-12-27
+  2019-04-03  overdue          MHK    mhk-insiders-2018-12-28
+  2019-04-03  overdue          OII    oii-insiders-2018-12-28
+  2019-05-23  stopped          TLRD   tlrd-insiders-2019-04-15
+  2019-06-13  stopped          RLGY   rlgy-insiders-2019-05-08
+  2019-06-17  stopped          AMRX   amrx-insiders-2019-05-16
+  2019-08-08  stopped          CWH    cwh-insiders-2019-05-13
+  2019-08-16  stopped          OSUR   osur-insiders-2019-05-14
+  2019-09-30  stopped          AXGN   axgn-insiders-2019-08-15
+  2019-10-03  stopped          CRC    crc-insiders-2019-08-15
+  2019-11-20  stopped          CHK    chk-insiders-2019-11-14
+  2020-03-09  stopped          BKR    bkr-insiders-2020-02-26
+  2020-03-09  stopped          KN     kn-insiders-2020-02-12
+  2020-03-12  stopped          HI     hi-insiders-2020-03-03
+  2020-03-12  stopped          NGVT   ngvt-insiders-2020-03-05
+  2020-03-12  stopped          VVI    vvi-insiders-2020-03-05
+  2020-03-16  stopped          R      r-insiders-2020-02-28
+  2020-07-10  stopped          STL    stl-insiders-2020-05-21
+  2020-08-25  overdue          RESI   resi-insiders-2020-05-15
+  2020-08-28  stopped          EHTH   ehth-insiders-2020-08-10
+  2020-09-11  stopped          EVFM   evfm-insiders-2020-06-18
+  2020-09-22  stopped          RCUS   rcus-insiders-2020-08-11
+  2020-10-27  stopped          PBF    pbf-insiders-2020-10-01
+  2021-04-13  stopped          SLDB   sldb-insiders-2021-03-23
+  2021-07-08  stopped          EVFM   evfm-insiders-2021-06-21
+  2021-07-14  stopped          NFE    nfe-insiders-2021-05-13
+  2021-07-19  stopped          CVM    cvm-insiders-2021-07-07
+  2021-07-19  stopped          SAGE   sage-insiders-2021-06-17
+  2021-08-04  stopped          KPTI   kpti-insiders-2021-05-11
+  2021-10-05  stopped          COMM   comm-insiders-2021-08-17
+  2021-10-12  stopped          OSCR   oscr-insiders-2021-09-17
+  2021-11-08  stopped          SLQT   slqt-insiders-2021-09-13
+  2021-12-01  stopped          BBBY   bbby-insiders-2021-11-09
+  2021-12-02  stopped          TRHC   trhc-insiders-2021-11-17
+  2021-12-30  stopped          XELA   xela-insiders-2021-12-14
+  2022-01-07  stopped          GOCO   goco-insiders-2021-11-23
+  2022-01-11  stopped          HYLN   hyln-insiders-2021-12-20
+  2022-01-19  stopped          BBIO   bbio-insiders-2022-01-06
+  2022-02-03  stopped          RCII   rcii-insiders-2021-11-09
+  2022-02-23  stopped          KOD    kod-insiders-2022-02-17
+  2022-02-24  stopped          BIGZ   bigz-insiders-2022-02-09
+  2022-03-31  stopped          LOB    lob-insiders-2022-02-11
+  2022-04-06  stopped          COMM   comm-insiders-2022-03-15
+  2022-04-13  stopped          SOFI   sofi-insiders-2022-03-18
+  2022-04-25  stopped          PRPL   prpl-insiders-2022-04-04
+  2022-05-24  overdue          TWOU   twou-insiders-2022-02-16
+  2022-05-25  stopped          IHRT   ihrt-insiders-2022-05-12
+  2022-06-02  stopped          CVNA   cvna-insiders-2022-05-26
+  2022-06-17  stopped          CROX   crox-insiders-2022-05-26
+  2022-06-29  stopped          ENVX   envx-insiders-2022-05-23
+  2022-08-30  overdue          HLF    hlf-insiders-2022-05-25
+  2022-09-19  stopped          WE     we-insiders-2022-09-06
+  2022-09-20  overdue          TUP    tup-insiders-2022-06-14
+  2022-09-23  stopped          DBRG   dbrg-insiders-2022-09-01
+  2022-09-23  stopped          GRPN   grpn-insiders-2022-09-01
+  2022-09-23  stopped          PRG    prg-insiders-2022-08-05
+  2022-12-06  overdue          FCX    fcx-insiders-2022-08-30
+  2023-03-13  stopped          RILY   rily-insiders-2022-12-30
+  2023-03-13  stopped          VFC    vfc-insiders-2022-12-15
+  2023-03-15  stopped          CLFD   clfd-insiders-2023-02-14
+  2023-03-15  stopped          TPL    tpl-insiders-2023-02-08
+  2023-03-24  stopped          PACW   pacw-insiders-2023-03-13
+  2023-03-28  overdue          NRG    nrg-insiders-2022-12-16
+  2023-04-17  stopped          CVBF   cvbf-insiders-2023-03-15
+  2023-08-29  overdue          EGBN   egbn-insiders-2023-05-22
+  2023-08-31  stopped          DG     dg-insiders-2023-06-12
+  2023-09-08  stopped          CNXC   cnxc-insiders-2023-07-07
+  2023-09-11  stopped          LESL   lesl-insiders-2023-08-09
+  2023-09-13  stopped          AAP    aap-insiders-2023-06-13
+  2023-10-04  stopped          MODV   modv-insiders-2023-09-19
+  2023-10-05  stopped          TSE    tse-insiders-2023-09-18
+  2023-10-06  stopped          LTH    lth-insiders-2023-08-17
+  2023-10-13  stopped          SKIN   skin-insiders-2023-08-21
+  2023-11-09  stopped          STAA   staa-insiders-2023-10-06
+  2023-12-05  overdue          FWRD   fwrd-insiders-2023-08-30
+  2024-01-17  stopped          MED    med-insiders-2023-11-09
+  2024-01-29  stopped          GTLS   gtls-insiders-2023-12-15
+  2024-02-21  stopped          RILY   rily-insiders-2023-11-17
+  2024-02-26  stopped          WOLF   wolf-insiders-2024-02-05
+  2024-03-01  stopped          VYX    vyx-insiders-2023-12-04
+  2024-04-10  stopped          AAOI   aaoi-insiders-2024-03-19
+  2024-05-29  stopped          BHVN   bhvn-insiders-2024-05-15
+  2024-09-04  stopped          CLF    clf-insiders-2024-06-13
+  2024-09-06  stopped          MBLY   mbly-insiders-2024-08-06
+  2024-09-10  stopped          ATEC   atec-insiders-2024-08-26
+  2024-11-19  stopped          HUMA   huma-insiders-2024-09-03
+  2024-11-27  stopped          LESL   lesl-insiders-2024-09-06
+  2025-02-10  stopped          TYRA   tyra-insiders-2024-11-13
+  2025-03-17  stopped          RCUS   rcus-insiders-2025-02-27
+  2025-04-03  stopped          VMEO   vmeo-insiders-2025-02-24
+  2025-04-04  stopped          BZH    bzh-insiders-2025-02-14
+  2025-04-04  stopped          CASK   cask-insiders-2025-02-13
+  2025-04-04  stopped          CMCO   cmco-insiders-2025-03-07
+  2025-04-04  stopped          GTLS   gtls-insiders-2025-03-14
+  2025-04-04  stopped          HP     hp-insiders-2025-02-19
+  2025-04-09  stopped          FRPT   frpt-insiders-2025-03-17
+  2025-07-29  stopped          NEO    neo-insiders-2025-05-28
+  2025-08-01  stopped          UNH    unh-insiders-2025-05-16
+  2025-08-11  stopped          VSTS   vsts-insiders-2025-05-28
+  2025-08-26  overdue          ENR    enr-insiders-2025-05-22
+  2025-08-26  overdue          HCWB   hcwb-insiders-2025-05-20
+  2025-10-22  stopped          NEXT   next-insiders-2025-09-25
+  2025-10-30  stopped          CE     ce-insiders-2025-09-09
+  2025-11-06  stopped          KMX    kmx-insiders-2025-10-06
+  2025-11-18  stopped          SMMT   smmt-insiders-2025-10-23
+  2026-02-04  stopped          MSTR   mstr-insiders-2026-01-21
+  2026-02-24  stopped          VRNS   vrns-insiders-2026-02-10
+  2026-03-24  stopped          ZBIO   zbio-insiders-2026-02-13
+  2026-03-30  stopped          PODD   podd-insiders-2026-02-26
+  2026-04-13  stopped          CSGP   csgp-insiders-2026-03-09
+  2026-05-04  stopped          LULU   lulu-insiders-2026-04-03
+  2026-06-08  stopped          SHAK   shak-insiders-2026-05-18
+  2026-07-31  stopped          OI     oi-insiders-2026-05-19
+  2026-08-25  overdue          VITL   vitl-insiders-2026-05-21
+
+Risk
+  5936 approved, 149 clipped, 3807 rejected
+   199 × MYO can't be traded in fractional shares.
+   194 × PLT isn't tradable at Alpaca.
+   194 × PLT can't be traded in fractional shares.
+   194 × PLT is leveraged or inverse: Defiance makes leveraged, inverse and volatility funds ("Tidal Trust II Defiance Leveraged Long Income PLTR ETF").
+   194 × Couldn't verify PLT's price (no recent bars).
+   194 × Couldn't verify PLT's trading volume.
+   194 × Couldn't verify how long PLT has traded.
+   180 × KPLT can't be traded in fractional shares.
+   179 × CRDF can't be traded in fractional shares.
+   178 × GOSS can't be traded in fractional shares.
+   178 × HCWB can't be traded in fractional shares.
+   177 × MYO trades under # (#).
+   176 × INOV can't be traded in fractional shares.
+   175 × CNSP can't be traded in fractional shares.
+   174 × SIX can't be traded in fractional shares.
+   174 × NGM is illiquid (about # traded per day; minimum #).
+   174 × PCSA can't be traded in fractional shares.
+   170 × MYO is illiquid (about # traded per day; minimum #).
+   166 × DFDV can't be traded in fractional shares.
+   153 × CAI has only # days of trading history (minimum #).
+   151 × EGBN is illiquid (about # traded per day; minimum #).
+   150 × CRDF is illiquid (about # traded per day; minimum #).
+   149 × Reduced to the cash available (#).
+   149 × HCWB is illiquid (about # traded per day; minimum #).
+   140 × CNSP is illiquid (about # traded per day; minimum #).
+   133 × PCSA is illiquid (about # traded per day; minimum #).
+   122 × OSUR is illiquid (about # traded per day; minimum #).
+   122 × ECVT is illiquid (about # traded per day; minimum #).
+   121 × TYRA is illiquid (about # traded per day; minimum #).
+   116 × CWH is illiquid (about # traded per day; minimum #).
+   103 × RESI is illiquid (about # traded per day; minimum #).
+    99 × DFDV is illiquid (about # traded per day; minimum #).
+    88 × GOSS is illiquid (about # traded per day; minimum #).
+    82 × DFDV trades under # (#).
+    80 × HOFV is illiquid (about # traded per day; minimum #).
+    73 × LCI is illiquid (about # traded per day; minimum #).
+    71 × KYN is illiquid (about # traded per day; minimum #).
+    57 × HPP is illiquid (about # traded per day; minimum #).
+    56 × JELD is illiquid (about # traded per day; minimum #).
+    52 × EVFM is illiquid (about # traded per day; minimum #).
+    51 × ATNX is illiquid (about # traded per day; minimum #).
+    50 × LTH is illiquid (about # traded per day; minimum #).
+    49 × TREE is illiquid (about # traded per day; minimum #).
+    36 × NGM trades under # (#).
+    35 × GTHX is illiquid (about # traded per day; minimum #).
+    32 × AXGN is illiquid (about # traded per day; minimum #).
+    32 × SNDX is illiquid (about # traded per day; minimum #).
+    25 × IRON is illiquid (about # traded per day; minimum #).
+    20 × GRPN is illiquid (about # traded per day; minimum #).
+    17 × PBF trades under # (#).
+    16 × TUP is illiquid (about # traded per day; minimum #).
+    15 × DBD is illiquid (about # traded per day; minimum #).
+     9 × Buys are paused for today: the account is down # since yesterday's close (limit #).
+     8 × GOCO is illiquid (about # traded per day; minimum #).
+     6 × RILY is illiquid (about # traded per day; minimum #).
+     5 × AMRX is illiquid (about # traded per day; minimum #).
+     3 × REZI is illiquid (about # traded per day; minimum #).
+     3 × KPLT is illiquid (about # traded per day; minimum #).
+     3 × NEO is illiquid (about # traded per day; minimum #).
+     2 × CMCO is illiquid (about # traded per day; minimum #).
+     2 × BZH is illiquid (about # traded per day; minimum #).
+     1 × DDD trades under # (#).
+     1 × BIGZ is illiquid (about # traded per day; minimum #).
+     1 × HUMA trades under # (#).
+  Halts: 2020-03-18 (the account is down 31.1545% from its peak (limit 30%); resumed); 2022-06-14 (the account is down 30.2136% from its peak (limit 30%); resumed); 2022-09-22 (the account is down 16.104% since trading resumed on 2022-06-15 (limit 15% until it regains its old peak; 29.5058% below that peak); resumed); 2023-10-25 (the account is down 15.135% since trading resumed on 2022-09-23 (limit 15% until it regains its old peak; 25.6115% below that peak); resumed)
+
+Assumptions
+  - Orders fill at the session's open (daily bars hold no other intraday price), with 10 bps slippage against the trade.
+  - Steps per session (ET): 09:45, 10:00, 12:30, 12:45, 16:15. Live runs every 15 minutes; a version after the last trading step waits for the next session.
+  - Stops check the latest price, which in the replay is the session's open at every step (live: the latest trade, every 15 minutes). A move through a stop that recovers by the next open goes unseen.
+  - No dividends or corporate actions: adjusted bars stand in for them.
+  - Withdrawal requests aren't replayed, only completed transfers, so no cash is held back for an open request.
+
+Read with care
+  ! 200 symbol(s) with bars but no asset record, or one Alpaca now lists as inactive (delisted or renamed since), were assumed active, tradable and fractionable.
+  ! 1 signal symbol(s) have no bars at all and can't be bought: the survivorship gap, as in the backtest.
