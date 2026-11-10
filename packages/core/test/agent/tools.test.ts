@@ -77,6 +77,31 @@ describe("read tools", () => {
     expect(h.stoppedThesisIds).toEqual(["old-idea"]);
   });
 
+  it("get_holdings: each held thesis's signals; a thesis not bought yet and VTI aren't listed; no broker, no signals", async () => {
+    await submitStrategyTool(deps, strategy({ conviction: [thesis(), thesis({ id: "tqqq-idea", symbol: "TQQQ" })] }));
+    broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
+    broker.fill("o2", "VTI", "buy", "1", "300", new Date("2026-10-20T15:00:00Z"));
+    broker.positions = [
+      { symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" },
+      { symbol: "VTI", qty: "1", avgEntryPrice: "300", marketValue: "300", costBasis: "300", currentPrice: "300" },
+    ];
+    await syncBroker(deps.db, broker, "staging", NOW);
+    const h = await getHoldings(deps);
+    expect(h.theses).toEqual([
+      expect.objectContaining({
+        id: "aapl-services",
+        symbol: "AAPL",
+        firstBought: "2026-10-20",
+        sinceEntry: { returnPct: "0", vtiPct: "0", excessPct: "0" },
+        stop: { price: "170", abovePct: "17.65" },
+        flags: [],
+      }),
+    ]);
+    // Without filings, the earnings screen says so rather than guessing.
+    expect(h.theses![0]!.signals.notes).toContain("Couldn't read SEC filings: no earnings reaction (check the latest 8-K item 2.02 yourself).");
+    expect(await getHoldings({ db: deps.db, now: NOW })).not.toHaveProperty("theses");
+  });
+
   it("get_activity: recent events, orders and rebalance steps", async () => {
     await submitStrategyTool(deps, strategy());
     const a = await getActivity(deps, 7);

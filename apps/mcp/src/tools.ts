@@ -93,7 +93,7 @@ export const TOOLS: Tool[] = [
     name: "get_holdings",
     title: "Holdings, lots and wash-sale windows",
     description:
-      "Positions, FIFO tax lots, open wash-sale windows (recent sales at a loss, with when each window ends), and stopped thesis ids, which can never be reused.",
+      "Positions, FIFO tax lots, open wash-sale windows (recent sales at a loss, with when each window ends), stopped thesis ids (never reusable), and each held thesis's sell-side signals: return since its first lot vs VTI, how far it is off its high since and above its stop, any earnings reaction since entry, check_eligibility's screens, and flags (earnings_crash_since_entry, recent_big_loser, near_stop, lagging_vti). Re-judge every thesis with these each run; code doesn't sell on them.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getHoldings(deps),

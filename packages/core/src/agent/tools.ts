@@ -15,7 +15,7 @@ import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.
 import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submissionErrors, submitStrategy } from "../portfolio/store.js";
 import { EVIDENCE_KINDS, validateStrategy } from "../portfolio/strategy.js";
 import { IDLE_SYMBOL } from "../portfolio/systematic.js";
-import { STALE_AFTER_MS, thesisStates } from "../portfolio/theses.js";
+import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
 import { assetFacts, ineligibleReasons } from "../risk/eligibility.js";
 import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS, capExempt } from "../risk/limits.js";
@@ -23,6 +23,7 @@ import { headline } from "../notifications/weekly.js";
 import { marketDate } from "../time.js";
 import { candidateSignals } from "./candidate.js";
 import { CORRELATION_SESSIONS, SECTOR_FUNDS, exposureReport } from "./exposure.js";
+import { type HeldThesis, heldThesis } from "./held.js";
 import type { FilingsPort } from "./sec.js";
 
 /**
@@ -129,13 +130,46 @@ export async function getStrategy({ db, now }: DbDeps, version?: number) {
   };
 }
 
-/** Positions, lots, wash-sale windows and stopped thesis ids. */
-export async function getHoldings({ db, now }: DbDeps) {
+/**
+ * Each held thesis's sell-side signals (exits plan T2): how it has done since
+ * entry against VTI, how far it is off its high and above its stop, the
+ * candidate screens, and flags. Theses of the active strategy with open lots.
+ */
+async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | undefined, lots: ReturnType<typeof buildLots>, held: { symbol: string; currentPrice: string }[], now: Date): Promise<HeldThesis[]> {
+  const active = await activeStrategy(db, now);
+  const price = new Map(held.map((p) => [p.symbol, p.currentPrice]));
+  const owned = active.strategy.conviction.filter((t) => price.has(t.symbol) && lots.open.some((l) => l.symbol === t.symbol));
+  if (!owned.length) return [];
+  // Over a year of sessions, for the 12-1 month return, as check_eligibility.
+  const bars = await broker.getDailyBars([...new Set([...owned.map((t) => t.symbol), BENCHMARK])], new Date(now.getTime() - 400 * 86_400_000), now);
+  const out: HeldThesis[] = [];
+  for (const thesis of owned) {
+    const first = lots.open.filter((l) => l.symbol === thesis.symbol).reduce((a, b) => (b.openedAt < a.openedAt ? b : a));
+    out.push(
+      heldThesis({
+        thesis,
+        firstLotAt: first.openedAt,
+        averageCost: averageCost(lots.open, thesis.symbol)!,
+        price: price.get(thesis.symbol)!,
+        bars: bars[thesis.symbol] ?? [],
+        vti: bars[BENCHMARK] ?? [],
+        // One at a time: SEC asks for at most 10 requests a second.
+        releases: filings ? await filings.earningsReleases(thesis.symbol) : null,
+        now,
+      }),
+    );
+  }
+  return out;
+}
+
+/** Positions, lots, wash-sale windows, stopped thesis ids and, given the broker, each held thesis's signals. */
+export async function getHoldings({ db, now, broker, filings }: DbDeps & Partial<Pick<ToolDeps, "broker" | "filings">>) {
   const { lots, held } = await holdingsWithLots(db);
   const windowSymbols = washSaleWindow(lots.closed, now);
   const since = now.getTime() - WASH_SALE_DAYS * 86_400_000;
   return {
     positions: held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, price: p.currentPrice, costBasis: p.costBasis })),
+    ...(broker ? { theses: await heldTheses(db, broker, filings, lots, held, now) } : {}),
     lots: lots.open.map((l) => ({ symbol: l.symbol, qty: l.qty, costBasis: l.costBasis, openedAt: l.openedAt.toISOString() })),
     washSaleWindows: lots.closed
       .filter((c) => windowSymbols.has(c.symbol) && compare(c.gain, "0") < 0 && c.closedAt.getTime() >= since)
