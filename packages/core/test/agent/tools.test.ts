@@ -81,7 +81,43 @@ describe("read tools", () => {
     await submitStrategyTool(deps, strategy());
     const a = await getActivity(deps, 7);
     expect(a.events.map((e) => e.kind)).toContain("strategy.activated");
-    expect(a).toMatchObject({ rebalanceSteps: [], orders: [] });
+    expect(a).toMatchObject({ rebalanceSteps: [], quietSteps: { count: 0, notes: [] }, orders: [] });
+  });
+
+  it("get_activity: a busy week stays short for the routine: activations by headline, one line per trade, quiet steps counted (#74)", async () => {
+    const long = (n: number) => `Reaffirmed every thesis; nothing new this run.\n${"Long reasoning. ".repeat(n)}`;
+    const plain = Array.from({ length: 7 }, (_, i) => ({ symbol: `S${i}`, targetWeightPct: "10", text: "A plain sentence about the bet. ".repeat(6) }));
+    await deps.db.insert(auditEvents).values(
+      Array.from({ length: 14 }, (_, i) => ({ actor: "claude" as const, kind: "strategy.activated", subject: `v${i + 1}`, at: new Date(NOW.getTime() - i * 43_200_000), payload: { version: i + 1, authoredBy: "claude", summary: long(150), theses: 7, convictionPct: "70", plain } })),
+    );
+    const trade = (symbol: string, verdict: string) => ({
+      proposal: { key: `k-${symbol}`, symbol, sleeve: "conviction", side: "buy", notional: "1000" },
+      reason: `${symbol} under target`,
+      verdict,
+      reasons: ["a risk reason"],
+      submitted: "submitted",
+    });
+    await deps.db.insert(rebalancePlans).values(
+      Array.from({ length: 50 }, (_, i) => ({
+        id: crypto.randomUUID(),
+        tradingDate: "2026-11-02",
+        strategyVersion: 14,
+        phase: i % 5 === 0 ? "buy" : "none",
+        targets: [],
+        trades: i % 5 === 0 ? [trade("AAPL", "approved"), trade("MSFT", "clipped")] : [],
+        notes: i % 5 === 0 ? [] : ["the conviction buys wait for the sells that fund them"],
+        createdAt: new Date(NOW.getTime() - i * 900_000),
+      })),
+    );
+    const a = await getActivity(deps, 7);
+    expect(JSON.stringify(a).length).toBeLessThan(20_000);
+    expect(a.events[0]!.payload).toEqual({ version: 1, authoredBy: "claude", headline: "Reaffirmed every thesis; nothing new this run.", theses: 7, convictionPct: "70" });
+    expect(a.rebalanceSteps).toHaveLength(10);
+    expect(a.rebalanceSteps[0]!.trades).toEqual([
+      { side: "buy", symbol: "AAPL", sleeve: "conviction", notional: "1000", reason: "AAPL under target", verdict: "approved", submitted: "submitted" },
+      { side: "buy", symbol: "MSFT", sleeve: "conviction", notional: "1000", reason: "MSFT under target", verdict: "clipped", reasons: ["a risk reason"], submitted: "submitted" },
+    ]);
+    expect(a.quietSteps).toEqual({ count: 40, notes: ["the conviction buys wait for the sells that fund them"] });
   });
 
   it("get_prices: bars per symbol, symbols cleaned and capped", async () => {

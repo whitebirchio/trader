@@ -19,6 +19,7 @@ import { STALE_AFTER_MS, thesisStates } from "../portfolio/theses.js";
 import { assetFacts, ineligibleReasons } from "../risk/eligibility.js";
 import { loadSnapshot } from "../risk/gate.js";
 import { LIMITS, capExempt } from "../risk/limits.js";
+import { headline } from "../notifications/weekly.js";
 import { marketDate } from "../time.js";
 import { candidateSignals } from "./candidate.js";
 import { CORRELATION_SESSIONS, SECTOR_FUNDS, exposureReport } from "./exposure.js";
@@ -155,7 +156,48 @@ const ACTIVITY_KINDS = [
   "strategy.activated", "strategy.rejected", "thesis.stopped_out", "thesis.stale", "thesis.review_overdue",
 ];
 
-/** What happened recently: rebalance steps with reasons, fills, risk decisions, strategy submissions. */
+type StoredTrade = { proposal?: { side?: string; symbol?: string; sleeve?: string; notional?: string; qty?: string }; reason?: string; verdict?: string; reasons?: string[]; submitted?: string };
+
+export interface ActivityTrade {
+  side?: string;
+  symbol?: string;
+  sleeve?: string;
+  notional?: string;
+  qty?: string;
+  reason?: string;
+  verdict?: string;
+  reasons?: string[];
+  submitted?: string;
+}
+
+/** One line's worth of a planned trade; risk's reasons only when it clipped or rejected the trade. */
+function tradeLine(t: StoredTrade): ActivityTrade {
+  const p = t.proposal ?? {};
+  return {
+    side: p.side,
+    symbol: p.symbol,
+    sleeve: p.sleeve,
+    ...(p.notional ? { notional: p.notional } : { qty: p.qty }),
+    reason: t.reason,
+    verdict: t.verdict,
+    ...(t.verdict && t.verdict !== "approved" ? { reasons: t.reasons } : {}),
+    submitted: t.submitted,
+  };
+}
+
+/** An activation names the version and the summary's first line: the full document is get_strategy's. */
+function eventPayload(kind: string, payload: unknown): unknown {
+  if (kind !== "strategy.activated" || !payload || typeof payload !== "object") return payload;
+  const { version, authoredBy, summary, theses, convictionPct } = payload as Record<string, unknown>;
+  return { version, authoredBy, headline: typeof summary === "string" ? headline(summary) : undefined, theses, convictionPct };
+}
+
+/**
+ * What happened recently: rebalance steps that traded, fills, risk decisions,
+ * strategy submissions. Kept short for the routine's tool-output limit (#74):
+ * steps that planned nothing are counted, not listed, with their notes (why
+ * buys are waiting, say) once each.
+ */
 export async function getActivity({ db, now }: DbDeps, days = 14) {
   const since = new Date(now.getTime() - Math.min(Math.max(days, 1), 90) * 86_400_000);
   const events = await db
@@ -166,11 +208,13 @@ export async function getActivity({ db, now }: DbDeps, days = 14) {
     .limit(200);
   const plans = await db.select().from(rebalancePlans).where(gte(rebalancePlans.createdAt, since)).orderBy(desc(rebalancePlans.createdAt)).limit(50);
   const recentOrders = await db.select().from(orders).where(gte(orders.createdAt, since)).orderBy(desc(orders.createdAt)).limit(100);
+  const traded = plans.filter((p) => p.trades.length > 0);
   return {
     since: since.toISOString(),
-    rebalanceSteps: plans.map((p) => ({ at: p.createdAt.toISOString(), strategyVersion: p.strategyVersion, phase: p.phase, trades: p.trades, notes: p.notes })),
+    rebalanceSteps: traded.map((p) => ({ at: p.createdAt.toISOString(), strategyVersion: p.strategyVersion, phase: p.phase, trades: (p.trades as StoredTrade[]).map(tradeLine), notes: p.notes })),
+    quietSteps: { count: plans.length - traded.length, notes: [...new Set(plans.filter((p) => p.trades.length === 0).flatMap((p) => p.notes))] },
     orders: recentOrders.map((o) => ({ at: o.createdAt.toISOString(), symbol: o.symbol, side: o.side, notional: o.notional, qty: o.qty, status: o.status, filledQty: o.filledQty, filledAvgPrice: o.filledAvgPrice, strategyRef: o.strategyRef, rejectReason: o.rejectReason })),
-    events: events.filter((e) => e.at >= since).map((e) => ({ at: e.at.toISOString(), kind: e.kind, actor: e.actor, subject: e.subject, payload: e.payload })),
+    events: events.filter((e) => e.at >= since).map((e) => ({ at: e.at.toISOString(), kind: e.kind, actor: e.actor, subject: e.subject, payload: eventPayload(e.kind, e.payload) })),
   };
 }
 
