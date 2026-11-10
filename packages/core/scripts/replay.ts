@@ -19,18 +19,20 @@
  *
  * --baseline-report <file.json> (with --variant) reads the baseline's report
  * from an earlier run instead of replaying it again: a long replay's
- * variants can then run side by side.
+ * variants can then run side by side. A variant that finishes first waits
+ * for the file.
  *
  * --rules insiders (T8, mode 2) replays a timeline written by a fixed rule
  * from the insider-buy backtest's cached events (`research:insiders` writes
  * .cache/insider-outcomes.json) instead of a recorded history: a weekly
  * version, $100,000 deposited at the start (--cash), halts resumed the next
- * session. Symbols with bars but no asset record are assumed listed.
+ * session. Symbols with bars but no asset record, or a record Alpaca now
+ * lists as inactive, are assumed listed.
  *
  * --from defaults to the timeline's first version (required with --rules),
  * --to to yesterday (the last session whose bars are complete).
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
 import { loadMarket } from "../src/replay/data.js";
@@ -88,7 +90,7 @@ if (values.rules) {
   ({ market, missing } = await loadMarket(symbols, from, to, loadOpts));
   const listed = assumeListed(market);
   market = listed.market;
-  if (listed.assumed.length) warnings.push(`${listed.assumed.length} symbol(s) with bars but no asset record (delisted or renamed since) were assumed active, tradable and fractionable.`);
+  if (listed.assumed.length) warnings.push(`${listed.assumed.length} symbol(s) with bars but no asset record, or one Alpaca now lists as inactive (delisted or renamed since), were assumed active, tradable and fractionable.`);
   if (missing.bars.length) warnings.push(`${missing.bars.length} signal symbol(s) have no bars at all and can't be bought: the survivorship gap, as in the backtest.`);
   const sessions = market.calendar.filter((d) => d.date >= from && d.date <= to).map((d) => d.date);
   const weeks = weekStarts(sessions);
@@ -156,7 +158,14 @@ if (variant) {
   const slug = variant.name.replace(/[^a-z0-9.=-]+/gi, "_");
   writeFileSync(join(dir, `${name}-${slug}.txt`), formatReport(variantReport));
   writeFileSync(join(dir, `${name}-${slug}.json`), JSON.stringify(variantReport, null, 2));
-  report ??= JSON.parse(readFileSync(values["baseline-report"]!, "utf8")) as ReplayReport;
+  if (!report) {
+    const baseFile = values["baseline-report"]!;
+    while (!existsSync(baseFile)) {
+      console.error(`waiting for the baseline's report: ${baseFile}`);
+      await new Promise((r) => setTimeout(r, 60_000));
+    }
+    report = JSON.parse(readFileSync(baseFile, "utf8")) as ReplayReport;
+  }
   const diff = formatDiff(diffReports(report, variantReport, variant.name));
   writeFileSync(join(dir, `${name}-${slug}-diff.txt`), diff);
   console.log(`\n${diff}`);

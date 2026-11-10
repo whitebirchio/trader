@@ -133,13 +133,16 @@ export function insiderTimeline(signals: InsiderSignal[], weeks: string[], rule:
 }
 
 /**
- * Asset records for symbols with bars but no asset (delisted, renamed or
- * merged since): assumed active, tradable and fractionable, as they were
- * when they traded. A replay of years past needs them; the report says so.
+ * Asset records for symbols with bars but no asset, or one Alpaca now lists
+ * as inactive or untradable (delisted, renamed or merged since): assumed
+ * active, tradable and fractionable, as they were when they traded. Today's
+ * record would otherwise refuse every buy for all the years it did trade. A
+ * replay of years past needs them; the report says so.
  */
 export function assumeListed(market: SimMarket): { market: SimMarket; assumed: string[] } {
-  const assumed = Object.keys(market.bars).filter((s) => !market.assets[s] && (market.bars[s]?.length ?? 0) > 0);
+  const gone = (a: Asset | undefined) => !a || a.status !== "active" || !a.tradable;
+  const assumed = Object.keys(market.bars).filter((s) => gone(market.assets[s]) && (market.bars[s]?.length ?? 0) > 0);
   const assets: Record<string, Asset> = { ...market.assets };
-  for (const s of assumed) assets[s] = { symbol: s, name: s, status: "active", tradable: true, fractionable: true, marginRequirementLong: null };
+  for (const s of assumed) assets[s] = { symbol: s, name: market.assets[s]?.name ?? s, status: "active", tradable: true, fractionable: true, marginRequirementLong: null };
   return { market: { ...market, assets }, assumed };
 }

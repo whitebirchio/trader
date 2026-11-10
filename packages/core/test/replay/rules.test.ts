@@ -84,4 +84,18 @@ describe("assumeListed", () => {
     expect(market.assets.VTI).toBe(listed);
     expect(market.assets.NONE).toBeUndefined();
   });
+
+  it("does the same for a record Alpaca now lists as inactive or untradable, keeping its name", () => {
+    const bar = { t: new Date("2024-01-02T05:00:00Z"), o: "1", h: "1", l: "1", c: "1", v: "1" };
+    const record = (symbol: string, over: object) => ({ symbol, name: `${symbol} Inc`, status: "active", tradable: true, fractionable: false, marginRequirementLong: null, ...over });
+    const { market, assumed } = assumeListed({
+      bars: { MERGED: [bar], HALTED: [bar], WHOLE: [bar] },
+      calendar: [],
+      assets: { MERGED: record("MERGED", { status: "inactive", tradable: false }), HALTED: record("HALTED", { tradable: false }), WHOLE: record("WHOLE", {}) },
+    });
+    expect(assumed).toEqual(["MERGED", "HALTED"]);
+    expect(market.assets.MERGED).toMatchObject({ name: "MERGED Inc", status: "active", tradable: true, fractionable: true });
+    // Still listed and tradable: today's record stands, whole shares and all.
+    expect(market.assets.WHOLE).toMatchObject({ fractionable: false });
+  });
 });
