@@ -1,7 +1,6 @@
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { recordEvent } from "../audit.js";
-import { loadActivities } from "../broker/activities.js";
-import { buildLots } from "../broker/lots.js";
+import { loadLedger } from "../broker/activities.js";
 import { OPEN_ORDER_LOOKBACK_MS, OPEN_ORDER_STATES, submitOrder } from "../broker/orders.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
@@ -86,7 +85,7 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
     ? { version: -1, authoredBy: "claude" as const, createdAt: now, reaffirmedAt: now, strategy: opts.strategyOverride }
     : await activeStrategy(db, now);
   const { strategy } = active;
-  const lots = buildLots(await loadActivities(db));
+  const lots = (await loadLedger(db)).lots;
   const held = await db.select().from(positions);
 
   // One bars request: universe, theses, holdings, VTI and the defensive symbol.
