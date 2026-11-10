@@ -118,7 +118,10 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
 
   const exitReasons: Record<string, string> = {};
   for (const s of states) if (s.state !== "active") exitReasons[s.thesis.symbol] = `thesis ${s.thesis.id}: ${s.reason}`;
-  const sleeveOf = (symbol: string): Sleeve => (convictionSymbols.has(symbol) ? "conviction" : "systematic");
+  // Systematic only if the systematic sleeve could hold it. Anything else (a thesis Claude removed, a manual
+  // trade) is conviction: risk's conservative side, and what the owner reads in the plan.
+  const universe = new Set<string>([...strategy.systematic.universe, IDLE_SYMBOL, ...(strategy.systematic.defensive ? [strategy.systematic.defensive] : [])]);
+  const sleeveOf = (symbol: string): Sleeve => (convictionSymbols.has(symbol) || !universe.has(symbol) ? "conviction" : "systematic");
 
   const planId = opts.dryRun ? "dry-run" : crypto.randomUUID();
   const holdings = held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, currentPrice: p.currentPrice }));
@@ -138,7 +141,6 @@ export async function runRebalance(db: Db, broker: BrokerAdapter, env: TradingEn
   let haltedSkip: string | null = null;
   if (guard.halted && !guard.killSwitch) {
     // A thesis that closed, or a single stock no longer in the strategy (one Claude removed).
-    const universe = new Set<string>([...strategy.systematic.universe, IDLE_SYMBOL, ...(strategy.systematic.defensive ? [strategy.systematic.defensive] : [])]);
     const exitable = new Set(held.map((p) => p.symbol).filter((s) => exitReasons[s] !== undefined || (!convictionSymbols.has(s) && !universe.has(s))));
     const exits = haltExits(plan.trades, holdings, exitable);
     const exited = new Set(exits.map((t) => t.proposal.symbol));

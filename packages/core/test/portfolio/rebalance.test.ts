@@ -1,3 +1,4 @@
+import { desc } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
@@ -237,6 +238,9 @@ describe("rebalance", () => {
       const held = broker.positions.find((p) => p.symbol === "AAPL")!.qty;
       expect(await step()).toMatchObject({ status: "planned", phase: "sell" });
       expect(broker.orders.slice(before).map((o) => [o.symbol, o.side, o.qty])).toEqual([["AAPL", "sell", held]]);
+      // A removed thesis still sells as conviction, not as the systematic sleeve.
+      const [plan] = await db.select().from(rebalancePlans).orderBy(desc(rebalancePlans.createdAt)).limit(1);
+      expect((plan!.trades as { proposal: { symbol: string; sleeve: string } }[]).map((t) => [t.proposal.symbol, t.proposal.sleeve])).toEqual([["AAPL", "conviction"]]);
     });
 
     it("sells nothing with the kill switch on", async () => {
