@@ -20,8 +20,15 @@ describe("parseConfig", () => {
         tradingEnv: "staging",
         databaseUrl: SECRET_URL,
         alpaca: { keyId: KEY_ID, secretKey: SECRET_KEY },
+        alphaVantageKey: null,
       },
     });
+  });
+
+  it("takes an optional Alpha Vantage key, and fails closed on a malformed one (#30)", () => {
+    expect(parseConfig({ ...valid, ALPHAVANTAGE_API_KEY: "ABCD1234EFGH5678" })).toMatchObject({ ok: true, config: { alphaVantageKey: "ABCD1234EFGH5678" } });
+    expect(parseConfig({ ...valid, ALPHAVANTAGE_API_KEY: "" })).toMatchObject({ ok: true, config: { alphaVantageKey: null } });
+    expect(parseConfig({ ...valid, ALPHAVANTAGE_API_KEY: "not a key!" })).toEqual({ ok: false, missing: [], invalid: ["ALPHAVANTAGE_API_KEY"] });
   });
 
   it("accepts postgres:// as well as postgresql://", () => {

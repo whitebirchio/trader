@@ -25,6 +25,7 @@ npm run invoke -- --env staging --jobs heartbeat,sync-broker   # run the deploye
 npm run broker:sync -w @trader/core -- --env staging --force   # one paper sync now, from the laptop (see docs/SETUP.md)
 npm run notify:run -w @trader/core -- --env staging            # queue urgent emails now
 npm run rebalance:plan -w @trader/core -- --env staging --sync  # dry-run today's rebalance through risk
+npm run earnings:refresh -w @trader/core -- --env staging --show AAPL   # fetch today's earnings calendar now (ALPHAVANTAGE_API_KEY in .env)
 ```
 
 Local AWS commands use the SSO profile `whitebirch` (`aws sso login --profile whitebirch` when it expires). **Verify on demand** (`invoke`, `broker:sync --force`, `notify:run`, `risk:check`) rather than waiting for scheduled ticks.

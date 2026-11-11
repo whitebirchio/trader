@@ -85,6 +85,13 @@ describe("heldThesis", () => {
     expect(h.signals).toMatchObject({ momentum12to1Pct: "-50", recentBigLoser: true });
   });
 
+  it("flags a report within 7 days as earnings_soon, which isn't a sell signal, and carries the date (#30)", () => {
+    const soon = { date: "2026-11-12", inDays: 6, timeOfDay: "post-market", estimate: "1.20", fiscalDateEnding: "2026-09-30" };
+    expect(heldThesis(input(flat(N), { nextEarnings: soon }))).toMatchObject({ nextEarnings: soon, flags: ["earnings_soon"] });
+    expect(heldThesis(input(flat(N), { nextEarnings: { ...soon, inDays: 8 } })).flags).toEqual([]);
+    expect(heldThesis(input(flat(N))).nextEarnings).toBeNull();
+  });
+
   it("leaves out what the bars can't give, without failing", () => {
     const h = heldThesis(input(["100"], { bars: [], vti: [], releases: null, price: "100" }));
     expect(h).toMatchObject({ sinceEntry: null, highSinceEntry: null, stop: { price: "85", abovePct: "17.65" }, flags: [] });

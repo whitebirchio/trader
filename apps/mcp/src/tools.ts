@@ -109,7 +109,7 @@ export const TOOLS: Tool[] = [
     name: "get_holdings",
     title: "Holdings, lots and wash-sale windows",
     description:
-      "Positions, FIFO tax lots, open wash-sale windows (recent sales at a loss, with when each window ends), stopped thesis ids (never reusable), and each held thesis's sell-side signals: return since its first lot vs VTI, how far it is off its high since and above its stop, any earnings reaction since entry, check_eligibility's screens, and flags (earnings_crash_since_entry, recent_big_loser, near_stop, lagging_vti). Re-judge every thesis with these each run; code doesn't sell on them.",
+      "Positions, FIFO tax lots, open wash-sale windows (recent sales at a loss, with when each window ends), stopped thesis ids (never reusable), and each held thesis's sell-side signals: return since its first lot vs VTI, how far it is off its high since and above its stop, any earnings reaction since entry, check_eligibility's screens, its next earnings report (nextEarnings), and flags (earnings_crash_since_entry, recent_big_loser, near_stop, lagging_vti, and earnings_soon for a report within 7 days). Re-judge every thesis with these each run; code doesn't sell on them.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getHoldings(deps),
@@ -144,7 +144,7 @@ export const TOOLS: Tool[] = [
     name: "check_eligibility",
     title: "Risk eligibility",
     description:
-      "Risk's verdict on buying each symbol, with the reasons for any rejection (leveraged or inverse, price, liquidity, listing age, not fractionable), and whether it's exempt from the 20% per-name cap. Its `signals` are the owner's screens: the 12-1 month return (`momentum12to1Pct`; `recentBigLoser` at −30% or worse) and the last earnings release from SEC filings (`lastEarnings`: reaction vs VTI and sessions since; `freshEarningsCrash` at −10% or worse within 10 sessions). Check candidates before drafting.",
+      "Risk's verdict on buying each symbol, with the reasons for any rejection (leveraged or inverse, price, liquidity, listing age, not fractionable), and whether it's exempt from the 20% per-name cap. Its `signals` are the owner's screens: the 12-1 month return (`momentum12to1Pct`; `recentBigLoser` at −30% or worse) and the last earnings release from SEC filings (`lastEarnings`: reaction vs VTI and sessions since; `freshEarningsCrash` at −10% or worse within 10 sessions), and `nextEarnings`, the next scheduled report. Check candidates before drafting.",
     inputSchema: schema({ symbols: symbolsProp }, ["symbols"]),
     readOnly: true,
     handler: (deps, args) => checkEligibility(deps, symbolsArg(args)),

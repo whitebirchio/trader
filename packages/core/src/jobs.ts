@@ -1,4 +1,5 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { type EarningsCalendarPort, refreshEarningsCalendar } from "./agent/earnings-calendar.js";
 import { recordEvent } from "./audit.js";
 import type { BrokerAdapter } from "./broker/port.js";
 import { syncBroker } from "./broker/sync.js";
@@ -19,6 +20,8 @@ export interface JobDeps {
   broker: BrokerAdapter;
   mailer: Mailer;
   now: () => Date;
+  /** The earnings calendar's source (#30); absent without an Alpha Vantage key. */
+  earnings?: EarningsCalendarPort;
 }
 
 export interface JobContext extends JobDeps {
@@ -84,6 +87,25 @@ const processCapitalJob: JobFn = async ({ db, broker, now }) => {
   return { status: "succeeded", detail };
 };
 
+/** After a failed fetch, wait this long before spending another of the free tier's 25 requests a day. */
+const EARNINGS_RETRY_AFTER_MS = 2 * 60 * 60_000;
+
+/** Today's earnings calendar snapshot, once a day (#30). Fails soft: the tools report a stale or missing calendar. */
+const earningsCalendarJob: JobFn = async ({ db, earnings, now }) => {
+  if (!earnings) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
+  const [lastFailure] = await db
+    .select({ at: jobRuns.scheduledFor })
+    .from(jobRuns)
+    .where(and(eq(jobRuns.job, "earnings-calendar"), eq(jobRuns.status, "failed"), gte(jobRuns.scheduledFor, new Date(now().getTime() - EARNINGS_RETRY_AFTER_MS))))
+    .orderBy(desc(jobRuns.scheduledFor))
+    .limit(1);
+  if (lastFailure) return { status: "skipped", reason: `the last fetch failed at ${lastFailure.at.toISOString()}; retrying after 2 hours` };
+  const result = await refreshEarningsCalendar(db, earnings, now());
+  if (result.status === "skipped") return result;
+  const { status: _, ...detail } = result;
+  return { status: "succeeded", detail };
+};
+
 /** Every job the engine can run, by name: the tick jobs and the rebalance. */
 export const JOBS = {
   heartbeat,
@@ -92,6 +114,7 @@ export const JOBS = {
   "notify-urgent": notifyUrgent,
   "notify-digest": notifyDigest,
   "notify-weekly": notifyWeekly,
+  "earnings-calendar": earningsCalendarJob,
   // Not in TICK_JOBS: it has its own schedule, 5 minutes after each tick (SPEC-portfolio).
   rebalance: rebalanceJob,
 } satisfies Record<string, JobFn>;
@@ -166,7 +189,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);

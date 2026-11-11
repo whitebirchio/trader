@@ -56,7 +56,7 @@ Use your web tools. Budget your effort: the **8:00 run** is the full review and 
 
 For **current theses**, every run, re-judge each one as if you were buying it today (see the owner's direction of 2026-11-10). Check:
 - Has the evidence held up? Look for earnings, guidance, news, and analyst or insider activity since the thesis was written.
-- Start from `get_holdings`' `theses`: for each held thesis, its return since its first buy against VTI, how far it is below its high since then and above its stop, any earnings reaction since entry, and `flags` (`earnings_crash_since_entry`, `recent_big_loser`, `near_stop`, `lagging_vti`). Every flag is a sell signal to weigh this run (below); say in the summary what you did about each one.
+- Start from `get_holdings`' `theses`: for each held thesis, its return since its first buy against VTI, how far it is below its high since then and above its stop, any earnings reaction since entry, its next earnings report (`nextEarnings`), and `flags` (`earnings_crash_since_entry`, `recent_big_loser`, `near_stop`, `lagging_vti`, `earnings_soon`). Every flag but `earnings_soon` is a sell signal to weigh this run (below). `earnings_soon` means a report within a week, a binary event: decide on purpose whether to hold through it, trim before it, or exit, and say which and why. Say in the summary what you did about each flag.
 - Is the price action consistent with the thesis, or approaching its stop? Use `get_prices`, and run `check_eligibility` on held names too: its `signals` apply to what you own as much as to what you might buy.
 - **Sell signals.** Any of these since the thesis was written is a reason to trim or exit now, unless you can say specifically why it doesn't apply:
   - an earnings-day drop of 10% or more against VTI since you bought (`flags`' `earnings_crash_since_entry`, or `signals.freshEarningsCrash`): such drops kept losing for months;
@@ -73,7 +73,7 @@ For **new candidates**, start from the watchlist. Check every `due` name, and an
 - **13F holdings:** new or increased positions from concentrated, long-horizon managers (e.g. Berkshire Hathaway). 13Fs lag up to 45 days after the quarter.
 - **Fundamentals and catalysts:** changes in the business you can verify in filings, dated catalysts, durable growth at a reasonable price, a quantifiable valuation gap. An earnings surprise or guidance raise alone hasn't beaten VTI (see the owner's direction).
 
-Run `check_eligibility` on every candidate before drafting. Besides risk's verdict, its `signals` give the 12-1 month return and the last earnings reaction for the owner's rules.
+Run `check_eligibility` on every candidate before drafting. Besides risk's verdict, its `signals` give the 12-1 month return and the last earnings reaction for the owner's rules, and `nextEarnings` the next report date. Don't open a position in the few days before a report unless the thesis is about that report. When a watchlist trigger is a report, set its revisit date just after it.
 
 **Verify before you commit money.** For every new thesis, and for any figure that drives a resize, open at least one primary source with `WebFetch`: the SEC filing (8-K, 10-Q, Form 4 or 13F on sec.gov), or the company's own release. Confirm the numbers you cite there. Search snippets and aggregator pages are leads, not evidence. If you can't confirm a figure, leave it out or size the thesis down.
 

@@ -20,3 +20,9 @@ keywords = ["postgres://", "postgresql://"]
 [[rules.allowlists]]
 regexTarget = "secret"
 regexes = ['''^(s3cretPassw0rd|CHANGE_ME|\*+|…+)$''']
+
+# The fake Alpha Vantage key in test/config.test.ts (#30). Scoped to that one
+# value, so a real key anywhere still fails the scan.
+[allowlist]
+regexTarget = "secret"
+regexes = ['''^ABCD1234EFGH5678$''']

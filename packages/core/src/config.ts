@@ -6,6 +6,8 @@ export interface Config {
   databaseUrl: string;
   /** The env's own Alpaca key pair: paper in staging, live in production (ADR-005). */
   alpaca: { keyId: string; secretKey: string };
+  /** Alpha Vantage's key for the earnings calendar (#30). Optional: without it the earnings-calendar job skips. */
+  alphaVantageKey: string | null;
 }
 
 export type ConfigResult =
@@ -27,7 +29,7 @@ export const MCP_PARAMETERS = ["MCP_DATABASE_URL", "MCP_ALPACA_KEY_ID", "MCP_ALP
  * dashboard's: each decrypted SecureString is a KMS request, and reading the
  * whole path decrypted all of them on every tick.
  */
-export const ENGINE_PARAMETERS = ["DATABASE_URL", "ALPACA_KEY_ID", "ALPACA_SECRET_KEY"] as const;
+export const ENGINE_PARAMETERS = ["DATABASE_URL", "ALPACA_KEY_ID", "ALPACA_SECRET_KEY", "ALPHAVANTAGE_API_KEY"] as const;
 
 const VARS = {
   TRADING_ENV: z.enum(TRADING_ENVS),
@@ -36,7 +38,12 @@ const VARS = {
   ALPACA_SECRET_KEY: z.string().regex(/^[A-Za-z0-9]{32,}$/),
 } as const;
 
-type VarName = keyof typeof VARS;
+/** Optional: missing is fine, but a value that's set must be valid (fails closed like the rest). */
+const OPTIONAL = {
+  ALPHAVANTAGE_API_KEY: z.string().regex(/^[A-Za-z0-9]{8,64}$/),
+} as const;
+
+type VarName = keyof typeof VARS | keyof typeof OPTIONAL;
 
 /**
  * Validate the Worker's environment. Fails closed: callers must not run jobs
@@ -51,10 +58,15 @@ export function parseConfig(env: Partial<Record<VarName, unknown>>): ConfigResul
     const value = env[name];
     if (value === undefined || value === null || value === "") {
       missing.push(name);
-    } else if (!VARS[name].safeParse(value).success) {
+    } else if (!VARS[name as keyof typeof VARS].safeParse(value).success) {
       invalid.push(name);
     }
   }
+  for (const name of Object.keys(OPTIONAL) as (keyof typeof OPTIONAL)[]) {
+    const value = env[name];
+    if (value !== undefined && value !== null && value !== "" && !OPTIONAL[name].safeParse(value).success) invalid.push(name);
+  }
+  invalid.sort();
 
   if (missing.length > 0 || invalid.length > 0) return { ok: false, missing, invalid };
   return {
@@ -66,6 +78,7 @@ export function parseConfig(env: Partial<Record<VarName, unknown>>): ConfigResul
         keyId: VARS.ALPACA_KEY_ID.parse(env.ALPACA_KEY_ID),
         secretKey: VARS.ALPACA_SECRET_KEY.parse(env.ALPACA_SECRET_KEY),
       },
+      alphaVantageKey: typeof env.ALPHAVANTAGE_API_KEY === "string" && env.ALPHAVANTAGE_API_KEY !== "" ? env.ALPHAVANTAGE_API_KEY : null,
     },
   };
 }

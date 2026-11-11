@@ -3,6 +3,7 @@ import {
   type BrokerAdapter,
   type Config,
   type Db,
+  type EarningsCalendarPort,
   type Mailer,
   TICK_JOBS,
   getHealth,
@@ -25,6 +26,8 @@ export interface HandlerDeps {
   openDb(config: Config): Promise<{ db: Db; close(): Promise<void> }>;
   makeBroker(config: Config): BrokerAdapter;
   makeMailer(config: Config): Mailer;
+  /** The earnings calendar's source (#30), when an Alpha Vantage key is configured. */
+  makeEarnings?(config: Config): EarningsCalendarPort | undefined;
   now(): Date;
   log(level: "info" | "error", message: string, detail?: Record<string, unknown>): void;
 }
@@ -76,11 +79,12 @@ export function createHandler(deps: HandlerDeps) {
     const { config } = parsed;
     const broker = deps.makeBroker(config);
     const mailer = deps.makeMailer(config);
+    const earnings = deps.makeEarnings?.(config);
     const { db, close } = await deps.openDb(config);
     const results: unknown[] = [];
     try {
       for (const job of requested.filter(isJobName)) {
-        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now }, job, scheduledFor);
+        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now, earnings }, job, scheduledFor);
         deps.log("info", "job", { job, scheduledFor: scheduledFor.toISOString(), ...outcome });
         results.push({ job, ...outcome });
       }
