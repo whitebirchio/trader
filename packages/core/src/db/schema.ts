@@ -91,6 +91,7 @@ export const APPEND_ONLY_TABLES = [
   "capital_flows",
   "capital_commands",
   "capital_command_results",
+  "watchlist_notes",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -350,6 +351,28 @@ export const thesisCloses = pgTable(
     recordedAt: timestamptz().notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.symbol, t.tradingDate] })],
+);
+
+/**
+ * Claude's research memory (#32): names it considered but didn't buy, why,
+ * and what would bring each in. One row per change; a symbol's latest row is
+ * its state ("watch" or "drop"). Insert-only. No trading effect.
+ */
+export const watchlistNotes = pgTable(
+  "watchlist_notes",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    symbol: text().notNull(),
+    action: text({ enum: ["watch", "drop"] }).notNull(),
+    why: text().notNull(),
+    /** What would make it a thesis (watch only). */
+    trigger: text(),
+    /** When to look again (watch only). */
+    revisitBy: date({ mode: "string" }),
+    actor: auditActor().notNull(),
+    at: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [index("watchlist_notes_symbol_idx").on(t.symbol, t.at)],
 );
 
 /** Thesis lifecycle transitions. `stopped` is permanent: re-entry needs a new thesis id. */

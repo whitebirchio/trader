@@ -2,7 +2,8 @@
  * Create (or rotate) the MCP server's role, `trader_mcp`, on one Neon branch,
  * then prove its access is exactly what the tools need (SPEC-agent, review
  * finding R1): SELECT on everything, plus INSERT on `strategies` and
- * `audit_events`, which are submit_strategy's only writes. No UPDATE, DELETE,
+ * `audit_events` (submit_strategy's writes) and `watchlist_notes`
+ * (update_watchlist's, #32). No UPDATE, DELETE,
  * TRUNCATE or DDL anywhere, so a leaked MCP credential can't edit positions,
  * orders or risk_state (migration 0021 also guards risk_state by owner).
  *
@@ -25,7 +26,7 @@ import { neon } from "@neondatabase/serverless";
 
 const ROLE = "trader_mcp";
 /** The tables submit_strategy writes (strategy versions and their audit events). */
-const WRITES = ["strategies", "audit_events"] as const;
+const WRITES = ["strategies", "audit_events", "watchlist_notes"] as const;
 const ownerUrl = process.env.DATABASE_URL;
 const check = process.argv.includes("--check");
 const password = check ? decodeURIComponent(new URL(process.env.MCP_DATABASE_URL ?? "postgres://x@h").password) : process.env.MCP_ROLE_PASSWORD;

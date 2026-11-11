@@ -20,6 +20,7 @@ beforeEach(async () => {
     INSERT INTO capital_flows (activity_id, at, amount, kind, timed_by) VALUES ('csd-1', now(), 1000, 'deposit', 'booking_date');
     INSERT INTO capital_commands (id, kind, amount, requested_by) VALUES ('00000000-0000-0000-0000-000000000002', 'request', '500', 'cli');
     INSERT INTO capital_command_results (command_id, outcome) VALUES ('00000000-0000-0000-0000-000000000002', 'accepted');
+    INSERT INTO watchlist_notes (symbol, action, why, trigger, revisit_by, actor) VALUES ('UPBD', 'watch', 'a reason', 'a trigger', '2026-12-15', 'claude');
   `);
 });
 

@@ -182,6 +182,29 @@ describe("digest benchmark line", () => {
   });
 });
 
+describe("digest watchlist section (#32)", () => {
+  it("lists each name Claude started or kept watching, and each it dropped; nothing when there were no changes", () => {
+    const email = composeDigest(
+      {
+        ...base,
+        events: [
+          ev("watchlist.updated", {
+            watched: [
+              { symbol: "UPBD", trigger: "Q4 guidance confirms the lease-to-own recovery", revisitBy: "2026-12-15", new: true },
+              { symbol: "HGV", trigger: "a buyback after the Bluegreen integration", revisitBy: "2026-12-01", new: false },
+            ],
+            dropped: [{ symbol: "XYZ", why: "the catalyst passed without a move" }],
+            open: 2,
+          }),
+        ],
+      },
+      "production",
+    );
+    expect(email.text).toContain("Research watchlist\n  Watching UPBD until 2026-12-15: Q4 guidance confirms the lease-to-own recovery\n  Still watching HGV until 2026-12-01: a buyback after the Bluegreen integration\n  Dropped XYZ: the catalyst passed without a move");
+    expect(composeDigest(base, "production").text).not.toContain("Research watchlist");
+  });
+});
+
 describe("footer", () => {
   const at = new Date("2026-11-02T14:45:00Z");
   it("ends every email with its time; only staging names the environment", () => {

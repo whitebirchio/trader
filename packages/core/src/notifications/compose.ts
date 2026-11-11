@@ -288,6 +288,18 @@ function capitalLine(e: NotifiableEvent): string | null {
   }
 }
 
+/** Claude's watchlist changes (#32), one line per name. */
+function watchlistLines(e: NotifiableEvent): string[] {
+  if (e.kind !== "watchlist.updated") return [];
+  const p = e.payload;
+  const watched = (Array.isArray(p.watched) ? p.watched : []) as { symbol?: unknown; trigger?: unknown; revisitBy?: unknown; new?: unknown }[];
+  const dropped = (Array.isArray(p.dropped) ? p.dropped : []) as { symbol?: unknown; why?: unknown }[];
+  return [
+    ...watched.map((w) => `${w.new === false ? "Still watching" : "Watching"} ${str(w.symbol)} until ${str(w.revisitBy)}: ${str(w.trigger)}`),
+    ...dropped.map((d) => `Dropped ${str(d.symbol)}: ${str(d.why)}`),
+  ];
+}
+
 function guardrailLine(e: NotifiableEvent): string | null {
   const p = e.payload;
   switch (e.kind) {
@@ -309,6 +321,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
 
   const trades = data.events.map(tradeLine).filter((l): l is string => l !== null);
   const guardrails = data.events.map(guardrailLine).filter((l): l is string => l !== null);
+  const watchlist = data.events.flatMap(watchlistLines);
   const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
@@ -337,6 +350,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
     ...(capital.length ? ([["Money in and out", capital]] as [string, string[]][]) : []),
     ["Trades", trades.length ? trades : ["None today"]],
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
+    ...(watchlist.length ? ([["Research watchlist", watchlist]] as [string, string[]][]) : []),
   ];
 
   const text = sections.map(([h, lines]) => [h, ...lines.map((l) => `  ${l}`)].join("\n")).join("\n\n");

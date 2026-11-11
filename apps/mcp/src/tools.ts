@@ -10,14 +10,17 @@ import {
   getRules,
   getStrategy,
   getTrackRecord,
+  getWatchlist,
   previewStrategy,
   submitStrategyTool,
+  updateWatchlistTool,
 } from "@trader/core";
 import { RpcCode, RpcException } from "./protocol.js";
 
 /**
  * The tool registry (SPEC-agent). Each tool is a thin call into
- * @trader/core's agent tools. The only write is submit_strategy. There is no
+ * @trader/core's agent tools. The writes are submit_strategy and
+ * update_watchlist (research notes, #32, with no trading effect). There is no
  * order, cancel or kill-switch tool (ADR-011), and a test pins this list.
  */
 
@@ -64,6 +67,19 @@ function symbolsArg(args: Args): string[] {
   if (!Array.isArray(v) || !v.every((s) => typeof s === "string")) throw new RpcException(RpcCode.InvalidParams, "symbols must be a list of tickers");
   return v;
 }
+
+const watchChange = {
+  type: "object",
+  properties: {
+    action: { type: "string", enum: ["watch", "drop"], description: "watch: add the name, or replace its note; drop: take it off the list." },
+    symbol: { type: "string", description: "A ticker, like AAPL or BRK.B." },
+    why: { type: "string", description: "Why it's worth watching, or why it's dropped (10–600 characters)." },
+    trigger: { type: "string", description: "watch only: what would make it a thesis, e.g. a dated catalyst or a filing (10–400 characters)." },
+    revisitBy: { type: "string", description: "watch only: YYYY-MM-DD, after today and at most 120 days out." },
+  },
+  required: ["action", "symbol", "why"],
+  additionalProperties: false,
+};
 
 function strategyArg(args: Args): unknown {
   if (!("strategy" in args)) throw new RpcException(RpcCode.InvalidParams, "strategy is required");
@@ -158,6 +174,27 @@ export const TOOLS: Tool[] = [
     inputSchema: schema({ strategy: strategyProp }, ["strategy"]),
     readOnly: true,
     handler: (deps, args) => previewStrategy(deps, strategyArg(args)),
+  },
+  {
+    name: "get_watchlist",
+    title: "Research watchlist",
+    description:
+      "Your research memory across runs: names you looked at but didn't buy, why, what would make each a thesis (its trigger), and when to look again. Soonest revisit first; `due` marks names past their revisit date, `nowThesis` names already in the strategy. Also what was dropped in the last 14 days. Read it before hunting for new ideas.",
+    inputSchema: schema({}),
+    readOnly: true,
+    handler: (deps) => getWatchlist(deps),
+  },
+  {
+    name: "update_watchlist",
+    title: "Update the research watchlist",
+    description:
+      "Record names you researched but didn't buy, so the next run starts from them: `watch` adds a name or replaces its note (why, trigger, revisitBy); `drop` takes it off. All changes apply together, or none if any is invalid. It has no trading effect, and the owner sees each change in the daily digest.",
+    inputSchema: schema({ changes: { type: "array", items: watchChange, minItems: 1, maxItems: 25, description: "At most 25 changes." } }, ["changes"]),
+    readOnly: false,
+    handler: (deps, args) => {
+      if (!Array.isArray(args.changes)) throw new RpcException(RpcCode.InvalidParams, "changes must be a list");
+      return updateWatchlistTool(deps, args.changes);
+    },
   },
   {
     name: "submit_strategy",

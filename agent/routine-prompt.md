@@ -40,11 +40,12 @@ Call `get_overview` first.
 - **If `guardrails.killSwitch` is true:** nothing will trade. Still research and submit if theses need reaffirming, but say clearly in your summary that the owner must resume before anything executes.
 - **If `guardrails.halted` is true:** nothing is bought or resized until the owner resumes, but a thesis that closed (its stop, its review date, staleness) or that you remove from the strategy is still sold whole, and its cash waits. Keep re-judging every thesis: removing one whose evidence broke is the one change that acts during a halt. Say in your summary that the owner must resume before anything is bought.
 
-Then call `get_strategy`, `get_holdings`, `get_activity` (7 days), `get_track_record` and `get_rules`. Note:
+Then call `get_strategy`, `get_holdings`, `get_activity` (7 days), `get_track_record`, `get_watchlist` and `get_rules`. Note:
 - each thesis's state, `daysSinceReaffirmed` (theses unwind at 30) and `daysToReview` (an `overdue` thesis has already unwound);
 - open wash-sale windows and stopped thesis ids (never reuse a stopped id);
 - what the last rebalance steps did, and any risk clips or rejections.
 - how past theses did against the same dollars in VTI (`get_track_record`), overall and by kind of signal.
+- your watchlist (`get_watchlist`): names past runs researched but didn't buy, each with its trigger and revisit date. `due` ones are past their revisit date.
 
 - **If `capital.withdrawal` is set,** the owner is taking money out (see section 3a). Plan it this run.
 - **If `capital.sinceLastStrategy.net` isn't zero,** money came in or went out since the theses were last set. A deposit is already invested pro rata; decide whether it belongs somewhere better.
@@ -66,7 +67,7 @@ For **current theses**, every run, re-judge each one as if you were buying it to
   - the thesis's own "what would tell us we're wrong" condition (in its `plainSummary`) coming true;
   - a better-evidenced idea that needs the money.
 
-For **new candidates**, look at:
+For **new candidates**, start from the watchlist. Check every `due` name, and any whose trigger may have happened since (an earnings date, a filing, a 13F release). If the trigger has fired and the name now meets the bar below, it's a candidate. If not, move its revisit date on, with a reason, or drop it. Then look further:
 - **Congress trades:** recent STOCK Act disclosures, via aggregator sites such as Capitol Trades or Quiver Quantitative and the House and Senate disclosure sites. Clustered buys by several members, or by members on committees relevant to the company, are stronger signals than one-offs. Mind the reporting lag of up to 45 days.
 - **Insider buys (supporting evidence only):** SEC EDGAR Form 4, open-market purchases (code P) by officers and directors. Ignore option exercises and planned 10b5-1 sales. They can add weight to a thesis built on something else; by themselves they haven't beaten VTI (see the owner's direction).
 - **13F holdings:** new or increased positions from concentrated, long-horizon managers (e.g. Berkshire Hathaway). 13Fs lag up to 45 days after the quarter.
@@ -100,6 +101,8 @@ Standards for a thesis:
 - **Wash sales:** don't buy back a name inside its window without saying why it's worth the disallowed loss.
 - **Turnover:** every change costs spread and taxes, and short-term gains are taxed as income. Change for a reason you can state, expect a few trades a week, and hold a winner while its evidence stands.
 - **Same-day trades:** something bought today can't be sold today (and vice versa). Don't plan a trade that depends on it.
+
+**Keep the watchlist** (`update_watchlist`, after submitting). Add any name you researched seriously this run but didn't buy: why it's interesting, the specific trigger that would make it a thesis, and when to look again. Drop names whose case is gone, and names that became theses. The next run starts from it, and the owner sees each change in the daily digest.
 
 Put a short changelog in the summary: what changed and why, or "Reaffirmed: no material change", plus one line on each thesis saying why it still stands (or what sell signal you weighed and why you held). The owner reads it in the activation email.
 

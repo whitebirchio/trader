@@ -35,6 +35,7 @@ const ROUTES: Record<AuditKind, Route> = {
   "strategy.rejected": "urgent", // Claude submitted something invalid: the old version stays
   "thesis.stopped_out": "urgent",
   "thesis.took_profit": "urgent", // an automatic sale: the profit target was reached (#35)
+  "watchlist.updated": "digest", // Claude's research notes (#32): no trading effect
   "thesis.stale": "urgent", // the research loop may be down
   "thesis.review_overdue": "urgent", // an automatic sale: the review date passed
   "rebalance.planned": "digest",

@@ -35,6 +35,7 @@ export const AUDIT_KINDS = [
   "strategy.rejected",
   "thesis.stopped_out",
   "thesis.took_profit",
+  "watchlist.updated",
   "thesis.stale",
   "thesis.review_overdue",
   "rebalance.planned",
