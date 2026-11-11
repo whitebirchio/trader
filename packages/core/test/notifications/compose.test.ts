@@ -174,6 +174,39 @@ describe("strategy and thesis emails", () => {
   });
 });
 
+describe("filings (#105)", () => {
+  const url = "https://www.sec.gov/Archives/edgar/data/1065696/000106569626000058/lkq-20261109.htm";
+  it("emails a sell signal in a filing on a held name, saying nothing is sold automatically", () => {
+    const email = composeUrgent(
+      [ev("filing.sell_signal", { thesisId: "lkq-director-cluster", signal: "executive_departure", form: "8-K", filedOn: "2026-11-09", summary: "8-K: an officer or director change. It mentions someone resigning, retiring or leaving.", url }, "LKQ")],
+      "production",
+    );
+    expect(email.subject).toBe("Trader: An officer or director is leaving: LKQ");
+    expect(email.text).toContain(`Filed 2026-11-09: ${url}`);
+    expect(email.text).toContain("It's a sell signal for thesis lkq-director-cluster. Nothing is sold automatically: Claude weighs it at the next research run.");
+    expect(composeUrgent([ev("filing.sell_signal", { signal: "insider_sale" }, "BA")], "production").subject).toBe("Trader: An insider sold: BA");
+  });
+
+  it("lists the day's new filings in the digest, marking watchlist names and sell signals", () => {
+    const email = composeDigest(
+      {
+        ...base,
+        events: [
+          ev("filings.noticed", {
+            filings: [
+              { symbol: "LKQ", thesisId: "lkq-1", form: "8-K", filedOn: "2026-11-09", summary: "8-K: results of operations.", sellSignal: null },
+              { symbol: "CWST", thesisId: null, form: "4", filedOn: "2026-11-10", summary: "Form 4: Director Doe Jane sold 1000 shares.", sellSignal: "insider_sale" },
+            ],
+          }),
+        ],
+      },
+      "production",
+    );
+    expect(email.text).toContain("SEC filings\n  LKQ, Mon Nov 9: 8-K: results of operations.\n  CWST (watchlist) [sell signal], Tue Nov 10: Form 4: Director Doe Jane sold 1000 shares.");
+    expect(composeDigest(base, "production").text).not.toContain("SEC filings");
+  });
+});
+
 describe("digest benchmark line", () => {
   it("shows performance vs VTI once there's a comparison", () => {
     const email = composeDigest({ ...base, benchmark: { since: "2026-11-02", portfolioPct: "1.24", benchmarkPct: "0.8" } }, "production");

@@ -18,7 +18,7 @@ import {
 import type { Bar } from "../../src/broker/port.js";
 import { refreshEarningsCalendar } from "../../src/agent/earnings-calendar.js";
 import { syncBroker } from "../../src/broker/sync.js";
-import { auditEvents, benchmarkCloses, brokerActivities, capitalCommands, orders, positions, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
+import { auditEvents, benchmarkCloses, brokerActivities, capitalCommands, jobRuns, orders, positions, rebalancePlans, secFilings, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { WINDOW_CLOSE, WINDOW_OPEN } from "../../src/portfolio/rebalance.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
@@ -121,6 +121,32 @@ describe("read tools", () => {
     const [one] = (await checkEligibility(deps, ["AAPL"])) as { nextEarnings: unknown }[];
     expect(one).toMatchObject({ nextEarnings: { date: "2026-11-05" } });
     expect(one).not.toHaveProperty("calendarNote");
+  });
+
+  it("get_holdings and get_watchlist list each name's SEC filings and flag sell signals; filingsCheck says when the last check ran (#105)", async () => {
+    await submitStrategyTool(deps, strategy());
+    broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
+    broker.positions = [{ symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" }];
+    await syncBroker(deps.db, broker, "staging", NOW);
+    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" }]);
+    expect((await getHoldings(deps)).filingsCheck).toMatchObject({ checkedAt: null, stale: true });
+
+    const row = (accession: string, symbol: string, filedOn: string, kind: string, sellSignal: string | null = null) => ({ accession, symbol, cik: "1", form: kind === "periodic" ? "10-Q" : "4", filedOn, acceptedAt: new Date(`${filedOn}T21:00:00Z`), items: "", url: `https://www.sec.gov/${accession}`, kind, summary: `${kind} filing`, sellSignal });
+    await deps.db.insert(secFilings).values([
+      row("a1", "AAPL", "2026-10-30", "insider_sale", "insider_sale"),
+      row("a0", "AAPL", "2026-10-15", "periodic"), // before the first buy
+      row("m1", "MSFT", "2026-11-02", "periodic"),
+      row("m0", "MSFT", "2026-10-25", "periodic"), // before it went on the watchlist
+    ]);
+    await deps.db.insert(jobRuns).values({ job: "check-filings", scheduledFor: NOW, status: "succeeded", finishedAt: NOW });
+    const h = await getHoldings(deps);
+    expect(h.filingsCheck).toEqual({ checkedAt: NOW.toISOString(), stale: false });
+    expect(h.theses![0]).toMatchObject({ filings: [{ filedOn: "2026-10-30", kind: "insider_sale", sellSignal: "insider_sale", url: "https://www.sec.gov/a1" }], flags: ["insider_selling"] });
+    expect(h.theses![0]!.filings).toHaveLength(1);
+    const w = await getWatchlist(deps);
+    expect(w.open[0]).toMatchObject({ symbol: "MSFT", filings: [{ filedOn: "2026-11-02", kind: "periodic" }] });
+    expect(w.open[0]!.filings).toHaveLength(1);
+    expect(w.filingsCheck.stale).toBe(false);
   });
 
   it("get_watchlist and update_watchlist: Claude's notes, flagged once a name is a thesis; get_overview counts them (#32)", async () => {

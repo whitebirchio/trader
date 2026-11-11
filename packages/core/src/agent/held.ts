@@ -5,6 +5,7 @@ import type { EarningsRelease } from "../research/earnings-backtest.js";
 import { marketDate } from "../time.js";
 import { type CandidateSignals, EARNINGS_CRASH, type LastEarnings, candidateSignals, lastEarnings } from "./candidate.js";
 import { EARNINGS_SOON_DAYS, type NextEarnings } from "./earnings-calendar.js";
+import type { FilingNote } from "./filings.js";
 
 /**
  * Sell-side signals for each held thesis (exits plan T2), reported by
@@ -18,8 +19,13 @@ export const NEAR_STOP_PCT = "5";
 /** This many points or more behind VTI since entry, a thesis is flagged lagging_vti. */
 export const LAGGING_VTI_POINTS = "-10";
 
-/** `earnings_soon` (#30) isn't a sell signal: it marks a report within EARNINGS_SOON_DAYS, to hold, trim or wait through on purpose. */
-export type HeldFlag = "earnings_crash_since_entry" | "recent_big_loser" | "near_stop" | "lagging_vti" | "earnings_soon";
+/**
+ * `earnings_soon` (#30) isn't a sell signal: it marks a report within
+ * EARNINGS_SOON_DAYS, to hold, trim or wait through on purpose.
+ * `insider_selling` and `executive_departure` (#105) come from SEC filings
+ * since the first buy.
+ */
+export type HeldFlag = "earnings_crash_since_entry" | "recent_big_loser" | "near_stop" | "lagging_vti" | "insider_selling" | "executive_departure" | "earnings_soon";
 
 export interface HeldThesis {
   id: string;
@@ -37,6 +43,8 @@ export interface HeldThesis {
   earningsSinceEntry: LastEarnings | null;
   /** The next announced report, from the earnings calendar (#30); null if none is announced yet or the calendar is unavailable. */
   nextEarnings: NextEarnings | null;
+  /** SEC filings since the first lot's session, newest first, from the hourly filings check (#105). */
+  filings: FilingNote[];
   signals: CandidateSignals;
   flags: HeldFlag[];
 }
@@ -52,6 +60,8 @@ export interface HeldInput {
   /** Null when the filings couldn't be read. */
   releases: EarningsRelease[] | null;
   nextEarnings?: NextEarnings | null;
+  /** This symbol's stored filings since the first lot's session (#105). */
+  filings?: FilingNote[];
   now: Date;
 }
 
@@ -96,6 +106,9 @@ export function heldThesis(input: HeldInput): HeldThesis {
   if (signals.recentBigLoser) flags.push("recent_big_loser");
   if (compare(stop.abovePct, NEAR_STOP_PCT) <= 0) flags.push("near_stop");
   if (sinceEntry && compare(sinceEntry.excessPct, LAGGING_VTI_POINTS) <= 0) flags.push("lagging_vti");
+  const filings = input.filings ?? [];
+  if (filings.some((f) => f.sellSignal === "insider_sale")) flags.push("insider_selling");
+  if (filings.some((f) => f.sellSignal === "executive_departure")) flags.push("executive_departure");
   const next = input.nextEarnings ?? null;
   if (next && next.inDays <= EARNINGS_SOON_DAYS) flags.push("earnings_soon");
 
@@ -109,6 +122,7 @@ export function heldThesis(input: HeldInput): HeldThesis {
     stop,
     earningsSinceEntry,
     nextEarnings: next,
+    filings,
     signals,
     flags,
   };

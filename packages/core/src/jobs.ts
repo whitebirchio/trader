@@ -1,5 +1,7 @@
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { type EarningsCalendarPort, refreshEarningsCalendar } from "./agent/earnings-calendar.js";
+import { checkFilings, filingTargets } from "./agent/filings.js";
+import type { FilingsFeedPort } from "./agent/sec.js";
 import { recordEvent } from "./audit.js";
 import type { BrokerAdapter } from "./broker/port.js";
 import { syncBroker } from "./broker/sync.js";
@@ -22,6 +24,8 @@ export interface JobDeps {
   now: () => Date;
   /** The earnings calendar's source (#30); absent without an Alpha Vantage key. */
   earnings?: EarningsCalendarPort;
+  /** SEC EDGAR, for the filings check (#105); absent in tests that don't need it. */
+  filings?: FilingsFeedPort;
 }
 
 export interface JobContext extends JobDeps {
@@ -106,6 +110,23 @@ const earningsCalendarJob: JobFn = async ({ db, earnings, now }) => {
   return { status: "succeeded", detail };
 };
 
+/** The filings check runs about hourly: this long after the last run (succeeded or failed), it runs again. */
+const FILINGS_EVERY_MS = 55 * 60_000;
+
+/** New SEC filings on every held and watched name (#105), about hourly. */
+const checkFilingsJob: JobFn = async ({ db, filings, now }) => {
+  if (!filings) return { status: "skipped", reason: "no SEC client" };
+  const [last] = await db
+    .select({ at: jobRuns.scheduledFor })
+    .from(jobRuns)
+    .where(and(eq(jobRuns.job, "check-filings"), inArray(jobRuns.status, ["succeeded", "failed"]), gte(jobRuns.scheduledFor, new Date(now().getTime() - FILINGS_EVERY_MS))))
+    .limit(1);
+  if (last) return { status: "skipped", reason: `checked at ${last.at.toISOString()}; runs about hourly` };
+  const targets = await filingTargets(db, now());
+  if (targets.length === 0) return { status: "skipped", reason: "no theses or watchlist names" };
+  return { status: "succeeded", detail: { ...(await checkFilings(db, filings, targets, now())) } };
+};
+
 /** Every job the engine can run, by name: the tick jobs and the rebalance. */
 export const JOBS = {
   heartbeat,
@@ -115,6 +136,7 @@ export const JOBS = {
   "notify-digest": notifyDigest,
   "notify-weekly": notifyWeekly,
   "earnings-calendar": earningsCalendarJob,
+  "check-filings": checkFilingsJob,
   // Not in TICK_JOBS: it has its own schedule, 5 minutes after each tick (SPEC-portfolio).
   rebalance: rebalanceJob,
 } satisfies Record<string, JobFn>;
@@ -189,7 +211,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);

@@ -46,6 +46,20 @@ describe("SecFilings", () => {
     expect(await down.industry("LKQ")).toBeNull();
   });
 
+  it("lists a company's recent filings with their items and documents, and reads a document; both throw when SEC can't be read (#105)", async () => {
+    const { fn } = fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response(lkq), "000106569626000058": () => new Response("<p>8-K</p>") });
+    const sec = new SecFilings(fn);
+    const recent = await sec.recentFilings("LKQ");
+    expect(recent.length).toBeGreaterThan(0);
+    expect(recent[0]).toMatchObject({ cik: "0001065696", accession: expect.stringMatching(/^\d{10}-\d{2}-\d{6}$/), filedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    expect(recent.find((f) => f.form === "8-K")?.items.length).toBeGreaterThan(0);
+    expect(await sec.recentFilings("VTI")).toEqual([]);
+    expect(await sec.document("https://www.sec.gov/Archives/edgar/data/1065696/000106569626000058/lkq-20261109.htm")).toBe("<p>8-K</p>");
+    await expect(sec.document("https://www.sec.gov/missing.htm")).rejects.toThrow("HTTP 404");
+    const down = new SecFilings(fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response("", { status: 503 }) }).fn);
+    await expect(down.recentFilings("LKQ")).rejects.toThrow("HTTP 503");
+  });
+
   it("is null when SEC can't be read, and tries the ticker map again next time", async () => {
     let fail = true;
     const { fn } = fakeFetch({ company_tickers: () => (fail ? new Response("", { status: 503 }) : new Response(TICKERS)), CIK0001065696: () => new Response(lkq) });

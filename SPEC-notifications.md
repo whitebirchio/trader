@@ -24,6 +24,8 @@ Email you about what Trader does, without you having to look. Every meaningful a
 | `order.external` (someone traded outside Trader) · `order.unknown` | |
 | `job.failed`, throttled to one email per job per 6 hours | |
 
+**SEC filings (#105, 2026-11-11):** `filing.sell_signal` is urgent: an officer or director leaving (an 8-K item 5.02 that mentions it), or selling on the open market outside a 10b5-1 plan, on a held name. Nothing is sold; Claude weighs it at the next run. `filings.noticed` goes in the digest's "SEC filings" section: every other new filing from the last 3 days on a held or watched name (non-trade Form 4s left out), with watchlist names and sell signals marked.
+
 `order.intent` isn't emailed: `order.submitted` or `order.rejected` always follows it. When `portfolio` and `agent` add new kinds (e.g. `strategy.activated`), each one gets put in a column as part of its own module.
 
 **The digest** is sent once per trading day, about 20 minutes after the close. It lists:
