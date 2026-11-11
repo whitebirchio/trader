@@ -38,6 +38,7 @@ describe("schema", () => {
       "strategies",
       "thesis_closes",
       "thesis_events",
+      "watchlist_notes",
       "withdrawals",
     ]);
   });

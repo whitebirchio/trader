@@ -25,6 +25,7 @@ import { marketDate } from "../time.js";
 import { candidateSignals } from "./candidate.js";
 import { CORRELATION_SESSIONS, SECTOR_FUNDS, exposureReport } from "./exposure.js";
 import { type HeldThesis, heldThesis } from "./held.js";
+import { type UpdateWatchlistResult, WATCHLIST_LIMITS, readWatchlist, updateWatchlist, watchlistSummary } from "./watchlist.js";
 import type { FilingsPort } from "./sec.js";
 
 /**
@@ -91,6 +92,8 @@ export async function getOverview({ db, broker, env, now }: ToolDeps) {
       lastBrokerSync: snapshot.broker.syncedAt?.toISOString() ?? null,
     },
     strategy: { version: active.version, authoredBy: active.authoredBy, createdAt: active.createdAt.toISOString(), summary: active.strategy.summary },
+    /** Claude's research watchlist (#32): open names, and those past their revisit date (get_watchlist has the notes). */
+    watchlist: await watchlistSummary(db, now),
     holdings: held.map((p) => {
       const t = thesisBySymbol.get(p.symbol);
       return {
@@ -389,6 +392,11 @@ export function getRules() {
         : "off: nothing bought today is sold today, and nothing sold today is bought back today (no day trades). Such a trade waits for the next trading day; a thesis bought today and stopped out today is sold tomorrow.",
       note: "Limits are owner-set; strategies can't change them. The kill switch blocks every order until the owner resumes. The drawdown halt blocks every buy and resize, but still sells whole a thesis that closed (stopped, stale, overdue) or that you removed from the strategy; the cash waits until the owner resumes. After a resume, the halt trips again 15% below the account's level then, until it regains its old peak (get_overview's guardrails.haltRule).",
     },
+    watchlist: [
+      `Your research memory across runs (#32). get_watchlist lists the open names, soonest revisit first; update_watchlist adds, updates or drops them (at most ${WATCHLIST_LIMITS.perCall} changes a call, ${WATCHLIST_LIMITS.open} open names).`,
+      `A watch needs why (10–600 characters), a trigger (what would make it a thesis, 10–400) and revisitBy (after today, at most ${WATCHLIST_LIMITS.revisitMaxDays} days out). Watching a name again replaces its note. A drop needs why.`,
+      "It has no trading effect: only submit_strategy reaches the market. The owner sees each change in the daily digest.",
+    ],
     withdrawals: [
       "The owner can request a withdrawal (dashboard or CLI). While it's open, its outstanding amount is held back: targets are built on equity minus it, and buys can't use it.",
       "Your next strategy after the request is its funding plan: shrink or drop what you'd rather sell, keep what you'd rather hold. preview_strategy shows each sell's realized gain and wash-sale effect.",
@@ -464,4 +472,16 @@ function saleTax(open: Parameters<typeof estimateSale>[0], symbol: string, qty: 
 /** Store a validated draft as the next version (actor "claude"). The owner is emailed either way. */
 export async function submitStrategyTool({ db, now }: ToolDeps, document: unknown): Promise<SubmitStrategyResult> {
   return submitStrategy(db, document, "claude", now);
+}
+
+/** The open research watchlist (#32), soonest revisit first, each marked if it's already a thesis; and recent drops. */
+export async function getWatchlist({ db, now }: DbDeps) {
+  const { open, recentlyDropped } = await readWatchlist(db, now);
+  const theses = new Set((await activeStrategy(db, now)).strategy.conviction.map((t) => t.symbol));
+  return { limits: WATCHLIST_LIMITS, open: open.map((e) => ({ ...e, ...(theses.has(e.symbol) ? { nowThesis: true } : {}) })), recentlyDropped };
+}
+
+/** Add, update or drop watchlist names (#32). Claude's research notes: no trading effect. */
+export async function updateWatchlistTool({ db, now }: DbDeps, changes: unknown): Promise<UpdateWatchlistResult> {
+  return updateWatchlist(db, changes, "claude", now);
 }

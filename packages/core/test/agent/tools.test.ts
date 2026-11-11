@@ -9,8 +9,10 @@ import {
   getRules,
   getStrategy,
   getTrackRecord,
+  getWatchlist,
   previewStrategy,
   submitStrategyTool,
+  updateWatchlistTool,
   type ToolDeps,
 } from "../../src/agent/tools.js";
 import type { Bar } from "../../src/broker/port.js";
@@ -100,6 +102,16 @@ describe("read tools", () => {
     // Without filings, the earnings screen says so rather than guessing.
     expect(h.theses![0]!.signals.notes).toContain("Couldn't read SEC filings: no earnings reaction (check the latest 8-K item 2.02 yourself).");
     expect(await getHoldings({ db: deps.db, now: NOW })).not.toHaveProperty("theses");
+  });
+
+  it("get_watchlist and update_watchlist: Claude's notes, flagged once a name is a thesis; get_overview counts them (#32)", async () => {
+    const note = (symbol: string, revisitBy: string) => ({ action: "watch", symbol, why: `${symbol} missed the bar this run`, trigger: `${symbol} confirms the turn in a 10-Q`, revisitBy });
+    expect(await updateWatchlistTool(deps, [note("AAPL", "2026-11-30"), note("MSFT", "2026-11-20")])).toMatchObject({ status: "updated", open: 2 });
+    await submitStrategyTool(deps, strategy()); // the fixture's thesis is AAPL
+    const w = await getWatchlist(deps);
+    expect(w.open.map((e) => [e.symbol, "nowThesis" in e])).toEqual([["MSFT", false], ["AAPL", true]]);
+    expect(w.limits).toMatchObject({ perCall: 25, open: 40 });
+    expect((await getOverview({ ...deps, now: new Date("2026-11-25T15:00:00Z") })).watchlist).toEqual({ open: 2, due: ["MSFT"] });
   });
 
   it("get_activity: recent events, orders and rebalance steps", async () => {

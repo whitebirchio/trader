@@ -9,9 +9,11 @@ import {
   getRules,
   getStrategy,
   getTrackRecord,
+  getWatchlist,
   previewStrategy,
   submitStrategyTool,
   type ToolDeps,
+  updateWatchlistTool,
 } from "../../src/agent/tools.js";
 import { MarketDataOnly } from "../../src/broker/market-data.js";
 import type { Bar } from "../../src/broker/port.js";
@@ -67,6 +69,8 @@ describe("MarketDataOnly", () => {
     await getPrices(deps, ["AAPL"], 30);
     await checkEligibility(deps, ["AAPL", "VTI"]);
     await getExposure(deps, ["AAPL"]);
+    await getWatchlist(deps);
+    expect(await updateWatchlistTool(deps, [{ action: "watch", symbol: "AAPL", why: "a reason in a sentence", trigger: "a trigger in a sentence", revisitBy: "2026-12-01" }])).toMatchObject({ status: "updated" });
     getRules();
     expect(await previewStrategy(deps, draft)).toMatchObject({ valid: true });
     expect(await submitStrategyTool(deps, draft)).toMatchObject({ status: "activated" });
