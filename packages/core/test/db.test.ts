@@ -25,6 +25,7 @@ describe("schema", () => {
       "capital_command_results",
       "capital_commands",
       "capital_flows",
+      "earnings_calendar",
       "equity_snapshots",
       "job_runs",
       "notification_items",

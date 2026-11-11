@@ -1,7 +1,7 @@
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { SSMClient } from "@aws-sdk/client-ssm";
 import { Pool } from "@neondatabase/serverless";
-import { AlpacaBroker, type Db } from "@trader/core";
+import { AlpacaBroker, AlphaVantageCalendar, type Db } from "@trader/core";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { createHandler } from "./handler.js";
 import { loadSecrets } from "./secrets.js";
@@ -29,6 +29,7 @@ export const handler = createHandler({
   },
   makeBroker: (config) => new AlpacaBroker({ env: config.tradingEnv, keyId: config.alpaca.keyId, secretKey: config.alpaca.secretKey }),
   makeMailer: () => new SesMailer(ses, required("NOTIFY_FROM"), required("NOTIFY_TO")),
+  makeEarnings: (config) => (config.alphaVantageKey ? new AlphaVantageCalendar(config.alphaVantageKey) : undefined),
   now: () => new Date(),
   log: (level, message, detail) => console[level === "error" ? "error" : "log"](JSON.stringify({ level, message, ...detail })),
 });

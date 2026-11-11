@@ -17,7 +17,7 @@ beforeEach(() => {
 describe("loadSecrets", () => {
   it("reads only the engine's own parameters, by name and decrypted, keyed by name; a missing one is left for parseConfig to report", async () => {
     ssmMock
-      .on(GetParametersCommand, { Names: ["/trader/staging/DATABASE_URL", "/trader/staging/ALPACA_KEY_ID", "/trader/staging/ALPACA_SECRET_KEY"], WithDecryption: true })
+      .on(GetParametersCommand, { Names: ["/trader/staging/DATABASE_URL", "/trader/staging/ALPACA_KEY_ID", "/trader/staging/ALPACA_SECRET_KEY", "/trader/staging/ALPHAVANTAGE_API_KEY"], WithDecryption: true })
       .resolves({ Parameters: [{ Name: "/trader/staging/DATABASE_URL", Value: "postgres://x" }, { Name: "/trader/staging/ALPACA_KEY_ID", Value: "PK1" }], InvalidParameters: ["/trader/staging/ALPACA_SECRET_KEY"] });
     const values = await loadSecrets(new SSMClient({}), "/trader/staging/", 0);
     expect(values).toEqual({ DATABASE_URL: "postgres://x", ALPACA_KEY_ID: "PK1" });

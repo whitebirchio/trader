@@ -16,6 +16,7 @@ import {
   type ToolDeps,
 } from "../../src/agent/tools.js";
 import type { Bar } from "../../src/broker/port.js";
+import { refreshEarningsCalendar } from "../../src/agent/earnings-calendar.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import { auditEvents, benchmarkCloses, brokerActivities, capitalCommands, orders, positions, rebalancePlans, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { WINDOW_CLOSE, WINDOW_OPEN } from "../../src/portfolio/rebalance.js";
@@ -102,6 +103,24 @@ describe("read tools", () => {
     // Without filings, the earnings screen says so rather than guessing.
     expect(h.theses![0]!.signals.notes).toContain("Couldn't read SEC filings: no earnings reaction (check the latest 8-K item 2.02 yourself).");
     expect(await getHoldings({ db: deps.db, now: NOW })).not.toHaveProperty("theses");
+  });
+
+  it("get_holdings and check_eligibility give the next earnings date from the latest calendar, and say when there's none (#30)", async () => {
+    await submitStrategyTool(deps, strategy());
+    broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
+    broker.positions = [{ symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" }];
+    await syncBroker(deps.db, broker, "staging", NOW);
+    expect((await getHoldings(deps)).earningsCalendar).toMatchObject({ asOf: null, stale: true, note: expect.stringContaining("needs an Alpha Vantage key") });
+    const [none] = (await checkEligibility(deps, ["AAPL"])) as { nextEarnings: unknown; calendarNote?: string }[];
+    expect(none).toMatchObject({ nextEarnings: null, calendarNote: expect.stringContaining("check report dates yourself") });
+
+    await refreshEarningsCalendar(deps.db, { upcoming: async () => [{ symbol: "AAPL", reportDate: "2026-11-05", fiscalDateEnding: "2026-09-30", estimate: "1.65", currency: "USD", timeOfDay: "post-market" }] }, NOW);
+    const h = await getHoldings(deps);
+    expect(h.earningsCalendar).toEqual({ asOf: "2026-11-02", stale: false });
+    expect(h.theses![0]).toMatchObject({ nextEarnings: { date: "2026-11-05", inDays: 3, timeOfDay: "post-market", estimate: "1.65" }, flags: ["earnings_soon"] });
+    const [one] = (await checkEligibility(deps, ["AAPL"])) as { nextEarnings: unknown }[];
+    expect(one).toMatchObject({ nextEarnings: { date: "2026-11-05" } });
+    expect(one).not.toHaveProperty("calendarNote");
   });
 
   it("get_watchlist and update_watchlist: Claude's notes, flagged once a name is a thesis; get_overview counts them (#32)", async () => {

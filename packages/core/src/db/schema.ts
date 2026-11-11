@@ -354,6 +354,28 @@ export const thesisCloses = pgTable(
 );
 
 /**
+ * Upcoming earnings dates (#30), one snapshot per fetch from Alpha Vantage's
+ * calendar (every US company, three months ahead). Readers use the latest
+ * snapshot; the earnings-calendar job keeps a week of them. A cache, not a
+ * record: not append-only.
+ */
+export const earningsCalendar = pgTable(
+  "earnings_calendar",
+  {
+    fetchedOn: date({ mode: "string" }).notNull(),
+    symbol: text().notNull(),
+    reportDate: date({ mode: "string" }).notNull(),
+    fiscalDateEnding: date({ mode: "string" }),
+    /** The consensus EPS estimate, when the source has one. */
+    estimate: numeric(),
+    currency: text(),
+    /** "pre-market", "post-market" or null when the source doesn't say. */
+    timeOfDay: text(),
+  },
+  (t) => [primaryKey({ columns: [t.fetchedOn, t.symbol, t.reportDate] }), index("earnings_calendar_symbol_idx").on(t.symbol, t.reportDate)],
+);
+
+/**
  * Claude's research memory (#32): names it considered but didn't buy, why,
  * and what would bring each in. One row per change; a symbol's latest row is
  * its state ("watch" or "drop"). Insert-only. No trading effect.

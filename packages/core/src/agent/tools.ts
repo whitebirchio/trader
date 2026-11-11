@@ -25,6 +25,7 @@ import { marketDate } from "../time.js";
 import { candidateSignals } from "./candidate.js";
 import { CORRELATION_SESSIONS, SECTOR_FUNDS, exposureReport } from "./exposure.js";
 import { type HeldThesis, heldThesis } from "./held.js";
+import { EARNINGS_SOON_DAYS, STALE_AFTER_DAYS, nextEarnings } from "./earnings-calendar.js";
 import { type UpdateWatchlistResult, WATCHLIST_LIMITS, readWatchlist, updateWatchlist, watchlistSummary } from "./watchlist.js";
 import type { FilingsPort } from "./sec.js";
 
@@ -145,6 +146,7 @@ async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | 
   const price = new Map(held.map((p) => [p.symbol, p.currentPrice]));
   const owned = active.strategy.conviction.filter((t) => price.has(t.symbol) && lots.open.some((l) => l.symbol === t.symbol));
   if (!owned.length) return [];
+  const calendar = await nextEarnings(db, owned.map((t) => t.symbol), now);
   // Over a year of sessions, for the 12-1 month return, as check_eligibility.
   const bars = await broker.getDailyBars([...new Set([...owned.map((t) => t.symbol), BENCHMARK])], new Date(now.getTime() - 400 * 86_400_000), now);
   const out: HeldThesis[] = [];
@@ -160,11 +162,25 @@ async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | 
         vti: bars[BENCHMARK] ?? [],
         // One at a time: SEC asks for at most 10 requests a second.
         releases: filings ? await filings.earningsReleases(thesis.symbol) : null,
+        nextEarnings: calendar.next.get(thesis.symbol) ?? null,
         now,
       }),
     );
   }
   return out;
+}
+
+/** What a missing or stale earnings calendar means, for the tools that read it. */
+function calendarNote(asOf: string | null): string {
+  return asOf === null
+    ? "No earnings calendar yet (the earnings-calendar job needs an Alpha Vantage key): check report dates yourself."
+    : `The earnings calendar is from ${asOf}, more than a few days old: confirm report dates yourself.`;
+}
+
+/** The earnings calendar's age, for get_holdings (#30). */
+async function calendarStatus(db: Db, now: Date): Promise<{ asOf: string | null; stale: boolean; note?: string }> {
+  const { asOf, stale } = await nextEarnings(db, [], now);
+  return { asOf, stale, ...(asOf === null || stale ? { note: calendarNote(asOf) } : {}) };
 }
 
 /** Positions, lots, wash-sale windows, stopped thesis ids and, given the broker, each held thesis's signals. */
@@ -174,7 +190,7 @@ export async function getHoldings({ db, now, broker, filings }: DbDeps & Partial
   const since = now.getTime() - WASH_SALE_DAYS * 86_400_000;
   return {
     positions: held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, price: p.currentPrice, costBasis: p.costBasis })),
-    ...(broker ? { theses: await heldTheses(db, broker, filings, lots, held, now) } : {}),
+    ...(broker ? { theses: await heldTheses(db, broker, filings, lots, held, now), earningsCalendar: await calendarStatus(db, now) } : {}),
     lots: lots.open.map((l) => ({ symbol: l.symbol, qty: l.qty, costBasis: l.costBasis, openedAt: l.openedAt.toISOString() })),
     washSaleWindows: lots.closed
       .filter((c) => windowSymbols.has(c.symbol) && compare(c.gain, "0") < 0 && c.closedAt.getTime() >= since)
@@ -302,9 +318,10 @@ export async function getPrices({ broker, now }: ToolDeps, symbols: string[], da
 }
 
 /** risk's verdict on buying each symbol, so a strategy doesn't propose what will be rejected. */
-export async function checkEligibility({ broker, now, filings }: ToolDeps, symbols: string[]) {
+export async function checkEligibility({ db, broker, now, filings }: ToolDeps, symbols: string[]) {
   const { ok, error } = cleanSymbols(symbols);
   if (error) return { error };
+  const calendar = await nextEarnings(db, ok, now);
   // Over a year of sessions, for the 12-1 month return; VTI for the earnings reaction.
   const bars = await broker.getDailyBars([...new Set([...ok, BENCHMARK])], new Date(now.getTime() - 400 * 86_400_000), now);
   const out = [];
@@ -319,6 +336,9 @@ export async function checkEligibility({ broker, now, filings }: ToolDeps, symbo
       capExempt: capExempt(symbol, LIMITS),
       lastClose: facts?.lastClose ?? null,
       signals: candidateSignals(bars[symbol] ?? [], bars[BENCHMARK] ?? [], releases),
+      /** The next scheduled report (#30); null if none in three months, or the calendar is unavailable (see the last note). */
+      nextEarnings: calendar.next.get(symbol) ?? null,
+      ...(calendar.asOf === null || calendar.stale ? { calendarNote: calendarNote(calendar.asOf) } : {}),
     });
   }
   return out;
@@ -396,6 +416,11 @@ export function getRules() {
       `Your research memory across runs (#32). get_watchlist lists the open names, soonest revisit first; update_watchlist adds, updates or drops them (at most ${WATCHLIST_LIMITS.perCall} changes a call, ${WATCHLIST_LIMITS.open} open names).`,
       `A watch needs why (10–600 characters), a trigger (what would make it a thesis, 10–400) and revisitBy (after today, at most ${WATCHLIST_LIMITS.revisitMaxDays} days out). Watching a name again replaces its note. A drop needs why.`,
       "It has no trading effect: only submit_strategy reaches the market. The owner sees each change in the daily digest.",
+    ],
+    earnings: [
+      "get_holdings (each held thesis) and check_eligibility (each symbol) give nextEarnings: the next scheduled report on or after today, with inDays, timeOfDay (pre- or post-market, when known) and the consensus EPS estimate. Null means none is scheduled in the next three months, or the symbol isn't covered.",
+      `The calendar is Alpha Vantage's, fetched once a day. get_holdings' earningsCalendar says when, and a note says when it's missing or over ${STALE_AFTER_DAYS} days old: then check report dates yourself.`,
+      `A held thesis reporting within ${EARNINGS_SOON_DAYS} days is flagged earnings_soon. That isn't a sell signal: decide on purpose whether to hold through the report.`,
     ],
     withdrawals: [
       "The owner can request a withdrawal (dashboard or CLI). While it's open, its outstanding amount is held back: targets are built on equity minus it, and buys can't use it.",

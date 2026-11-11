@@ -169,6 +169,13 @@
       "when": 1794431070679,
       "tag": "0023_watchlist_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794433353559,
+      "tag": "0024_earnings_calendar",
+      "breakpoints": true
     }
   ]
 }

@@ -37,6 +37,7 @@
     "research:quality": "tsx scripts/research-quality.ts",
     "rebalance:plan": "tsx scripts/rebalance.ts --mode plan",
     "rebalance:run": "tsx scripts/rebalance.ts --mode run",
+    "earnings:refresh": "tsx scripts/earnings-refresh.ts",
     "db:dashboard-role": "tsx scripts/dashboard-role.ts",
     "db:mcp-role": "tsx scripts/mcp-role.ts",
     "replay": "tsx scripts/replay.ts",
