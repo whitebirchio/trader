@@ -35,7 +35,7 @@ export interface HeldThesis {
   stop: { price: string; abovePct: string };
   /** An earnings reaction whose trading day is on or after the first lot's session. */
   earningsSinceEntry: LastEarnings | null;
-  /** The next scheduled report, from the earnings calendar (#30); null if none is scheduled in three months or the calendar is unavailable. */
+  /** The next announced report, from the earnings calendar (#30); null if none is announced yet or the calendar is unavailable. */
   nextEarnings: NextEarnings | null;
   signals: CandidateSignals;
   flags: HeldFlag[];

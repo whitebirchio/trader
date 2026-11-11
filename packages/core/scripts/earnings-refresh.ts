@@ -24,7 +24,7 @@ await withOps(values.env, async ({ env, db }) => {
     const view = await nextEarnings(db, symbols, now);
     for (const s of symbols) {
       const n = view.next.get(s);
-      console.log(`  ${s.padEnd(6)} ${n ? `${n.date} (in ${n.inDays} days${n.timeOfDay ? `, ${n.timeOfDay}` : ""}${n.estimate ? `, EPS estimate ${n.estimate}` : ""})` : "none scheduled in the next three months"}`);
+      console.log(`  ${s.padEnd(6)} ${n ? `${n.date} (in ${n.inDays} days${n.timeOfDay ? `, ${n.timeOfDay}` : ""}${n.estimate ? `, EPS estimate ${n.estimate}` : ""})` : "no date announced yet"}`);
     }
   }
 });

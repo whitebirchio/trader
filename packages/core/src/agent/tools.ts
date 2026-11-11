@@ -336,7 +336,7 @@ export async function checkEligibility({ db, broker, now, filings }: ToolDeps, s
       capExempt: capExempt(symbol, LIMITS),
       lastClose: facts?.lastClose ?? null,
       signals: candidateSignals(bars[symbol] ?? [], bars[BENCHMARK] ?? [], releases),
-      /** The next scheduled report (#30); null if none in three months, or the calendar is unavailable (see the last note). */
+      /** The next announced report (#30); null if none is announced yet, or the calendar is unavailable (see calendarNote). */
       nextEarnings: calendar.next.get(symbol) ?? null,
       ...(calendar.asOf === null || calendar.stale ? { calendarNote: calendarNote(calendar.asOf) } : {}),
     });
@@ -418,7 +418,7 @@ export function getRules() {
       "It has no trading effect: only submit_strategy reaches the market. The owner sees each change in the daily digest.",
     ],
     earnings: [
-      "get_holdings (each held thesis) and check_eligibility (each symbol) give nextEarnings: the next scheduled report on or after today, with inDays, timeOfDay (pre- or post-market, when known) and the consensus EPS estimate. Null means none is scheduled in the next three months, or the symbol isn't covered.",
+      "get_holdings (each held thesis) and check_eligibility (each symbol) give nextEarnings: the next scheduled report on or after today, with inDays, timeOfDay (pre- or post-market, when known) and the consensus EPS estimate. Null means no date is announced yet: the calendar lists a report once the company announces it, usually two to four weeks ahead. Then expect the next report about three months after the last one (check_eligibility's signals.lastEarnings), and confirm on the company's investor-relations page if it matters.",
       `The calendar is Alpha Vantage's, fetched once a day. get_holdings' earningsCalendar says when, and a note says when it's missing or over ${STALE_AFTER_DAYS} days old: then check report dates yourself.`,
       `A held thesis reporting within ${EARNINGS_SOON_DAYS} days is flagged earnings_soon. That isn't a sell signal: decide on purpose whether to hold through the report.`,
     ],

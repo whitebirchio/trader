@@ -154,7 +154,7 @@ export interface CalendarView {
   /** When the snapshot read was fetched; null if there's none. */
   asOf: string | null;
   stale: boolean;
-  /** Each symbol's next report on or after today, from the latest snapshot. A symbol it doesn't list has none scheduled in three months (or isn't covered). */
+  /** Each symbol's next report on or after today, from the latest snapshot. A symbol it doesn't list has no date announced yet: the calendar covers three months, but a company appears once it announces its date, usually two to four weeks ahead. */
   next: Map<string, NextEarnings>;
 }
 
