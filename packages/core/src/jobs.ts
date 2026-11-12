@@ -98,8 +98,14 @@ const processCapitalJob: JobFn = async ({ db, broker, now }) => {
 /** After a failed fetch, wait this long before spending another of the free tier's 25 requests a day. */
 const EARNINGS_RETRY_AFTER_MS = 2 * 60 * 60_000;
 
-/** Today's earnings calendar snapshot, once a day (#30). Fails soft: the tools report a stale or missing calendar. */
-const earningsCalendarJob: JobFn = async ({ db, earnings, now }) => {
+/**
+ * Today's earnings calendar snapshot, once a day (#30). Fails soft: the tools
+ * report a stale or missing calendar. Production only: the environments share
+ * one free key, so staging's snapshot is fetched on demand with
+ * earnings:refresh (Scott, 2026-11-11).
+ */
+const earningsCalendarJob: JobFn = async ({ db, env, earnings, now }) => {
+  if (env === "staging") return { status: "skipped", reason: "no scheduled calendar in staging: run earnings:refresh when a test needs one" };
   if (!earnings) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
   const [lastFailure] = await db
     .select({ at: jobRuns.scheduledFor })

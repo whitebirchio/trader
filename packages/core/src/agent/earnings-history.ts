@@ -39,9 +39,9 @@ export interface EarningsHistoryPort {
 
 export const BACKFILL = {
   /**
-   * Requests a day for each environment. Production gets them all: the
-   * calendar takes one more in each environment, leaving a few of the 25
-   * for on-demand checks. Staging spends none (Scott, 2026-11-11).
+   * Requests a day for each environment. Production gets them all: its
+   * calendar takes one more, leaving a few of the 25 for on-demand checks.
+   * Staging spends none (Scott, 2026-11-11).
    */
   perDay: { production: 20, staging: 0 } satisfies Record<TradingEnv, number>,
   /** Requests a tick, so a day's budget spreads over a few ticks. */
