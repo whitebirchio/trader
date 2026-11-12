@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { type EarningsCalendarPort, refreshEarningsCalendar } from "./agent/earnings-calendar.js";
-import { type EarningsHistoryPort, backfillEarningsHistory, backfillProgress } from "./agent/earnings-history.js";
+import { type EarningsHistoryPort, backfillEarningsHistory, backfillProgress, describeProgress } from "./agent/earnings-history.js";
 import { checkFilings, filingTargets } from "./agent/filings.js";
 import type { FilingsFeedPort } from "./agent/sec.js";
 import { recordEvent } from "./audit.js";
@@ -129,10 +129,12 @@ const earningsBackfillJob: JobFn = async ({ db, earningsHistory, now }) => {
     .where(and(eq(jobRuns.job, "earnings-backfill"), eq(jobRuns.status, "succeeded"), gte(jobRuns.scheduledFor, new Date(now().getTime() - DAY_MS)), sql`${jobRuns.detail}->>'limited' = 'true'`))
     .orderBy(desc(jobRuns.scheduledFor))
     .limit(1);
-  if (refused && marketDate(refused.at) === marketDate(now())) return { status: "skipped", reason: `Alpha Vantage refused a request at ${refused.at.toISOString()}; resumes tomorrow` };
+  if (refused && marketDate(refused.at) === marketDate(now())) {
+    return { status: "skipped", reason: `Alpha Vantage refused a request at ${refused.at.toISOString()}; resumes tomorrow; ${describeProgress(await backfillProgress(db))}` };
+  }
   const priority = (await filingTargets(db, now())).map((t) => t.symbol);
   const result = await backfillEarningsHistory(db, earningsHistory, { priority, now: now() });
-  if (result.status === "skipped") return result;
+  if (result.status === "skipped") return { status: "skipped", reason: `${result.reason}; ${describeProgress(await backfillProgress(db))}` };
   const { status: _, ...detail } = result;
   return { status: "succeeded", detail: { ...detail, progress: await backfillProgress(db) } };
 };

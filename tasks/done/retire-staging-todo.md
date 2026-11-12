@@ -1,6 +1,6 @@
 # Todo: retire the staging environment
 
-> Plan: `tasks/retire-staging-plan.md`. Decision: ADR-018 (Accepted). Gate for every code task: `npm run typecheck && npm test`. T2, the import in T3, and T6 are Scott's: they delete or adopt AWS resources.
+> Plan: `tasks/done/retire-staging-plan.md`. Decision: ADR-018 (Accepted). Gate for every code task: `npm run typecheck && npm test`. T2, the import in T3, and T6 are Scott's: they delete or adopt AWS resources.
 
 ### T1: Retain the SES identities (small PR)
 - [x] `infra/lib/engine-stack.ts`: `applyRemovalPolicy(RemovalPolicy.RETAIN)` on `MailDomain` and `OwnerAddress`; an infra test pins `DeletionPolicy: Retain` (#111).
@@ -58,5 +58,5 @@
 ### T7: Verify
 - [x] After T3: the production test email arrives, and `TraderProduction` lists both identities as resources (2026-11-11).
 - [ ] The first feature PR after T5 runs `migrate-check` green with a new migration, and deploys nothing until merge.
-- [ ] The paper rehearsal runs end to end in market hours.
+- [x] The paper rehearsal runs end to end in market hours (2026-11-12, `broker:smoke --env paper`: submitted, filled on the first sync, lots = position, audit trail, no second order on re-submit).
 - [x] Claude runs the four read-only checks against production without a permission prompt (2026-11-11, through `trader_readonly`, after #114).

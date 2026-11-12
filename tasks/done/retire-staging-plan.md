@@ -1,6 +1,6 @@
 # Plan: retire the staging environment
 
-> **Status: Proposed** (2026-11-11), for Scott's review. Decision: [ADR-018](../docs/decisions/018-production-is-the-only-deployed-environment.md). Tasks: `tasks/retire-staging-todo.md`.
+> **Status: Built** (2026-11-11 to 11-12: #110, #111, #112, #113, #114, the destroy, the SES import and the cleanup). Decision: [ADR-018](../../docs/decisions/018-production-is-the-only-deployed-environment.md). Tasks: `tasks/done/retire-staging-todo.md`. One check remains, and it happens by itself: the first PR that adds a migration runs `migrate-check` on it.
 
 ## Why
 Scott, 2026-11-11: nothing soaks on staging before release, so it's only overhead, and it has started to behave differently from production (#109 made it skip Alpha Vantage). The reasoning is in ADR-018.
