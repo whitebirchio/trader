@@ -5,6 +5,7 @@ import {
   type Db,
   type EarningsCalendarPort,
   type EarningsHistoryPort,
+  type EstimatesPort,
   type FilingsFeedPort,
   type Mailer,
   TICK_JOBS,
@@ -31,7 +32,7 @@ export interface HandlerDeps {
   /** The earnings calendar's source (#30), when an Alpha Vantage key is configured. */
   makeEarnings?(config: Config): EarningsCalendarPort | undefined;
   /** Alpha Vantage's earnings history for the backfill (#105), when a key is configured. */
-  makeEarningsHistory?(config: Config): EarningsHistoryPort | undefined;
+  makeEarningsHistory?(config: Config): (EarningsHistoryPort & EstimatesPort) | undefined;
   /** SEC EDGAR for the filings check (#105); one per container, so SEC's ticker map loads once. */
   filings?: FilingsFeedPort;
   now(): Date;
@@ -91,7 +92,7 @@ export function createHandler(deps: HandlerDeps) {
     const results: unknown[] = [];
     try {
       for (const job of requested.filter(isJobName)) {
-        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now, earnings, earningsHistory, filings: deps.filings }, job, scheduledFor);
+        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now, earnings, earningsHistory, estimates: earningsHistory, filings: deps.filings }, job, scheduledFor);
         deps.log("info", "job", { job, scheduledFor: scheduledFor.toISOString(), ...outcome });
         results.push({ job, ...outcome });
       }

@@ -430,6 +430,29 @@ export const earningsHistory = pgTable(
   (t) => [primaryKey({ columns: [t.symbol, t.fiscalDateEnding] }), index("earnings_history_reported_idx").on(t.reportedDate)],
 );
 
+/**
+ * Analysts' EPS estimates for held and watched names (#105), one row per
+ * fetch from Alpha Vantage's EARNINGS_ESTIMATES: the next fiscal quarter and
+ * fiscal year, each with the consensus now and 7–90 days ago and the
+ * raises and cuts behind it. Kept, so a history builds up (the source has
+ * only today's snapshot). "none" and "error" rows record a fetch that found
+ * nothing, so it isn't retried until the next refresh.
+ */
+export const earningsEstimates = pgTable(
+  "earnings_estimates",
+  {
+    symbol: text().notNull(),
+    fetchedOn: date({ mode: "string" }).notNull(),
+    fetchedAt: timestamptz().notNull(),
+    status: text({ enum: ["ok", "none", "error"] }).notNull(),
+    /** agent/estimates.ts EstimatePoint, decimal strings; null when the reply had none. */
+    quarter: jsonb().$type<Record<string, unknown>>(),
+    fiscalYear: jsonb().$type<Record<string, unknown>>(),
+    error: text(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.fetchedOn] })],
+);
+
 /** The earnings-backfill job's progress: one row per company asked for, and how it went. Today's rows count against its daily budget. */
 export const earningsHistoryFetches = pgTable("earnings_history_fetches", {
   symbol: text().primaryKey(),

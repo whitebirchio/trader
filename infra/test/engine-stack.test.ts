@@ -57,7 +57,7 @@ describe("EngineStack", () => {
     const tick = named(production, "trader-tick-production");
     expect(tick?.Properties.ScheduleExpression).toBe("cron(0/15 * * * ? *)");
     expect(JSON.parse(tick?.Properties.Target.Input ?? "{}")).toEqual({
-      jobs: ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-backfill", "notify-urgent", "notify-digest", "notify-weekly"],
+      jobs: ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-estimates", "earnings-backfill", "notify-urgent", "notify-digest", "notify-weekly"],
       scheduledTime: "<aws.scheduler.scheduled-time>",
     });
   });

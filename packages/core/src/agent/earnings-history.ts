@@ -2,7 +2,9 @@ import { sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { earningsHistory, earningsHistoryFetches } from "../db/schema.js";
 import { marketDate } from "../time.js";
+import { type Refusal, readReply } from "./alphavantage.js";
 import { EARNINGS_UNIVERSE } from "./earnings-universe.js";
+import { type EstimatesPort, type EstimatesReply, parseEstimatesJson } from "./estimates.js";
 
 /**
  * Each company's quarterly earnings, reported vs estimated EPS (#105), for
@@ -29,7 +31,7 @@ export interface EarningsQuarter {
  * the request, for the day's limit or, when `perSecond`, for going faster
  * than one a second.
  */
-export type HistoryReply = { status: "ok"; quarters: EarningsQuarter[] } | { status: "none" } | { status: "limited"; perSecond: boolean; note: string };
+export type HistoryReply = { status: "ok"; quarters: EarningsQuarter[] } | { status: "none" } | Refusal;
 
 export interface EarningsHistoryPort {
   /** A company's quarterly earnings, newest first. Throws if Alpha Vantage can't be reached. */
@@ -56,15 +58,9 @@ const text = (v: unknown) => (typeof v === "string" && v.trim() !== "" && v !== 
  * the symbol, and quarters without a real date are skipped.
  */
 export function parseEarningsJson(body: string): HistoryReply {
-  let j: Record<string, unknown>;
-  try {
-    j = JSON.parse(body) as Record<string, unknown>;
-  } catch {
-    throw new Error("Alpha Vantage returned unreadable earnings");
-  }
-  const note = j.Information ?? j.Note;
-  // The per-second notice also mentions the daily limit, so it's told apart by its own wording.
-  if (note !== undefined) return { status: "limited", perSecond: /per second|sparingly/i.test(String(note)), note: String(note) };
+  const reply = readReply(body, "earnings");
+  if ("refused" in reply) return reply.refused;
+  const j = reply.json;
   if (!Array.isArray(j.quarterlyEarnings)) return { status: "none" };
   const quarters: EarningsQuarter[] = [];
   for (const q of j.quarterlyEarnings as Record<string, unknown>[]) {
@@ -87,8 +83,12 @@ export function parseEarningsJson(body: string): HistoryReply {
 /** Alpha Vantage's per-second limit, with a margin. */
 const SPACING_MS = 1_200;
 
-/** Earnings from Alpha Vantage, at most one request every SPACING_MS. The key is sent only to Alpha Vantage, and never logged. */
-export class AlphaVantageEarnings implements EarningsHistoryPort {
+/**
+ * A company's earnings history and analyst estimates from Alpha Vantage, at
+ * most one request every SPACING_MS across both. The key is sent only to
+ * Alpha Vantage, and never logged.
+ */
+export class AlphaVantageEarnings implements EarningsHistoryPort, EstimatesPort {
   private last = 0;
 
   constructor(
@@ -98,15 +98,23 @@ export class AlphaVantageEarnings implements EarningsHistoryPort {
   ) {}
 
   async history(symbol: string): Promise<HistoryReply> {
+    return parseEarningsJson(await this.query("EARNINGS", symbol, "earnings"));
+  }
+
+  async estimates(symbol: string, now: Date): Promise<EstimatesReply> {
+    return parseEstimatesJson(await this.query("EARNINGS_ESTIMATES", symbol, "estimates"), marketDate(now));
+  }
+
+  private async query(fn: string, symbol: string, what: string): Promise<string> {
     const wait = this.last + this.spacingMs - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     this.last = Date.now();
     const url = new URL("https://www.alphavantage.co/query");
     // Alpha Vantage writes share classes with a dash (BRK-B), Alpaca with a dot.
-    url.search = new URLSearchParams({ function: "EARNINGS", symbol: symbol.replace(".", "-"), apikey: this.apiKey }).toString();
+    url.search = new URLSearchParams({ function: fn, symbol: symbol.replace(".", "-"), apikey: this.apiKey }).toString();
     const res = await this.fetchFn(url, { signal: AbortSignal.timeout(30_000) });
-    if (!res.ok) throw new Error(`Alpha Vantage's earnings failed: HTTP ${res.status}`);
-    return parseEarningsJson(await res.text());
+    if (!res.ok) throw new Error(`Alpha Vantage's ${what} failed: HTTP ${res.status}`);
+    return res.text();
   }
 }
 
