@@ -2,12 +2,12 @@
  * Show the thesis scorecard: each thesis ever held, its return, and the same
  * dollars in VTI (SPEC-portfolio § Scorecard). Read-only.
  *
- *   npm run scorecard:show -w @trader/core -- --env staging|production
+ *   npm run scorecard:show -w @trader/core -- --env production|paper
  */
 import { parseArgs } from "node:util";
 import type { ScorecardRollUp } from "../src/portfolio/scorecard.js";
 import { loadScorecard } from "../src/portfolio/scorecard.js";
-import { withOps } from "./ops.js";
+import { withReadOnly } from "./ops.js";
 
 const { values } = parseArgs({ options: { env: { type: "string" } } });
 
@@ -20,7 +20,7 @@ const signed = (v: string) => (v.startsWith("-") ? `-$${usd(v.slice(1))}` : `+$$
 const summary = (r: ScorecardRollUp) =>
   `${r.scored}/${r.theses} scored, ${r.closed} closed · bought $${usd(r.bought)} · P&L ${signed(r.pnl)} vs VTI ${signed(r.vtiPnl)} · excess ${signed(r.excess)} (${r.excessPct ?? "–"}%) · beat VTI ${r.beatVtiPct ?? "–"}% · median ${r.medianDaysHeld ?? "–"} days`;
 
-await withOps(values.env, async ({ env, db }) => {
+await withReadOnly(values.env, async ({ env, db }) => {
   const card = await loadScorecard(db, new Date());
   console.log(`${env}: scorecard, marked ${card.markedAt?.toISOString() ?? "never (no positions)"}`);
   console.log(`  Overall: ${summary(card.overall)}`);

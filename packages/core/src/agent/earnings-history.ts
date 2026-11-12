@@ -1,7 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { earningsHistory, earningsHistoryFetches } from "../db/schema.js";
-import type { TradingEnv } from "../env.js";
 import { marketDate } from "../time.js";
 import { EARNINGS_UNIVERSE } from "./earnings-universe.js";
 
@@ -9,7 +8,7 @@ import { EARNINGS_UNIVERSE } from "./earnings-universe.js";
  * Each company's quarterly earnings, reported vs estimated EPS (#105), for
  * the earnings-surprise backtest and, later, the routine. The source is
  * Alpha Vantage's EARNINGS endpoint: free, but one request per company, at
- * most one a second, and 25 a day shared by both environments. So the
+ * most one a second, and 25 a day. So the
  * earnings-backfill job fills it slowly, a few companies a tick inside a
  * daily budget: theses and watchlist names first, then EARNINGS_UNIVERSE in
  * its fixed order, so what's stored is always a random sample of it.
@@ -38,12 +37,8 @@ export interface EarningsHistoryPort {
 }
 
 export const BACKFILL = {
-  /**
-   * Requests a day for each environment. Production gets them all: its
-   * calendar takes one more, leaving a few of the 25 for on-demand checks.
-   * Staging spends none (Scott, 2026-11-11).
-   */
-  perDay: { production: 20, staging: 0 } satisfies Record<TradingEnv, number>,
+  /** Requests a day: the calendar takes one more, leaving a few of the free key's 25 for on-demand checks. */
+  perDay: 20,
   /** Requests a tick, so a day's budget spreads over a few ticks. */
   perTick: 3,
   /** Quarters reported before this aren't stored: the backtests start in 2018. */
@@ -139,14 +134,13 @@ export type BackfillResult =
 export async function backfillEarningsHistory(
   db: Db,
   port: EarningsHistoryPort,
-  opts: { env: TradingEnv; priority: string[]; now: Date; universe?: readonly string[] },
+  opts: { priority: string[]; now: Date; universe?: readonly string[] },
 ): Promise<BackfillResult> {
-  if (BACKFILL.perDay[opts.env] === 0) return { status: "skipped", reason: `no backfill in ${opts.env}: the free key's requests go to production` };
   const today = marketDate(opts.now);
   const rows = await db.select({ symbol: earningsHistoryFetches.symbol, status: earningsHistoryFetches.status, fetchedOn: earningsHistoryFetches.fetchedOn }).from(earningsHistoryFetches);
   const usedToday = rows.filter((r) => r.fetchedOn === today).length;
-  const budget = Math.min(BACKFILL.perTick, BACKFILL.perDay[opts.env] - usedToday);
-  if (budget <= 0) return { status: "skipped", reason: `today's ${BACKFILL.perDay[opts.env]} requests are spent` };
+  const budget = Math.min(BACKFILL.perTick, BACKFILL.perDay - usedToday);
+  if (budget <= 0) return { status: "skipped", reason: `today's ${BACKFILL.perDay} requests are spent` };
   const settled = new Set(rows.filter((r) => r.status !== "error" || r.fetchedOn === today).map((r) => r.symbol));
   const queue = [...new Set([...opts.priority, ...(opts.universe ?? EARNINGS_UNIVERSE)])].filter((s) => !settled.has(s));
   if (queue.length === 0) return { status: "skipped", reason: "every company has been fetched" };

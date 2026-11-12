@@ -1,7 +1,7 @@
 # ADR-005: Paper trading is the staging environment; one account per environment
 
 ## Status
-Accepted
+Superseded by [ADR-018](018-production-is-the-only-deployed-environment.md) (2026-11-11).
 
 ## Date
 2026-10-31

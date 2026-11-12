@@ -97,7 +97,7 @@ beforeEach(async () => {
 describe("backfillEarningsHistory", () => {
   it("asks for priority names first, then the universe in order, a few a tick, storing quarters from 2017 on", async () => {
     const port = fakePort({ U1: { status: "none" } });
-    const result = await backfillEarningsHistory(db, port, { env: "production", priority: ["P1", "U2"], now: NOW, universe: UNIVERSE });
+    const result = await backfillEarningsHistory(db, port, { priority: ["P1", "U2"], now: NOW, universe: UNIVERSE });
     expect(port.asked).toEqual(["P1", "U2", "U1"]);
     expect(result).toEqual({
       status: "fetched",
@@ -117,27 +117,24 @@ describe("backfillEarningsHistory", () => {
     expect(await backfillProgress(db)).toEqual({ ok: 2, none: 1, error: 0, quarters: 2 });
 
     // The next tick moves on; nothing already asked for is asked again.
-    await backfillEarningsHistory(db, port, { env: "production", priority: ["P1", "U2"], now: NOW, universe: UNIVERSE });
+    await backfillEarningsHistory(db, port, { priority: ["P1", "U2"], now: NOW, universe: UNIVERSE });
     expect(port.asked.slice(3)).toEqual(["U3", "U4", "U5"]);
   });
 
-  it("stops at production's daily budget and starts again the next market date, and spends nothing in staging", async () => {
+  it("stops at the daily budget and starts again the next market date", async () => {
     const port = fakePort();
-    const opts = { env: "production" as const, priority: [], universe: UNIVERSE };
+    const opts = { priority: [], universe: UNIVERSE };
     // Earlier ticks today asked for all but one of the day's budget.
-    const earlier = Array.from({ length: BACKFILL.perDay.production - 1 }, (_, n) => ({ symbol: `E${n}`, fetchedOn: "2026-11-11", fetchedAt: NOW, status: "ok" as const, quarters: 1 }));
+    const earlier = Array.from({ length: BACKFILL.perDay - 1 }, (_, n) => ({ symbol: `E${n}`, fetchedOn: "2026-11-11", fetchedAt: NOW, status: "ok" as const, quarters: 1 }));
     await db.insert(earningsHistoryFetches).values(earlier);
     expect(await backfillEarningsHistory(db, port, { ...opts, now: NOW })).toMatchObject({ fetched: [{ symbol: "U1" }] });
     expect(await backfillEarningsHistory(db, port, { ...opts, now: at(0.1) })).toEqual({ status: "skipped", reason: "today's 20 requests are spent" });
     expect(await backfillEarningsHistory(db, port, { ...opts, now: at(1) })).toMatchObject({ fetched: [{ symbol: "U2" }, { symbol: "U3" }, { symbol: "U4" }] });
-
-    expect(await backfillEarningsHistory(db, port, { ...opts, env: "staging", now: at(2) })).toEqual({ status: "skipped", reason: "no backfill in staging: the free key's requests go to production" });
-    expect(port.asked).toEqual(["U1", "U2", "U3", "U4"]);
   });
 
   it("records a failed company against today's budget and retries it on a later day, overwriting what it stored", async () => {
     const port = fakePort({ U1: new Error("socket hang up") });
-    const opts = { env: "production" as const, priority: [], universe: ["U1", "U2"] };
+    const opts = { priority: [], universe: ["U1", "U2"] };
     expect(await backfillEarningsHistory(db, port, { ...opts, now: NOW })).toMatchObject({ fetched: [{ symbol: "U1", status: "error" }, { symbol: "U2", status: "ok" }], left: 1 });
     expect(await db.select().from(earningsHistoryFetches).orderBy(earningsHistoryFetches.symbol)).toMatchObject([{ symbol: "U1", status: "error", error: "socket hang up" }, { symbol: "U2", status: "ok" }]);
     expect(await backfillEarningsHistory(db, port, { ...opts, now: at(0.1) })).toEqual({ status: "skipped", reason: "every company has been fetched" });
@@ -149,19 +146,19 @@ describe("backfillEarningsHistory", () => {
 
   it("throws when every company asked for failed", async () => {
     const port = fakePort({ U1: new Error("down"), U2: new Error("down") });
-    await expect(backfillEarningsHistory(db, port, { env: "production", priority: [], now: NOW, universe: ["U1", "U2"] })).rejects.toThrow("Alpha Vantage's earnings failed for U1, U2");
+    await expect(backfillEarningsHistory(db, port, { priority: [], now: NOW, universe: ["U1", "U2"] })).rejects.toThrow("Alpha Vantage's earnings failed for U1, U2");
   });
 
   it("stops at Alpha Vantage's first refusal without counting it", async () => {
     const port = fakePort({ U2: { status: "limited", perSecond: false, note: "25 requests per day" } });
-    expect(await backfillEarningsHistory(db, port, { env: "production", priority: [], now: NOW, universe: UNIVERSE })).toMatchObject({ fetched: [{ symbol: "U1" }], limited: true });
+    expect(await backfillEarningsHistory(db, port, { priority: [], now: NOW, universe: UNIVERSE })).toMatchObject({ fetched: [{ symbol: "U1" }], limited: true });
     expect(port.asked).toEqual(["U1", "U2"]);
     expect((await db.select().from(earningsHistoryFetches)).map((r) => r.symbol)).toEqual(["U1"]);
   });
 
   it("stops the run, but not the day, when refused for going faster than one a second", async () => {
     const port = fakePort({ U1: { status: "limited", perSecond: true, note: "1 request per second" } });
-    expect(await backfillEarningsHistory(db, port, { env: "production", priority: [], now: NOW, universe: UNIVERSE })).toMatchObject({ fetched: [], limited: false, throttled: true, left: 6 });
+    expect(await backfillEarningsHistory(db, port, { priority: [], now: NOW, universe: UNIVERSE })).toMatchObject({ fetched: [], limited: false, throttled: true, left: 6 });
   });
 });
 

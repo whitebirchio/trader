@@ -1,5 +1,7 @@
 # Spec: `foundation`
 
+> **ADR-018 (2026-11-11): staging is retired.** Production is the only deployed environment. Where this spec runs a command with `--env staging`, paper work now uses `--env paper` (the paper account on a local database), and checks of the deployed system use `--env production`. Records of what was checked on staging stay as written.
+
 > **Hosting superseded:** the engine moved from Cloudflare Workers to AWS on 2026-11-01. See [SPEC-platform-aws.md](SPEC-platform-aws.md) and ADR-014. The rest of this spec (repo, core, jobs, audit log, money) still describes the system.
 
 > **Status: Implemented** (2026-10-31). Approved by Scott on 2026-10-31; every success criterion verified on the live environments. Module 1 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on nothing.

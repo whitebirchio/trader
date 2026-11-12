@@ -3,7 +3,7 @@
  * via the real `send_email` binding. Test emails are the only kind staging
  * actually sends (SPEC-notifications).
  *
- *   npm run notify:test -w @trader/core -- --env staging|production
+ *   npm run notify:test -w @trader/core -- --env production|paper
  */
 import { parseArgs } from "node:util";
 import { escapeHtml, footer } from "../src/notifications/compose.js";

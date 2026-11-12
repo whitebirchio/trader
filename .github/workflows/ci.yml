@@ -2,7 +2,8 @@
 # only deployed environment). AWS deploys use GitHub OIDC (no stored keys):
 # the trader-github-deploy role can only assume CDK's bootstrap roles
 # (SPEC-platform-aws).
-#   - any branch other than main → build and test only
+#   - any branch other than main → build, test, and a migration check on a
+#                                  temporary Neon branch of production
 #   - main                       → TraderProduction (live money)
 # Migrations run before the Worker deploys, so new code never meets an old
 # schema. Secrets are repo-level (no GitHub Environments: the org is on the
@@ -50,6 +51,29 @@ jobs:
       - run: npm run build -w trader-dashboard
       # Infra errors fail every branch, not just deploys (no AWS credentials needed to synth).
       - run: npm run synth -w trader-infra
+
+  # Branches don't deploy (ADR-018), so their migrations are checked here, on a
+  # temporary copy of production that the script deletes. It prints only pass
+  # or fail: the copy holds live data, and these logs are public.
+  migrate-check:
+    needs: build
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: migrate-check-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Migrate a temporary copy of production
+        run: scripts/ci-migrate-check.sh
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
 
   deploy-production:
     needs: build

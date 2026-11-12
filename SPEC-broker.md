@@ -1,5 +1,7 @@
 # Spec: `broker`
 
+> **ADR-018 (2026-11-11): staging is retired.** Production is the only deployed environment. Where this spec runs a command with `--env staging`, paper work now uses `--env paper` (the paper account on a local database), and checks of the deployed system use `--env production`. Records of what was checked on staging stay as written.
+
 > **Status: Approved** (Scott, 2026-10-31). Module 2 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation` (implemented).
 
 ## Objective

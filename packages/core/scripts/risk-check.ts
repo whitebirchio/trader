@@ -2,7 +2,7 @@
  * Dry run: evaluate proposals against the environment's current state and
  * print the decisions. Records nothing and places nothing.
  *
- *   npm run risk:check -w @trader/core -- --env staging --buy VTI=50 --buy AAPL=300:conviction --sell VTI=0.1 [--sync]
+ *   npm run risk:check -w @trader/core -- --env paper --buy VTI=50 --buy AAPL=300:conviction --sell VTI=0.1 [--sync]
  *
  * --sync runs a broker sync first (ignoring market hours) so the data is fresh.
  */

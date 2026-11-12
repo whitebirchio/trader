@@ -8,8 +8,8 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 | [002](002-hexagonal-core.md) | Hexagonal core with thin adapters | Accepted | 2026-10-31 |
 | [003](003-claude-owns-strategy-code-owns-risk.md) | Claude owns the strategy; code owns execution and risk | Accepted (70/30 default superseded by 013) | 2026-10-31 |
 | [004](004-claude-via-scheduled-mcp-routine.md) | Claude runs as a scheduled routine over MCP; no server-side LLM calls | Accepted | 2026-10-31 |
-| [005](005-paper-is-staging.md) | Paper trading is the staging environment; one account per environment | Accepted | 2026-10-31 |
-| [006](006-branch-based-deploys.md) | Branch-based deploys: feature branches → staging, `main` → production | Accepted | 2026-10-31 |
+| [005](005-paper-is-staging.md) | Paper trading is the staging environment; one account per environment | Superseded by 018 (its guard that no staging config reaches a live account stands) | 2026-10-31 |
+| [006](006-branch-based-deploys.md) | Branch-based deploys: feature branches → staging, `main` → production | Superseded by 018 | 2026-10-31 |
 | [007](007-idempotent-job-runs.md) | Job runs are idempotent per scheduled time | Accepted | 2026-10-31 |
 | [008](008-append-only-audit-log.md) | An append-only audit log of every state-changing action | Accepted | 2026-10-31 |
 | [009](009-money-as-numeric-and-big.md) | Money is `numeric` in Postgres and `Big` in code, never a JS `number` | Accepted | 2026-10-31 |
@@ -21,4 +21,4 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 | [015](015-owner-capital-flows.md) | Owner capital flows are first-class; withdrawals are strategy-funded requests | Accepted | 2026-11-01 |
 | [016](016-aggressive-swing-no-day-trades.md) | Aggressive swing trading; no systematic sleeve, no day trades | Accepted | 2026-11-04 |
 | [017](017-halts-let-exits-out-resume-rebases.md) | A drawdown halt lets closed theses out, and a resume re-bases the peak | Accepted | 2026-11-10 |
-| [018](018-production-is-the-only-deployed-environment.md) | Production is the only deployed environment; paper is a local tool | Proposed | 2026-11-11 |
+| [018](018-production-is-the-only-deployed-environment.md) | Production is the only deployed environment; paper is a local tool | Accepted | 2026-11-11 |

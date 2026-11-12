@@ -4,7 +4,7 @@
  * git-ignored packages/core/.cache/replay/timeline-<env>.json. It holds live
  * figures, so it stays local. Prints counts and dates only.
  *
- *   npm run replay:export -w @trader/core -- --env staging|production
+ *   npm run replay:export -w @trader/core -- --env production|paper
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

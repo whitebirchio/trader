@@ -107,10 +107,4 @@ describe("the earnings-calendar job", () => {
     expect(await runJob({ ...deps(p), now: () => at(0.1) }, "earnings-calendar", at(0.1))).toMatchObject({ status: "succeeded", detail: { rows: 1 } });
     expect((await db.select().from(jobRuns)).filter((r) => r.job === "earnings-calendar")).toHaveLength(4);
   });
-
-  it("spends no request in staging, which fetches on demand", async () => {
-    const p = port([row("LKQ", "2026-11-20")]);
-    expect(await runJob({ ...deps(p), env: "staging" }, "earnings-calendar", NOW)).toEqual({ status: "skipped", reason: "no scheduled calendar in staging: run earnings:refresh when a test needs one" });
-    expect(p.calls).toBe(0);
-  });
 });

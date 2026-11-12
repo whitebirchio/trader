@@ -1,5 +1,7 @@
 # Spec: `notifications`
 
+> **ADR-018 (2026-11-11): staging is retired.** Production is the only deployed environment. Where this spec runs a command with `--env staging`, paper work now uses `--env paper` (the paper account on a local database), and checks of the deployed system use `--env production`. Records of what was checked on staging stay as written.
+
 > **Delivery superseded:** outbound email moved from the Cloudflare `send_email` binding to AWS SES on 2026-11-01 ([SPEC-platform-aws.md](SPEC-platform-aws.md)). Routing, the outbox, composition and suppression are unchanged. Inbound forwarding stays on Cloudflare Email Routing.
 
 > **Status: Approved** (Scott, 2026-10-31). Module 4 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation` (the audit log). Built before `portfolio` so you hear about halts and trades from the first live order (SPEC-risk resolved question 2).

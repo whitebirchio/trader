@@ -2,7 +2,7 @@
  * OWNER: turn the kill switch on. Every order is rejected, sells included,
  * until `risk:resume`.
  *
- *   npm run risk:kill -w @trader/core -- --env staging|production --reason "…"
+ *   npm run risk:kill -w @trader/core -- --env production|paper --reason "…"
  */
 import { parseArgs } from "node:util";
 import { setKillSwitch } from "../src/risk/state.js";

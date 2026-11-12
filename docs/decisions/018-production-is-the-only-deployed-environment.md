@@ -1,7 +1,7 @@
 # ADR-018: Production is the only deployed environment; paper is a local tool
 
 ## Status
-Proposed (2026-11-11), for Scott's review with [tasks/retire-staging-plan.md](../../tasks/retire-staging-plan.md). Once accepted, it supersedes ADR-005 (paper is staging) and ADR-006 (branch-based deploys). ADR-005's guard that no staging config reaches a live account stands.
+Accepted (Scott, 2026-11-11, with [tasks/retire-staging-plan.md](../../tasks/retire-staging-plan.md); built in #111, #112 and the PR that closes T4–T5). Supersedes ADR-005 (paper is staging) and ADR-006 (branch-based deploys). ADR-005's guard that no staging config reaches a live account stands.
 
 ## Date
 2026-11-11

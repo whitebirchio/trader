@@ -1,7 +1,7 @@
 # ADR-006: Branch-based deploys: feature branches → staging, `main` → production
 
 ## Status
-Accepted
+Superseded by [ADR-018](018-production-is-the-only-deployed-environment.md) (2026-11-11).
 
 ## Date
 2026-10-31

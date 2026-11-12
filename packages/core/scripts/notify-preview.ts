@@ -3,7 +3,7 @@
  * (with --digest) today's digest as it stands now, or (with --weekly) the
  * week's letter for --date (default today; it must have its after-close snapshot).
  *
- *   npm run notify:preview -w @trader/core -- --env staging|production [--digest | --weekly [--date YYYY-MM-DD]]
+ *   npm run notify:preview -w @trader/core -- --env production|paper [--digest | --weekly [--date YYYY-MM-DD]]
  *   npm run notify:preview -w @trader/core -- --sample withdrawal   (sample emails; no database)
  */
 import { parseArgs } from "node:util";

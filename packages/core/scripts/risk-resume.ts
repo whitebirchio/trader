@@ -1,7 +1,7 @@
 /**
  * OWNER: clear the kill switch and/or the drawdown halt.
  *
- *   npm run risk:resume -w @trader/core -- --env staging|production --reason "…"
+ *   npm run risk:resume -w @trader/core -- --env production|paper --reason "…"
  */
 import { parseArgs } from "node:util";
 import { resume } from "../src/risk/state.js";

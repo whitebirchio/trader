@@ -2,9 +2,9 @@
  * OWNER: queue a withdrawal command (the same row the dashboard writes), then
  * process it right away rather than waiting for the next tick.
  *
- *   npm run capital:withdraw -w @trader/core -- --env staging|production --amount 500   (or --amount all)
- *   npm run capital:fund-now -w @trader/core -- --env staging|production
- *   npm run capital:cancel   -w @trader/core -- --env staging|production
+ *   npm run capital:withdraw -w @trader/core -- --env production|paper --amount 500   (or --amount all)
+ *   npm run capital:fund-now -w @trader/core -- --env production|paper
+ *   npm run capital:cancel   -w @trader/core -- --env production|paper
  *
  * Nothing here moves money out of Alpaca: a request sells holdings and holds
  * the cash; you start the transfer in Alpaca when it's ready.

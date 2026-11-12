@@ -5,7 +5,7 @@
  * Spends one of the free tier's 25 requests a day, and none if today's
  * snapshot is already stored. Prints counts only, never the key.
  *
- *   npm run earnings:refresh -w @trader/core -- --env staging|production [--show AAPL,LKQ]
+ *   npm run earnings:refresh -w @trader/core -- --env production|paper [--show AAPL,LKQ]
  */
 import { parseArgs } from "node:util";
 import { AlphaVantageCalendar, nextEarnings, refreshEarningsCalendar } from "../src/agent/earnings-calendar.js";
