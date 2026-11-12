@@ -28,6 +28,7 @@ import { type HeldThesis, heldThesis } from "./held.js";
 import { EARNINGS_SOON_DAYS, STALE_AFTER_DAYS, nextEarnings } from "./earnings-calendar.js";
 import { type UpdateWatchlistResult, WATCHLIST_LIMITS, readWatchlist, updateWatchlist, watchlistSummary } from "./watchlist.js";
 import type { FilingsPort } from "./sec.js";
+import { ESTIMATES, estimatesFor } from "./estimates.js";
 import { FILINGS_LIMITS, filingsSince, filingsStatus } from "./filings.js";
 
 /**
@@ -152,6 +153,7 @@ async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | 
   const bars = await broker.getDailyBars([...new Set([...owned.map((t) => t.symbol), BENCHMARK])], new Date(now.getTime() - 400 * 86_400_000), now);
   const firstLot = new Map(owned.map((t) => [t.symbol, lots.open.filter((l) => l.symbol === t.symbol).reduce((a, b) => (b.openedAt < a.openedAt ? b : a))]));
   const recentFilings = await filingsSince(db, new Map([...firstLot].map(([s, l]) => [s, marketDate(l.openedAt)])));
+  const estimates = await estimatesFor(db, owned.map((t) => t.symbol));
   const out: HeldThesis[] = [];
   for (const thesis of owned) {
     const first = firstLot.get(thesis.symbol)!;
@@ -167,6 +169,7 @@ async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | 
         releases: filings ? await filings.earningsReleases(thesis.symbol) : null,
         nextEarnings: calendar.next.get(thesis.symbol) ?? null,
         filings: recentFilings.get(thesis.symbol) ?? [],
+        estimates: estimates.get(thesis.symbol) ?? null,
         now,
       }),
     );
@@ -431,6 +434,10 @@ export function getRules() {
       "Two are sell signals, and flag the thesis: insider_selling (an officer or director sold on the open market, not under a 10b5-1 plan) and executive_departure (an 8-K item 5.02 that mentions someone resigning, retiring or leaving). The owner is emailed about either at once. Open the filing before acting: the summaries are parsed, not read.",
       `filingsCheck says when the last check finished; a note says when it's missing or over ${FILINGS_LIMITS.staleAfterHours} hours old. Then read the names' recent filings on EDGAR yourself. A name the check didn't find has no tracked filings in the last ${FILINGS_LIMITS.lookbackDays} days; news that isn't in a filing still needs your own search.`,
     ],
+    estimates: [
+      `Analysts' EPS estimates (#105): get_holdings gives each held thesis's estimates, and get_watchlist each name's, for the next fiscal quarter and the fiscal year: the consensus, its change over 30 and 90 days, how many analysts raised and cut in the last 30 days, and how many cover it. Code refreshes each name about every ${ESTIMATES.refreshDays} days, so asOf can be a week old. Null means none fetched yet, or none published.`,
+      `A held thesis is flagged estimates_falling when either consensus fell ${ESTIMATES.fallingPct.replace("-", "")}% or more in 30 days. Weigh it as a sign the business is turning against the thesis, especially beside other flags. It hasn't been backtested here, so it isn't a sell signal by itself. Rising estimates are context, not a reason to buy.`,
+    ],
     withdrawals: [
       "The owner can request a withdrawal (dashboard or CLI). While it's open, its outstanding amount is held back: targets are built on equity minus it, and buys can't use it.",
       "Your next strategy after the request is its funding plan: shrink or drop what you'd rather sell, keep what you'd rather hold. preview_strategy shows each sell's realized gain and wash-sale effect.",
@@ -521,9 +528,10 @@ export async function getWatchlist({ db, now }: DbDeps) {
   // Filings since each name went on the list, at most a lookback's worth (#105).
   const floor = marketDate(new Date(now.getTime() - FILINGS_LIMITS.lookbackDays * 86_400_000));
   const filings = await filingsSince(db, new Map(open.map((e) => [e.symbol, maxDate(marketDate(new Date(e.watchedSince)), floor)])));
+  const estimates = await estimatesFor(db, open.map((e) => e.symbol));
   return {
     limits: WATCHLIST_LIMITS,
-    open: open.map((e) => ({ ...e, ...(theses.has(e.symbol) ? { nowThesis: true } : {}), filings: filings.get(e.symbol) ?? [] })),
+    open: open.map((e) => ({ ...e, ...(theses.has(e.symbol) ? { nowThesis: true } : {}), filings: filings.get(e.symbol) ?? [], estimates: estimates.get(e.symbol) ?? null })),
     recentlyDropped,
     filingsCheck: await filingsStatus(db, now),
   };

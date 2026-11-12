@@ -101,6 +101,14 @@ describe("heldThesis", () => {
     expect(heldThesis(input(flat(N))).filings).toEqual([]);
   });
 
+  it("carries analysts' estimates, and flags a falling consensus as estimates_falling (#105)", () => {
+    const trend = { period: "2026-12-31", eps: "1.90", change30dPct: "-5", change90dPct: "-9.5", raised30d: 2, cut30d: 5, analysts: 23 };
+    const falling = { asOf: "2026-11-12", nextQuarter: trend, fiscalYear: null, falling: true };
+    expect(heldThesis(input(flat(N), { estimates: falling }))).toMatchObject({ estimates: falling, flags: ["estimates_falling"] });
+    expect(heldThesis(input(flat(N), { estimates: { ...falling, falling: false } })).flags).toEqual([]);
+    expect(heldThesis(input(flat(N))).estimates).toBeNull();
+  });
+
   it("leaves out what the bars can't give, without failing", () => {
     const h = heldThesis(input(["100"], { bars: [], vti: [], releases: null, price: "100" }));
     expect(h).toMatchObject({ sinceEntry: null, highSinceEntry: null, stop: { price: "85", abovePct: "17.65" }, flags: [] });

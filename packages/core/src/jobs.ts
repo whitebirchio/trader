@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { type EarningsCalendarPort, refreshEarningsCalendar } from "./agent/earnings-calendar.js";
 import { type EarningsHistoryPort, backfillEarningsHistory, backfillProgress, describeProgress } from "./agent/earnings-history.js";
+import { type EstimatesPort, refreshEstimates } from "./agent/estimates.js";
 import { checkFilings, filingTargets } from "./agent/filings.js";
 import type { FilingsFeedPort } from "./agent/sec.js";
 import { recordEvent } from "./audit.js";
@@ -28,6 +29,8 @@ export interface JobDeps {
   earnings?: EarningsCalendarPort;
   /** Alpha Vantage's earnings history, for the backfill (#105); absent without a key. */
   earningsHistory?: EarningsHistoryPort;
+  /** Alpha Vantage's analyst estimates (#105); absent without a key. */
+  estimates?: EstimatesPort;
   /** SEC EDGAR, for the filings check (#105); absent in tests that don't need it. */
   filings?: FilingsFeedPort;
 }
@@ -121,16 +124,45 @@ const earningsCalendarJob: JobFn = async ({ db, earnings, now }) => {
  */
 const DAY_MS = 86_400_000;
 
-const earningsBackfillJob: JobFn = async ({ db, earningsHistory, now }) => {
-  if (!earningsHistory) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
+/** When either Alpha Vantage job was last refused for the daily limit today, if it was: both then wait for the next market date. */
+async function alphaVantageRefusedToday(db: Db, now: Date): Promise<Date | null> {
   const [refused] = await db
     .select({ at: jobRuns.scheduledFor })
     .from(jobRuns)
-    .where(and(eq(jobRuns.job, "earnings-backfill"), eq(jobRuns.status, "succeeded"), gte(jobRuns.scheduledFor, new Date(now().getTime() - DAY_MS)), sql`${jobRuns.detail}->>'limited' = 'true'`))
+    .where(
+      and(
+        inArray(jobRuns.job, ["earnings-backfill", "earnings-estimates"]),
+        eq(jobRuns.status, "succeeded"),
+        gte(jobRuns.scheduledFor, new Date(now.getTime() - DAY_MS)),
+        sql`${jobRuns.detail}->>'limited' = 'true'`,
+      ),
+    )
     .orderBy(desc(jobRuns.scheduledFor))
     .limit(1);
-  if (refused && marketDate(refused.at) === marketDate(now())) {
-    return { status: "skipped", reason: `Alpha Vantage refused a request at ${refused.at.toISOString()}; resumes tomorrow; ${describeProgress(await backfillProgress(db))}` };
+  return refused && marketDate(refused.at) === marketDate(now) ? refused.at : null;
+}
+
+/**
+ * Analysts' estimates for the theses and the watchlist (#105), each about
+ * weekly, within a small daily budget. It runs before the backfill, so held
+ * names get the day's requests first.
+ */
+const earningsEstimatesJob: JobFn = async ({ db, estimates, now }) => {
+  if (!estimates) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
+  const refused = await alphaVantageRefusedToday(db, now());
+  if (refused) return { status: "skipped", reason: `Alpha Vantage refused a request at ${refused.toISOString()}; resumes tomorrow` };
+  const symbols = (await filingTargets(db, now())).map((t) => t.symbol);
+  const result = await refreshEstimates(db, estimates, symbols, now());
+  if (result.status === "skipped") return result;
+  const { status: _, ...detail } = result;
+  return { status: "succeeded", detail };
+};
+
+const earningsBackfillJob: JobFn = async ({ db, earningsHistory, now }) => {
+  if (!earningsHistory) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
+  const refused = await alphaVantageRefusedToday(db, now());
+  if (refused) {
+    return { status: "skipped", reason: `Alpha Vantage refused a request at ${refused.toISOString()}; resumes tomorrow; ${describeProgress(await backfillProgress(db))}` };
   }
   const priority = (await filingTargets(db, now())).map((t) => t.symbol);
   const result = await backfillEarningsHistory(db, earningsHistory, { priority, now: now() });
@@ -166,6 +198,7 @@ export const JOBS = {
   "notify-weekly": notifyWeekly,
   "earnings-calendar": earningsCalendarJob,
   "check-filings": checkFilingsJob,
+  "earnings-estimates": earningsEstimatesJob,
   "earnings-backfill": earningsBackfillJob,
   // Not in TICK_JOBS: it has its own schedule, 5 minutes after each tick (SPEC-portfolio).
   rebalance: rebalanceJob,
@@ -241,7 +274,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-backfill", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-estimates", "earnings-backfill", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);

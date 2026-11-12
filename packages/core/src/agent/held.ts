@@ -5,6 +5,7 @@ import type { EarningsRelease } from "../research/earnings-backtest.js";
 import { marketDate } from "../time.js";
 import { type CandidateSignals, EARNINGS_CRASH, type LastEarnings, candidateSignals, lastEarnings } from "./candidate.js";
 import { EARNINGS_SOON_DAYS, type NextEarnings } from "./earnings-calendar.js";
+import type { EstimatesView } from "./estimates.js";
 import type { FilingNote } from "./filings.js";
 
 /**
@@ -23,9 +24,10 @@ export const LAGGING_VTI_POINTS = "-10";
  * `earnings_soon` (#30) isn't a sell signal: it marks a report within
  * EARNINGS_SOON_DAYS, to hold, trim or wait through on purpose.
  * `insider_selling` and `executive_departure` (#105) come from SEC filings
- * since the first buy.
+ * since the first buy. `estimates_falling` (#105) is analysts cutting the
+ * next quarter's or the fiscal year's EPS consensus: to weigh, untested here.
  */
-export type HeldFlag = "earnings_crash_since_entry" | "recent_big_loser" | "near_stop" | "lagging_vti" | "insider_selling" | "executive_departure" | "earnings_soon";
+export type HeldFlag = "earnings_crash_since_entry" | "recent_big_loser" | "near_stop" | "lagging_vti" | "insider_selling" | "executive_departure" | "earnings_soon" | "estimates_falling";
 
 export interface HeldThesis {
   id: string;
@@ -45,6 +47,8 @@ export interface HeldThesis {
   nextEarnings: NextEarnings | null;
   /** SEC filings since the first lot's session, newest first, from the hourly filings check (#105). */
   filings: FilingNote[];
+  /** Analysts' EPS consensus and how it moved, from the latest weekly snapshot (#105); null until one is fetched. */
+  estimates: EstimatesView | null;
   signals: CandidateSignals;
   flags: HeldFlag[];
 }
@@ -62,6 +66,7 @@ export interface HeldInput {
   nextEarnings?: NextEarnings | null;
   /** This symbol's stored filings since the first lot's session (#105). */
   filings?: FilingNote[];
+  estimates?: EstimatesView | null;
   now: Date;
 }
 
@@ -111,6 +116,8 @@ export function heldThesis(input: HeldInput): HeldThesis {
   if (filings.some((f) => f.sellSignal === "executive_departure")) flags.push("executive_departure");
   const next = input.nextEarnings ?? null;
   if (next && next.inDays <= EARNINGS_SOON_DAYS) flags.push("earnings_soon");
+  const estimates = input.estimates ?? null;
+  if (estimates?.falling) flags.push("estimates_falling");
 
   return {
     id: thesis.id,
@@ -123,6 +130,7 @@ export function heldThesis(input: HeldInput): HeldThesis {
     earningsSinceEntry,
     nextEarnings: next,
     filings,
+    estimates,
     signals,
     flags,
   };

@@ -18,7 +18,7 @@ import {
 import type { Bar } from "../../src/broker/port.js";
 import { refreshEarningsCalendar } from "../../src/agent/earnings-calendar.js";
 import { syncBroker } from "../../src/broker/sync.js";
-import { auditEvents, benchmarkCloses, brokerActivities, capitalCommands, jobRuns, orders, positions, rebalancePlans, secFilings, thesisEvents, withdrawals } from "../../src/db/schema.js";
+import { auditEvents, benchmarkCloses, brokerActivities, capitalCommands, earningsEstimates, jobRuns, orders, positions, rebalancePlans, secFilings, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { WINDOW_CLOSE, WINDOW_OPEN } from "../../src/portfolio/rebalance.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
@@ -148,6 +148,23 @@ describe("read tools", () => {
     expect(w.open[0]).toMatchObject({ symbol: "MSFT", filings: [{ filedOn: "2026-11-02", kind: "periodic" }] });
     expect(w.open[0]!.filings).toHaveLength(1);
     expect(w.filingsCheck.stale).toBe(false);
+  });
+
+  it("get_holdings and get_watchlist give each name's analyst estimates, flagging a falling consensus on a held thesis (#105)", async () => {
+    await submitStrategyTool(deps, strategy());
+    broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
+    broker.positions = [{ symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" }];
+    await syncBroker(deps.db, broker, "staging", NOW);
+    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" }]);
+    const point = (eps: string, eps30dAgo: string) => ({ period: "2026-12-31", eps, eps7dAgo: eps, eps30dAgo, eps60dAgo: eps30dAgo, eps90dAgo: eps30dAgo, raised7d: 0, cut7d: 1, raised30d: 1, cut30d: 4, analysts: 20, revenue: null });
+    await deps.db.insert(earningsEstimates).values([
+      { symbol: "AAPL", fetchedOn: "2026-11-01", fetchedAt: NOW, status: "ok", quarter: point("1.80", "2.00"), fiscalYear: null },
+      { symbol: "MSFT", fetchedOn: "2026-11-01", fetchedAt: NOW, status: "ok", quarter: point("3.10", "3.00"), fiscalYear: null },
+    ]);
+    const h = await getHoldings(deps);
+    expect(h.theses![0]).toMatchObject({ estimates: { asOf: "2026-11-01", nextQuarter: { eps: "1.80", change30dPct: "-10", cut30d: 4 }, falling: true }, flags: ["estimates_falling"] });
+    const w = await getWatchlist(deps);
+    expect(w.open[0]).toMatchObject({ symbol: "MSFT", estimates: { nextQuarter: { change30dPct: "3.3" }, falling: false } });
   });
 
   it("get_watchlist and update_watchlist: Claude's notes, flagged once a name is a thesis; get_overview counts them (#32)", async () => {
