@@ -95,7 +95,7 @@ describe("refreshEarningsCalendar and nextEarnings", () => {
 });
 
 describe("the earnings-calendar job", () => {
-  const deps = (earnings?: EarningsCalendarPort) => ({ db, env: "staging" as const, broker: new FakeBroker(), mailer: new FakeMailer(), now: () => NOW, earnings });
+  const deps = (earnings?: EarningsCalendarPort) => ({ db, env: "production" as const, broker: new FakeBroker(), mailer: new FakeMailer(), now: () => NOW, earnings });
 
   it("skips without a key, refreshes with one, and waits two hours after a failure", async () => {
     expect(await runJob(deps(), "earnings-calendar", NOW)).toEqual({ status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" });
@@ -106,5 +106,11 @@ describe("the earnings-calendar job", () => {
     expect(p.calls).toBe(0);
     expect(await runJob({ ...deps(p), now: () => at(0.1) }, "earnings-calendar", at(0.1))).toMatchObject({ status: "succeeded", detail: { rows: 1 } });
     expect((await db.select().from(jobRuns)).filter((r) => r.job === "earnings-calendar")).toHaveLength(4);
+  });
+
+  it("spends no request in staging, which fetches on demand", async () => {
+    const p = port([row("LKQ", "2026-11-20")]);
+    expect(await runJob({ ...deps(p), env: "staging" }, "earnings-calendar", NOW)).toEqual({ status: "skipped", reason: "no scheduled calendar in staging: run earnings:refresh when a test needs one" });
+    expect(p.calls).toBe(0);
   });
 });

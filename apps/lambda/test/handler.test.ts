@@ -69,7 +69,7 @@ describe("scheduled ticks", () => {
 
   it("defaults to the full tick and the current minute", async () => {
     const result = (await createHandler(deps())({})) as { results: { job: string }[] };
-    expect(result.results.map((r) => r.job)).toEqual(["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "notify-urgent", "notify-digest", "notify-weekly"]);
+    expect(result.results.map((r) => r.job)).toEqual(["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-backfill", "notify-urgent", "notify-digest", "notify-weekly"]);
     expect((await db.select().from(jobRuns))[0]?.scheduledFor.toISOString()).toBe("2026-11-01T17:07:00.000Z");
   });
 

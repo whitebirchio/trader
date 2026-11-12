@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { type EarningsCalendarPort, refreshEarningsCalendar } from "./agent/earnings-calendar.js";
+import { type EarningsHistoryPort, backfillEarningsHistory, backfillProgress } from "./agent/earnings-history.js";
 import { checkFilings, filingTargets } from "./agent/filings.js";
 import type { FilingsFeedPort } from "./agent/sec.js";
 import { recordEvent } from "./audit.js";
@@ -14,6 +15,7 @@ import { rebalanceJob } from "./portfolio/rebalance.js";
 import type { Mailer } from "./notifications/port.js";
 import { jobRuns } from "./db/schema.js";
 import type { TradingEnv } from "./env.js";
+import { marketDate } from "./time.js";
 
 /** What a job may touch. The engine builds the real ones; tests pass fakes. */
 export interface JobDeps {
@@ -24,6 +26,8 @@ export interface JobDeps {
   now: () => Date;
   /** The earnings calendar's source (#30); absent without an Alpha Vantage key. */
   earnings?: EarningsCalendarPort;
+  /** Alpha Vantage's earnings history, for the backfill (#105); absent without a key. */
+  earningsHistory?: EarningsHistoryPort;
   /** SEC EDGAR, for the filings check (#105); absent in tests that don't need it. */
   filings?: FilingsFeedPort;
 }
@@ -94,8 +98,14 @@ const processCapitalJob: JobFn = async ({ db, broker, now }) => {
 /** After a failed fetch, wait this long before spending another of the free tier's 25 requests a day. */
 const EARNINGS_RETRY_AFTER_MS = 2 * 60 * 60_000;
 
-/** Today's earnings calendar snapshot, once a day (#30). Fails soft: the tools report a stale or missing calendar. */
-const earningsCalendarJob: JobFn = async ({ db, earnings, now }) => {
+/**
+ * Today's earnings calendar snapshot, once a day (#30). Fails soft: the tools
+ * report a stale or missing calendar. Production only: the environments share
+ * one free key, so staging's snapshot is fetched on demand with
+ * earnings:refresh (Scott, 2026-11-11).
+ */
+const earningsCalendarJob: JobFn = async ({ db, env, earnings, now }) => {
+  if (env === "staging") return { status: "skipped", reason: "no scheduled calendar in staging: run earnings:refresh when a test needs one" };
   if (!earnings) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
   const [lastFailure] = await db
     .select({ at: jobRuns.scheduledFor })
@@ -108,6 +118,29 @@ const earningsCalendarJob: JobFn = async ({ db, earnings, now }) => {
   if (result.status === "skipped") return result;
   const { status: _, ...detail } = result;
   return { status: "succeeded", detail };
+};
+
+/**
+ * The next few companies' earnings history (#105), inside a daily budget of
+ * Alpha Vantage requests. After Alpha Vantage refuses one, it waits for the
+ * next market date.
+ */
+const DAY_MS = 86_400_000;
+
+const earningsBackfillJob: JobFn = async ({ db, env, earningsHistory, now }) => {
+  if (!earningsHistory) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
+  const [refused] = await db
+    .select({ at: jobRuns.scheduledFor })
+    .from(jobRuns)
+    .where(and(eq(jobRuns.job, "earnings-backfill"), eq(jobRuns.status, "succeeded"), gte(jobRuns.scheduledFor, new Date(now().getTime() - DAY_MS)), sql`${jobRuns.detail}->>'limited' = 'true'`))
+    .orderBy(desc(jobRuns.scheduledFor))
+    .limit(1);
+  if (refused && marketDate(refused.at) === marketDate(now())) return { status: "skipped", reason: `Alpha Vantage refused a request at ${refused.at.toISOString()}; resumes tomorrow` };
+  const priority = (await filingTargets(db, now())).map((t) => t.symbol);
+  const result = await backfillEarningsHistory(db, earningsHistory, { env, priority, now: now() });
+  if (result.status === "skipped") return result;
+  const { status: _, ...detail } = result;
+  return { status: "succeeded", detail: { ...detail, progress: await backfillProgress(db) } };
 };
 
 /** The filings check runs about hourly: this long after the last run (succeeded or failed), it runs again. */
@@ -137,6 +170,7 @@ export const JOBS = {
   "notify-weekly": notifyWeekly,
   "earnings-calendar": earningsCalendarJob,
   "check-filings": checkFilingsJob,
+  "earnings-backfill": earningsBackfillJob,
   // Not in TICK_JOBS: it has its own schedule, 5 minutes after each tick (SPEC-portfolio).
   rebalance: rebalanceJob,
 } satisfies Record<string, JobFn>;
@@ -211,7 +245,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-backfill", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);

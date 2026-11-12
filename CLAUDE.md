@@ -27,6 +27,7 @@ npm run notify:run -w @trader/core -- --env staging            # queue urgent em
 npm run rebalance:plan -w @trader/core -- --env staging --sync  # dry-run today's rebalance through risk
 npm run earnings:refresh -w @trader/core -- --env staging --show AAPL   # fetch today's earnings calendar now (ALPHAVANTAGE_API_KEY in .env)
 npm run invoke -- --env staging --jobs check-filings                      # check SEC filings on every thesis and watchlist name now (runs if the last check was 55+ min ago)
+npm run invoke -- --env staging --jobs earnings-backfill                  # fetch the next few companies' earnings history now (within the env's daily Alpha Vantage budget)
 ```
 
 Local AWS commands use the SSO profile `whitebirch` (`aws sso login --profile whitebirch` when it expires). **Verify on demand** (`invoke`, `broker:sync --force`, `notify:run`, `risk:check`) rather than waiting for scheduled ticks.
