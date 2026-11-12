@@ -30,6 +30,8 @@ Email you about what Trader does, without you having to look. Every meaningful a
 
 **Lessons (#28, 2026-11-12):** `lessons.recorded` goes in the digest's "Lessons" section: one line per post-mortem Claude wrote on a closed thesis, with how it ended and its excess over VTI, marked `[revised]` when it replaces an earlier one. No trading effect, so never urgent.
 
+**Missed research runs (2026-11-12):** `routine.missed` is urgent: a scheduled research run submitted no strategy within 45 minutes of its fire time on a trading day (SPEC-agent § The routine). The last strategy keeps executing; the email says which version, and that the usual cause is the account's weekly usage limit.
+
 `order.intent` isn't emailed: `order.submitted` or `order.rejected` always follows it. When `portfolio` and `agent` add new kinds (e.g. `strategy.activated`), each one gets put in a column as part of its own module.
 
 **The digest** is sent once per trading day, about 20 minutes after the close. It lists:

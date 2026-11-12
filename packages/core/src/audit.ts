@@ -37,6 +37,7 @@ export const AUDIT_KINDS = [
   "thesis.took_profit",
   "watchlist.updated",
   "lessons.recorded",
+  "routine.missed",
   // SEC filings on held and watched names (#105).
   "filing.sell_signal",
   "filings.noticed",

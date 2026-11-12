@@ -31,6 +31,7 @@ npm run earnings:refresh -w @trader/core -- --env production --show AAPL   # fet
 npm run invoke -- --env production --jobs check-filings                     # check SEC filings on every thesis and watchlist name now (runs if the last check was 55+ min ago)
 npm run invoke -- --env production --jobs earnings-backfill                 # fetch the next few companies' earnings history now (within the daily Alpha Vantage budget)
 npm run invoke -- --env production --jobs earnings-estimates                # refresh the next due name's analyst estimates now (weekly per name, 3 a day)
+npm run invoke -- --env production --jobs check-routine                     # check today's research runs submitted a strategy (emails a missed one)
 ```
 
 Local AWS commands use the SSO profile `whitebirch` (`aws sso login --profile whitebirch` when it expires). **Verify on demand** rather than waiting for scheduled ticks. Before merge, verify locally: tests, the replay, the paper rehearsal (`--env paper`: the paper account and a local database in `packages/core/.cache/paper-db`), live API checks by script. After merge, verify in production with `invoke` and the read-only checks.
