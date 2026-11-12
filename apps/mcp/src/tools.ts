@@ -12,6 +12,7 @@ import {
   getTrackRecord,
   getWatchlist,
   previewStrategy,
+  recordLessonTool,
   submitStrategyTool,
   updateWatchlistTool,
 } from "@trader/core";
@@ -19,8 +20,9 @@ import { RpcCode, RpcException } from "./protocol.js";
 
 /**
  * The tool registry (SPEC-agent). Each tool is a thin call into
- * @trader/core's agent tools. The writes are submit_strategy and
- * update_watchlist (research notes, #32, with no trading effect). There is no
+ * @trader/core's agent tools. The writes are submit_strategy,
+ * update_watchlist (research notes, #32) and record_lesson (post-mortems on
+ * closed theses, #28), the last two with no trading effect. There is no
  * order, cancel or kill-switch tool (ADR-011), and a test pins this list.
  */
 
@@ -81,6 +83,18 @@ const watchChange = {
   additionalProperties: false,
 };
 
+const lessonEntry = {
+  type: "object",
+  properties: {
+    thesisId: { type: "string", description: "A closed thesis's id, from get_track_record's lessonsDue (or any closed row, to revise its lesson)." },
+    expected: { type: "string", description: "What the thesis expected: its reason, and why the market was wrong (20–600 characters)." },
+    happened: { type: "string", description: "What happened, and what drove the result (20–600 characters)." },
+    lesson: { type: "string", description: "What to do differently next time, or why the result was luck rather than judgement (20–600 characters)." },
+  },
+  required: ["thesisId", "expected", "happened", "lesson"],
+  additionalProperties: false,
+};
+
 function strategyArg(args: Args): unknown {
   if (!("strategy" in args)) throw new RpcException(RpcCode.InvalidParams, "strategy is required");
   return args.strategy;
@@ -127,7 +141,7 @@ export const TOOLS: Tool[] = [
     name: "get_track_record",
     title: "Track record",
     description:
-      "Every thesis ever held, scored: its return on the dollars bought (realized, unrealized and dividends) vs the same dollars held in VTI over the same days (each buy buys VTI at that day's close, each sell sells the same fraction), with how it ended (open, removed, stopped, stale) and days held. Rolled up overall and by primary evidence kind (the most frequent kind in its evidence). Use it to see which kinds of signal have beaten VTI. A handful of theses held for days is noise, not a verdict.",
+      "Every thesis ever held, scored: its return on the dollars bought (realized, unrealized and dividends) vs the same dollars held in VTI over the same days (each buy buys VTI at that day's close, each sell sells the same fraction), with how it ended (open, removed, stopped, stale) and days held. Rolled up overall and by primary evidence kind (the most frequent kind in its evidence). Use it to see which kinds of signal have beaten VTI. A handful of theses held for days is noise, not a verdict. Each closed thesis carries its post-mortem (lesson); lessonsDue lists the closed ones still waiting for one (write it with record_lesson).",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getTrackRecord(deps),
@@ -144,7 +158,7 @@ export const TOOLS: Tool[] = [
     name: "check_eligibility",
     title: "Risk eligibility",
     description:
-      "Risk's verdict on buying each symbol, with the reasons for any rejection (leveraged or inverse, price, liquidity, listing age, not fractionable), and whether it's exempt from the 20% per-name cap. Its `signals` are the owner's screens: the 12-1 month return (`momentum12to1Pct`; `recentBigLoser` at −30% or worse) and the last earnings release from SEC filings (`lastEarnings`: reaction vs VTI and sessions since; `freshEarningsCrash` at −10% or worse within 10 sessions), and `nextEarnings`, the next announced report (null until the company announces it, usually two to four weeks ahead). Check candidates before drafting.",
+      "Risk's verdict on buying each symbol, with the reasons for any rejection (leveraged or inverse, price, liquidity, listing age, not fractionable), and whether it's exempt from the 20% per-name cap. Its `signals` are the owner's screens: the 12-1 month return (`momentum12to1Pct`; `recentBigLoser` at −30% or worse) and the last earnings release from SEC filings (`lastEarnings`: reaction vs VTI and sessions since; `freshEarningsCrash` at −10% or worse within 10 sessions), and `nextEarnings`, the next announced report (null until the company announces it, usually two to four weeks ahead). `pastLessons` are your post-mortems on past theses in the symbol (record_lesson). Check candidates before drafting.",
     inputSchema: schema({ symbols: symbolsProp }, ["symbols"]),
     readOnly: true,
     handler: (deps, args) => checkEligibility(deps, symbolsArg(args)),
@@ -194,6 +208,18 @@ export const TOOLS: Tool[] = [
     handler: (deps, args) => {
       if (!Array.isArray(args.changes)) throw new RpcException(RpcCode.InvalidParams, "changes must be a list");
       return updateWatchlistTool(deps, args.changes);
+    },
+  },
+  {
+    name: "record_lesson",
+    title: "Record a lesson from a closed thesis",
+    description:
+      "Write a post-mortem on a thesis that has closed (left the strategy and sold out): what it expected, what happened, and what you'd do differently. The outcome it's judged against is stored with it, and later runs read it in get_track_record and in check_eligibility's pastLessons for the same symbol. get_track_record's lessonsDue lists the theses waiting for one. A later lesson on the same thesis replaces it. All lessons apply together, or none if any is invalid. It has no trading effect, and the owner sees each lesson in the daily digest.",
+    inputSchema: schema({ lessons: { type: "array", items: lessonEntry, minItems: 1, maxItems: 10, description: "At most 10 lessons." } }, ["lessons"]),
+    readOnly: false,
+    handler: (deps, args) => {
+      if (!Array.isArray(args.lessons)) throw new RpcException(RpcCode.InvalidParams, "lessons must be a list");
+      return recordLessonTool(deps, args.lessons);
     },
   },
   {

@@ -30,6 +30,7 @@ import { type UpdateWatchlistResult, WATCHLIST_LIMITS, readWatchlist, updateWatc
 import type { FilingsPort } from "./sec.js";
 import { ESTIMATES, estimatesFor } from "./estimates.js";
 import { FILINGS_LIMITS, filingsSince, filingsStatus } from "./filings.js";
+import { LESSON_LIMITS, type Lesson, type RecordLessonsResult, lastListedVersions, latestLessons, lessonFor, recordLessons, rowsDueLessons } from "./lessons.js";
 
 /**
  * The MCP tools' implementations (SPEC-agent), in core so they're tested
@@ -286,12 +287,25 @@ export async function getActivity({ db, now }: DbDeps, days = 14) {
  * held in VTI, rolled up overall and by primary evidence kind (SPEC-portfolio § Scorecard).
  */
 export async function getTrackRecord({ db, now }: DbDeps) {
-  const card = await loadScorecard(db, now);
+  const [card, lessons] = await Promise.all([loadScorecard(db, now), latestLessons(db)]);
   const iso = (d: Date | null) => d?.toISOString() ?? null;
+  const due = rowsDueLessons(card.theses, lessons);
+  const listedIn = await lastListedVersions(db, due.flatMap((r) => r.ids));
+  const lessonView = (l: Lesson | null) => (l ? { thesisId: l.thesisId, expected: l.expected, happened: l.happened, lesson: l.lesson, outcome: l.outcome, at: l.at } : null);
   return {
     markedAt: iso(card.markedAt),
     overall: card.overall,
     byKind: card.byKind,
+    /** Closed theses without a post-mortem (#28): write one with record_lesson. `lastVersion` is the last strategy version listing it, for get_strategy. */
+    lessonsDue: due.map((r) => ({
+      thesisId: r.ids.at(-1)!,
+      ids: r.ids,
+      symbol: r.symbol,
+      primaryKind: r.primaryKind,
+      ending: r.ending,
+      closedAt: iso(r.closedAt),
+      lastVersion: Math.max(0, ...r.ids.map((id) => listedIn.get(id) ?? 0)) || null,
+    })),
     theses: card.theses.map((r) => ({
       ids: r.ids,
       symbol: r.symbol,
@@ -304,6 +318,7 @@ export async function getTrackRecord({ db, now }: DbDeps) {
       daysHeld: r.daysHeld,
       qty: r.qty,
       ...(r.money ?? { unscored: r.unscored }),
+      ...(r.closedAt ? { lesson: lessonView(lessonFor(r, lessons)) } : {}),
     })),
   };
 }
@@ -328,7 +343,7 @@ export async function getPrices({ broker, now }: ToolDeps, symbols: string[], da
 export async function checkEligibility({ db, broker, now, filings }: ToolDeps, symbols: string[]) {
   const { ok, error } = cleanSymbols(symbols);
   if (error) return { error };
-  const calendar = await nextEarnings(db, ok, now);
+  const [calendar, lessons] = await Promise.all([nextEarnings(db, ok, now), latestLessons(db)]);
   // Over a year of sessions, for the 12-1 month return; VTI for the earnings reaction.
   const bars = await broker.getDailyBars([...new Set([...ok, BENCHMARK])], new Date(now.getTime() - 400 * 86_400_000), now);
   const out = [];
@@ -346,6 +361,11 @@ export async function checkEligibility({ db, broker, now, filings }: ToolDeps, s
       /** The next announced report (#30); null if none is announced yet, or the calendar is unavailable (see calendarNote). */
       nextEarnings: calendar.next.get(symbol) ?? null,
       ...(calendar.asOf === null || calendar.stale ? { calendarNote: calendarNote(calendar.asOf) } : {}),
+      /** Post-mortems on past theses in this symbol (#28), newest first. */
+      pastLessons: lessons
+        .filter((l) => l.symbol === symbol)
+        .slice(0, LESSON_LIMITS.perSymbol)
+        .map((l) => ({ thesisId: l.thesisId, ending: l.ending, primaryKind: l.primaryKind, excessPct: l.outcome.excessPct, daysHeld: l.outcome.daysHeld, lesson: l.lesson, at: l.at })),
     });
   }
   return out;
@@ -423,6 +443,12 @@ export function getRules() {
       `Your research memory across runs (#32). get_watchlist lists the open names, soonest revisit first; update_watchlist adds, updates or drops them (at most ${WATCHLIST_LIMITS.perCall} changes a call, ${WATCHLIST_LIMITS.open} open names).`,
       `A watch needs why (10–600 characters), a trigger (what would make it a thesis, 10–400) and revisitBy (after today, at most ${WATCHLIST_LIMITS.revisitMaxDays} days out). Watching a name again replaces its note. A drop needs why.`,
       "It has no trading effect: only submit_strategy reaches the market. The owner sees each change in the daily digest.",
+    ],
+    lessons: [
+      `Post-mortems on closed theses (#28). A thesis is due one once it has left the strategy and its shares are all sold, however it ended; get_track_record lists them in lessonsDue. record_lesson writes up to ${LESSON_LIMITS.perCall} at a time, all or nothing: thesisId, expected, happened and lesson, ${LESSON_LIMITS.minChars}–${LESSON_LIMITS.maxChars} characters each.`,
+      "The outcome it's judged against (ending, days held, return vs VTI) is stored with it as the track record has it now. A later lesson on the same thesis replaces it.",
+      `Read back on get_track_record's closed rows (lesson) and on check_eligibility for the same symbol (pastLessons, the latest ${LESSON_LIMITS.perSymbol}). A hold of days is weak evidence: separate judgement from luck.`,
+      "It has no trading effect. The owner sees each lesson in the daily digest.",
     ],
     earnings: [
       "get_holdings (each held thesis) and check_eligibility (each symbol) give nextEarnings: the next scheduled report on or after today, with inDays, timeOfDay (pre- or post-market, when known) and the consensus EPS estimate. Null means no date is announced yet: the calendar lists a report once the company announces it, usually two to four weeks ahead. Then expect the next report about three months after the last one (check_eligibility's signals.lastEarnings), and confirm on the company's investor-relations page if it matters.",
@@ -540,4 +566,9 @@ export async function getWatchlist({ db, now }: DbDeps) {
 /** Add, update or drop watchlist names (#32). Claude's research notes: no trading effect. */
 export async function updateWatchlistTool({ db, now }: DbDeps, changes: unknown): Promise<UpdateWatchlistResult> {
   return updateWatchlist(db, changes, "claude", now);
+}
+
+/** record_lesson (#28): post-mortems on closed theses, actor `claude`. No trading effect. */
+export async function recordLessonTool({ db, now }: DbDeps, lessons: unknown): Promise<RecordLessonsResult> {
+  return recordLessons(db, lessons, "claude", now);
 }

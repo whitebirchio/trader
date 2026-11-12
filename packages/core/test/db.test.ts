@@ -43,6 +43,7 @@ describe("schema", () => {
       "strategies",
       "thesis_closes",
       "thesis_events",
+      "thesis_lessons",
       "watchlist_notes",
       "withdrawals",
     ]);

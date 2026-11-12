@@ -309,6 +309,13 @@ function watchlistLines(e: NotifiableEvent): string[] {
   ];
 }
 
+/** Claude's post-mortems on closed theses (#28), one line each. */
+function lessonLines(e: NotifiableEvent): string[] {
+  if (e.kind !== "lessons.recorded") return [];
+  const rows = (Array.isArray(e.payload.lessons) ? e.payload.lessons : []) as { symbol?: unknown; ending?: unknown; excessPct?: unknown; lesson?: unknown; replaced?: unknown }[];
+  return rows.map((l) => `${str(l.symbol)} (${str(l.ending)}${typeof l.excessPct === "string" ? `, ${signed(l.excessPct)}% vs VTI` : ""})${l.replaced ? " [revised]" : ""}: ${str(l.lesson)}`);
+}
+
 /** New SEC filings on held and watched names (#105), one line each. */
 function filingLines(e: NotifiableEvent): string[] {
   if (e.kind !== "filings.noticed") return [];
@@ -339,6 +346,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
   const guardrails = data.events.map(guardrailLine).filter((l): l is string => l !== null);
   const watchlist = data.events.flatMap(watchlistLines);
   const filings = data.events.flatMap(filingLines);
+  const lessons = data.events.flatMap(lessonLines);
   const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
@@ -369,6 +377,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
     ...(filings.length ? ([["SEC filings", filings]] as [string, string[]][]) : []),
     ...(watchlist.length ? ([["Research watchlist", watchlist]] as [string, string[]][]) : []),
+    ...(lessons.length ? ([["Lessons", lessons]] as [string, string[]][]) : []),
   ];
 
   const text = sections.map(([h, lines]) => [h, ...lines.map((l) => `  ${l}`)].join("\n")).join("\n\n");

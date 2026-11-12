@@ -223,7 +223,7 @@ describe("protocol", () => {
 });
 
 describe("tools", () => {
-  it("the list is pinned: reads plus submit_strategy and update_watchlist, and nothing that places, cancels or halts orders (ADR-011)", async () => {
+  it("the list is pinned: reads plus submit_strategy, update_watchlist and record_lesson, and nothing that places, cancels or halts orders (ADR-011)", async () => {
     const res = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" });
     const { result } = (await res.json()) as { result: { tools: { name: string; annotations: { readOnlyHint: boolean } }[] } };
     expect(result.tools.map((t) => t.name)).toEqual([
@@ -239,9 +239,10 @@ describe("tools", () => {
       "preview_strategy",
       "get_watchlist",
       "update_watchlist",
+      "record_lesson",
       "submit_strategy",
     ]);
-    expect(result.tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name)).toEqual(["update_watchlist", "submit_strategy"]);
+    expect(result.tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name)).toEqual(["update_watchlist", "record_lesson", "submit_strategy"]);
     expect(TOOLS.map((t) => t.name).join(" ")).not.toMatch(/order|cancel|kill|resume|halt|trade|buy|sell/);
   });
 
