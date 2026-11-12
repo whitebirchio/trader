@@ -92,6 +92,15 @@ describe("heldThesis", () => {
     expect(heldThesis(input(flat(N))).nextEarnings).toBeNull();
   });
 
+  it("carries the filings since entry, and flags an unplanned insider sale and a departure as sell signals (#105)", () => {
+    const sale = { filedOn: "2026-11-05", form: "4", kind: "insider_sale" as const, summary: "Form 4: a director sold.", url: "https://www.sec.gov/x", sellSignal: "insider_sale" as const };
+    const leaving = { filedOn: "2026-11-04", form: "8-K", kind: "officer_change" as const, summary: "8-K: the CFO resigned.", url: "https://www.sec.gov/y", sellSignal: "executive_departure" as const };
+    const results = { filedOn: "2026-11-03", form: "8-K", kind: "results" as const, summary: "8-K: results of operations.", url: "https://www.sec.gov/z" };
+    expect(heldThesis(input(flat(N), { filings: [sale, leaving, results] }))).toMatchObject({ filings: [sale, leaving, results], flags: ["insider_selling", "executive_departure"] });
+    expect(heldThesis(input(flat(N), { filings: [results] })).flags).toEqual([]);
+    expect(heldThesis(input(flat(N))).filings).toEqual([]);
+  });
+
   it("leaves out what the bars can't give, without failing", () => {
     const h = heldThesis(input(["100"], { bars: [], vti: [], releases: null, price: "100" }));
     expect(h).toMatchObject({ sinceEntry: null, highSinceEntry: null, stop: { price: "85", abovePct: "17.65" }, flags: [] });

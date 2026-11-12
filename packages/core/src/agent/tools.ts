@@ -28,6 +28,7 @@ import { type HeldThesis, heldThesis } from "./held.js";
 import { EARNINGS_SOON_DAYS, STALE_AFTER_DAYS, nextEarnings } from "./earnings-calendar.js";
 import { type UpdateWatchlistResult, WATCHLIST_LIMITS, readWatchlist, updateWatchlist, watchlistSummary } from "./watchlist.js";
 import type { FilingsPort } from "./sec.js";
+import { FILINGS_LIMITS, filingsSince, filingsStatus } from "./filings.js";
 
 /**
  * The MCP tools' implementations (SPEC-agent), in core so they're tested
@@ -149,9 +150,11 @@ async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | 
   const calendar = await nextEarnings(db, owned.map((t) => t.symbol), now);
   // Over a year of sessions, for the 12-1 month return, as check_eligibility.
   const bars = await broker.getDailyBars([...new Set([...owned.map((t) => t.symbol), BENCHMARK])], new Date(now.getTime() - 400 * 86_400_000), now);
+  const firstLot = new Map(owned.map((t) => [t.symbol, lots.open.filter((l) => l.symbol === t.symbol).reduce((a, b) => (b.openedAt < a.openedAt ? b : a))]));
+  const recentFilings = await filingsSince(db, new Map([...firstLot].map(([s, l]) => [s, marketDate(l.openedAt)])));
   const out: HeldThesis[] = [];
   for (const thesis of owned) {
-    const first = lots.open.filter((l) => l.symbol === thesis.symbol).reduce((a, b) => (b.openedAt < a.openedAt ? b : a));
+    const first = firstLot.get(thesis.symbol)!;
     out.push(
       heldThesis({
         thesis,
@@ -163,6 +166,7 @@ async function heldTheses(db: Db, broker: BrokerAdapter, filings: FilingsPort | 
         // One at a time: SEC asks for at most 10 requests a second.
         releases: filings ? await filings.earningsReleases(thesis.symbol) : null,
         nextEarnings: calendar.next.get(thesis.symbol) ?? null,
+        filings: recentFilings.get(thesis.symbol) ?? [],
         now,
       }),
     );
@@ -190,7 +194,7 @@ export async function getHoldings({ db, now, broker, filings }: DbDeps & Partial
   const since = now.getTime() - WASH_SALE_DAYS * 86_400_000;
   return {
     positions: held.map((p) => ({ symbol: p.symbol, qty: p.qty, marketValue: p.marketValue, price: p.currentPrice, costBasis: p.costBasis })),
-    ...(broker ? { theses: await heldTheses(db, broker, filings, lots, held, now), earningsCalendar: await calendarStatus(db, now) } : {}),
+    ...(broker ? { theses: await heldTheses(db, broker, filings, lots, held, now), earningsCalendar: await calendarStatus(db, now), filingsCheck: await filingsStatus(db, now) } : {}),
     lots: lots.open.map((l) => ({ symbol: l.symbol, qty: l.qty, costBasis: l.costBasis, openedAt: l.openedAt.toISOString() })),
     washSaleWindows: lots.closed
       .filter((c) => windowSymbols.has(c.symbol) && compare(c.gain, "0") < 0 && c.closedAt.getTime() >= since)
@@ -422,6 +426,11 @@ export function getRules() {
       `The calendar is Alpha Vantage's, fetched once a day. get_holdings' earningsCalendar says when, and a note says when it's missing or over ${STALE_AFTER_DAYS} days old: then check report dates yourself.`,
       `A held thesis reporting within ${EARNINGS_SOON_DAYS} days is flagged earnings_soon. That isn't a sell signal: decide on purpose whether to hold through the report.`,
     ],
+    filings: [
+      "Code reads SEC EDGAR about hourly for every thesis and open watchlist name (#105): Form 4 insider trades, Form 144 sale notices, 8-Ks, Schedule 13D/13G and 10-Q/10-K. get_holdings gives each held thesis's filings since its first buy, and get_watchlist each name's since it went on the list, newest first, each with a plain summary and its sec.gov link. Form 4s that aren't open-market trades (awards, option exercises, tax withholding) are left out.",
+      "Two are sell signals, and flag the thesis: insider_selling (an officer or director sold on the open market, not under a 10b5-1 plan) and executive_departure (an 8-K item 5.02 that mentions someone resigning, retiring or leaving). The owner is emailed about either at once. Open the filing before acting: the summaries are parsed, not read.",
+      `filingsCheck says when the last check finished; a note says when it's missing or over ${FILINGS_LIMITS.staleAfterHours} hours old. Then read the names' recent filings on EDGAR yourself. A name the check didn't find has no tracked filings in the last ${FILINGS_LIMITS.lookbackDays} days; news that isn't in a filing still needs your own search.`,
+    ],
     withdrawals: [
       "The owner can request a withdrawal (dashboard or CLI). While it's open, its outstanding amount is held back: targets are built on equity minus it, and buys can't use it.",
       "Your next strategy after the request is its funding plan: shrink or drop what you'd rather sell, keep what you'd rather hold. preview_strategy shows each sell's realized gain and wash-sale effect.",
@@ -499,11 +508,21 @@ export async function submitStrategyTool({ db, now }: ToolDeps, document: unknow
   return submitStrategy(db, document, "claude", now);
 }
 
+const maxDate = (a: string, b: string) => (a > b ? a : b);
+
 /** The open research watchlist (#32), soonest revisit first, each marked if it's already a thesis; and recent drops. */
 export async function getWatchlist({ db, now }: DbDeps) {
   const { open, recentlyDropped } = await readWatchlist(db, now);
   const theses = new Set((await activeStrategy(db, now)).strategy.conviction.map((t) => t.symbol));
-  return { limits: WATCHLIST_LIMITS, open: open.map((e) => ({ ...e, ...(theses.has(e.symbol) ? { nowThesis: true } : {}) })), recentlyDropped };
+  // Filings since each name went on the list, at most a lookback's worth (#105).
+  const floor = marketDate(new Date(now.getTime() - FILINGS_LIMITS.lookbackDays * 86_400_000));
+  const filings = await filingsSince(db, new Map(open.map((e) => [e.symbol, maxDate(marketDate(new Date(e.watchedSince)), floor)])));
+  return {
+    limits: WATCHLIST_LIMITS,
+    open: open.map((e) => ({ ...e, ...(theses.has(e.symbol) ? { nowThesis: true } : {}), filings: filings.get(e.symbol) ?? [] })),
+    recentlyDropped,
+    filingsCheck: await filingsStatus(db, now),
+  };
 }
 
 /** Add, update or drop watchlist names (#32). Claude's research notes: no trading effect. */

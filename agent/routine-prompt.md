@@ -45,7 +45,7 @@ Then call `get_strategy`, `get_holdings`, `get_activity` (7 days), `get_track_re
 - open wash-sale windows and stopped thesis ids (never reuse a stopped id);
 - what the last rebalance steps did, and any risk clips or rejections.
 - how past theses did against the same dollars in VTI (`get_track_record`), overall and by kind of signal.
-- your watchlist (`get_watchlist`): names past runs researched but didn't buy, each with its trigger and revisit date. `due` ones are past their revisit date.
+- your watchlist (`get_watchlist`): names past runs researched but didn't buy, each with its trigger and revisit date, and its SEC filings since it went on the list. `due` ones are past their revisit date.
 
 - **If `capital.withdrawal` is set,** the owner is taking money out (see section 3a). Plan it this run.
 - **If `capital.sinceLastStrategy.net` isn't zero,** money came in or went out since the theses were last set. A deposit is already invested pro rata; decide whether it belongs somewhere better.
@@ -56,18 +56,19 @@ Use your web tools. Budget your effort: the **8:00 run** is the full review and 
 
 For **current theses**, every run, re-judge each one as if you were buying it today (see the owner's direction of 2026-11-10). Check:
 - Has the evidence held up? Look for earnings, guidance, news, and analyst or insider activity since the thesis was written.
-- Start from `get_holdings`' `theses`: for each held thesis, its return since its first buy against VTI, how far it is below its high since then and above its stop, any earnings reaction since entry, its next earnings report (`nextEarnings`), and `flags` (`earnings_crash_since_entry`, `recent_big_loser`, `near_stop`, `lagging_vti`, `earnings_soon`). Every flag but `earnings_soon` is a sell signal to weigh this run (below). `earnings_soon` means a report within a week, a binary event: decide on purpose whether to hold through it, trim before it, or exit, and say which and why. Say in the summary what you did about each flag.
+- Start from `get_holdings`' `theses`: for each held thesis, its return since its first buy against VTI, how far it is below its high since then and above its stop, any earnings reaction since entry, its next earnings report (`nextEarnings`), its SEC filings since its first buy (`filings`), and `flags` (`earnings_crash_since_entry`, `recent_big_loser`, `near_stop`, `lagging_vti`, `insider_selling`, `executive_departure`, `earnings_soon`). Every flag but `earnings_soon` is a sell signal to weigh this run (below). `earnings_soon` means a report within a week, a binary event: decide on purpose whether to hold through it, trim before it, or exit, and say which and why. Say in the summary what you did about each flag.
+- **Read every held thesis's `filings`, not just the names that moved.** Code checks SEC EDGAR about hourly for every thesis and watchlist name: Form 4 insider trades, Form 144 sale notices, 8-Ks by item, Schedule 13D/13G and 10-Q/10-K, each with a plain summary and its sec.gov link. Open any filing you act on or cite; the summaries are parsed, not read. Don't write "no new filings" without checking them. If `filingsCheck` is stale or missing, read EDGAR yourself. News that isn't in a filing still needs your own search.
 - Is the price action consistent with the thesis, or approaching its stop? Use `get_prices`, and run `check_eligibility` on held names too: its `signals` apply to what you own as much as to what you might buy.
 - **Sell signals.** Any of these since the thesis was written is a reason to trim or exit now, unless you can say specifically why it doesn't apply:
   - an earnings-day drop of 10% or more against VTI since you bought (`flags`' `earnings_crash_since_entry`, or `signals.freshEarningsCrash`): such drops kept losing for months;
   - the stock becoming a recent big loser (`signals.recentBigLoser`);
-  - officers or directors selling on the open market (Form 4 code S, outside a 10b5-1 plan), or a key executive leaving;
+  - officers or directors selling on the open market (Form 4 code S, outside a 10b5-1 plan), or a key executive leaving (flagged `insider_selling` and `executive_departure`, and emailed to the owner when filed);
   - a guidance cut, a lost customer or contract, or a filing that contradicts the thesis;
   - the catalyst passing without the move, or the price having already reached what the "why the market is wrong" sentence expected;
   - the thesis's own "what would tell us we're wrong" condition (in its `plainSummary`) coming true;
   - a better-evidenced idea that needs the money.
 
-For **new candidates**, start from the watchlist. Check every `due` name, and any whose trigger may have happened since (an earnings date, a filing, a 13F release). If the trigger has fired and the name now meets the bar below, it's a candidate. If not, move its revisit date on, with a reason, or drop it. Then look further:
+For **new candidates**, start from the watchlist. Check every `due` name, and any whose trigger may have happened since (an earnings date, a filing in its `filings`, a 13F release). If the trigger has fired and the name now meets the bar below, it's a candidate. If not, move its revisit date on, with a reason, or drop it. Then look further:
 - **Congress trades:** recent STOCK Act disclosures, via aggregator sites such as Capitol Trades or Quiver Quantitative and the House and Senate disclosure sites. Clustered buys by several members, or by members on committees relevant to the company, are stronger signals than one-offs. Mind the reporting lag of up to 45 days.
 - **Insider buys (supporting evidence only):** SEC EDGAR Form 4, open-market purchases (code P) by officers and directors. Ignore option exercises and planned 10b5-1 sales. They can add weight to a thesis built on something else; by themselves they haven't beaten VTI (see the owner's direction).
 - **13F holdings:** new or increased positions from concentrated, long-horizon managers (e.g. Berkshire Hathaway). 13Fs lag up to 45 days after the quarter.

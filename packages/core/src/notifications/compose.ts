@@ -99,6 +99,15 @@ export function describe(e: NotifiableEvent): Described {
         headline: `Thesis unwound: ${str(e.subject)} (review date passed)`,
         lines: [`Thesis ${str(p.thesisId)} is ${str(p.reason)}, so it's sold into the systematic sleeve.`, "A later version can bring it back by moving the review date on with fresh, dated evidence."],
       };
+    case "filing.sell_signal":
+      return {
+        headline: `${p.signal === "executive_departure" ? "An officer or director is leaving" : "An insider sold"}: ${str(e.subject)}`,
+        lines: [
+          str(p.summary),
+          `Filed ${str(p.filedOn)}: ${str(p.url)}`,
+          `It's a sell signal for thesis ${str(p.thesisId)}. Nothing is sold automatically: Claude weighs it at the next research run.`,
+        ],
+      };
     case "capital.transfer_reversed":
       return {
         headline: `Transfer reversed: ${money(p.amount)}`,
@@ -300,6 +309,13 @@ function watchlistLines(e: NotifiableEvent): string[] {
   ];
 }
 
+/** New SEC filings on held and watched names (#105), one line each. */
+function filingLines(e: NotifiableEvent): string[] {
+  if (e.kind !== "filings.noticed") return [];
+  const rows = (Array.isArray(e.payload.filings) ? e.payload.filings : []) as { symbol?: unknown; thesisId?: unknown; filedOn?: unknown; summary?: unknown; sellSignal?: unknown }[];
+  return rows.map((f) => `${str(f.symbol)}${f.thesisId ? "" : " (watchlist)"}${f.sellSignal ? " [sell signal]" : ""}, ${shortDate(str(f.filedOn))}: ${str(f.summary)}`);
+}
+
 function guardrailLine(e: NotifiableEvent): string | null {
   const p = e.payload;
   switch (e.kind) {
@@ -322,6 +338,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
   const trades = data.events.map(tradeLine).filter((l): l is string => l !== null);
   const guardrails = data.events.map(guardrailLine).filter((l): l is string => l !== null);
   const watchlist = data.events.flatMap(watchlistLines);
+  const filings = data.events.flatMap(filingLines);
   const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
@@ -350,6 +367,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
     ...(capital.length ? ([["Money in and out", capital]] as [string, string[]][]) : []),
     ["Trades", trades.length ? trades : ["None today"]],
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
+    ...(filings.length ? ([["SEC filings", filings]] as [string, string[]][]) : []),
     ...(watchlist.length ? ([["Research watchlist", watchlist]] as [string, string[]][]) : []),
   ];
 

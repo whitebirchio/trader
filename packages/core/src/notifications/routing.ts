@@ -36,6 +36,8 @@ const ROUTES: Record<AuditKind, Route> = {
   "thesis.stopped_out": "urgent",
   "thesis.took_profit": "urgent", // an automatic sale: the profit target was reached (#35)
   "watchlist.updated": "digest", // Claude's research notes (#32): no trading effect
+  "filing.sell_signal": "urgent", // an officer or director leaving, or selling outside a 10b5-1 plan, on a held name (#105)
+  "filings.noticed": "digest", // every other new filing on a held or watched name
   "thesis.stale": "urgent", // the research loop may be down
   "thesis.review_overdue": "urgent", // an automatic sale: the review date passed
   "rebalance.planned": "digest",
@@ -84,6 +86,7 @@ export const SEVERITY: Partial<Record<AuditKind, number>> = {
   "thesis.review_overdue": 7.65,
   "strategy.rejected": 7.7,
   "capital.withdrawal_ready": 7.8, // your turn: withdraw it in Alpaca
+  "filing.sell_signal": 7.9, // nothing sold: Claude weighs it next run
   "risk.resumed": 9,
   "strategy.activated": 9.5,
   "broker.trading_allowed": 10,

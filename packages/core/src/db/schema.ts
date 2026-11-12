@@ -376,6 +376,36 @@ export const earningsCalendar = pgTable(
 );
 
 /**
+ * SEC filings on held and watched names (#105), from the hourly
+ * check-filings job: what each one is, in plain words, and whether it's a
+ * sell signal. A cache of EDGAR, not a record: rows past KEEP_FILINGS_DAYS
+ * are pruned. A filing that names two watched companies has a row for each.
+ */
+export const secFilings = pgTable(
+  "sec_filings",
+  {
+    accession: text().notNull(),
+    symbol: text().notNull(),
+    cik: text().notNull(),
+    form: text().notNull(),
+    filedOn: date({ mode: "string" }).notNull(),
+    acceptedAt: timestamptz().notNull(),
+    /** An 8-K's items, comma-separated ("5.02,9.01"); empty for other forms. */
+    items: text().notNull(),
+    url: text().notNull(),
+    /** What kind of filing it is (agent/filings.ts FilingKind). */
+    kind: text().notNull(),
+    summary: text().notNull(),
+    /** "insider_sale" or "executive_departure" when it's a sell signal; null otherwise. */
+    sellSignal: text(),
+    /** What was parsed from the document (Form 4 transactions, Form 144 notice); {} when nothing was. */
+    detail: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    seenAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.accession, t.symbol] }), index("sec_filings_symbol_idx").on(t.symbol, t.filedOn)],
+);
+
+/**
  * Claude's research memory (#32): names it considered but didn't buy, why,
  * and what would bring each in. One row per change; a symbol's latest row is
  * its state ("watch" or "drop"). Insert-only. No trading effect.

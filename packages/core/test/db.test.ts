@@ -36,6 +36,7 @@ describe("schema", () => {
       "risk_decisions",
       "risk_gate_runs",
       "risk_state",
+      "sec_filings",
       "strategies",
       "thesis_closes",
       "thesis_events",

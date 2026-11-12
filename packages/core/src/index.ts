@@ -39,6 +39,7 @@ export * from "./agent/tools.js";
 export * from "./agent/watchlist.js";
 export * from "./agent/earnings-calendar.js";
 export * from "./agent/sec.js";
+export * from "./agent/filings.js";
 export * from "./dashboard/ranges.js";
 export * from "./dashboard/views.js";
 export * from "./capital/withdrawals.js";

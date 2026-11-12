@@ -109,7 +109,7 @@ export const TOOLS: Tool[] = [
     name: "get_holdings",
     title: "Holdings, lots and wash-sale windows",
     description:
-      "Positions, FIFO tax lots, open wash-sale windows (recent sales at a loss, with when each window ends), stopped thesis ids (never reusable), and each held thesis's sell-side signals: return since its first lot vs VTI, how far it is off its high since and above its stop, any earnings reaction since entry, check_eligibility's screens, its next earnings report (nextEarnings), and flags (earnings_crash_since_entry, recent_big_loser, near_stop, lagging_vti, and earnings_soon for a report within 7 days). Re-judge every thesis with these each run; code doesn't sell on them.",
+      "Positions, FIFO tax lots, open wash-sale windows (recent sales at a loss, with when each window ends), stopped thesis ids (never reusable), and each held thesis's sell-side signals: return since its first lot vs VTI, how far it is off its high since and above its stop, any earnings reaction since entry, check_eligibility's screens, its next earnings report (nextEarnings), its SEC filings since its first buy (filings, checked about hourly; filingsCheck says when), and flags (earnings_crash_since_entry, recent_big_loser, near_stop, lagging_vti, insider_selling and executive_departure from filings, and earnings_soon for a report within 7 days). Re-judge every thesis with these each run; code doesn't sell on them.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getHoldings(deps),
@@ -179,7 +179,7 @@ export const TOOLS: Tool[] = [
     name: "get_watchlist",
     title: "Research watchlist",
     description:
-      "Your research memory across runs: names you looked at but didn't buy, why, what would make each a thesis (its trigger), and when to look again. Soonest revisit first; `due` marks names past their revisit date, `nowThesis` names already in the strategy. Also what was dropped in the last 14 days. Read it before hunting for new ideas.",
+      "Your research memory across runs: names you looked at but didn't buy, why, what would make each a thesis (its trigger), and when to look again. Soonest revisit first; `due` marks names past their revisit date, `nowThesis` names already in the strategy. Each name's SEC filings since it went on the list (filings), and what was dropped in the last 14 days. Read it before hunting for new ideas.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getWatchlist(deps),
