@@ -3,9 +3,9 @@
 > Plan: `tasks/retire-staging-plan.md`. Decision: ADR-018. Gate for every code task: `npm run typecheck && npm test`. T2, the import in T3, and T6 are Scott's: they delete or adopt AWS resources.
 
 ### T1: Retain the SES identities (small PR)
-- [ ] `infra/lib/engine-stack.ts`: `applyRemovalPolicy(RemovalPolicy.RETAIN)` on `MailDomain` and `OwnerAddress`; an infra test pins `DeletionPolicy: Retain`.
-- [ ] Push. CI deploys it to staging (the last staging deploy). Check that the deployed `TraderStaging` template has `DeletionPolicy: Retain` on both.
-- [ ] Merge. Production's stack doesn't own the identities yet, so its deploy changes nothing.
+- [x] `infra/lib/engine-stack.ts`: `applyRemovalPolicy(RemovalPolicy.RETAIN)` on `MailDomain` and `OwnerAddress`; an infra test pins `DeletionPolicy: Retain` (#111).
+- [x] Push. CI deploys it to staging (the last staging deploy). Check that the deployed `TraderStaging` template has `DeletionPolicy: Retain` on both. (2026-11-11: the first deploy was cancelled; rerun, then both showed `Retain` for deletion and replacement.)
+- [x] Merge. Production's stack doesn't own the identities yet, so its deploy changes nothing.
 
 ### T2: Destroy `TraderStaging` (Scott, from `main` after T1)
 - [ ] `npx cdk destroy TraderStaging --profile whitebirch` (CloudFront takes a while).
@@ -13,9 +13,9 @@
 - [ ] Don't push other branches until T3 is merged: an older `ci.yml` would deploy staging again.
 
 ### T3: Stop deploying staging; `TraderProduction` adopts the SES identities (small PR)
-- [ ] `.github/workflows/ci.yml`: drop `deploy-staging`. Update the header comment to ADR-018.
-- [ ] `infra/bin/trader.ts`: drop `TraderStaging`. `TraderProduction` owns the identities (`ownsSesIdentities: true`, still `RETAIN`). Drop the `deploy:staging` and `diff:staging` scripts.
-- [ ] `infra/test/engine-stack.test.ts`: every assertion made against production only, including the SES identities and `DeletionPolicy: Retain`.
+- [x] `.github/workflows/ci.yml`: drop `deploy-staging`. Update the header comment to ADR-018.
+- [x] `infra/bin/trader.ts`: drop `TraderStaging`. `EngineStack` always owns the identities (the `ownsSesIdentities` prop is gone; still `RETAIN`). `deploy:staging` dropped; `diff:staging` became `diff:production`.
+- [x] `infra/test/engine-stack.test.ts`: every assertion made against production only, including the SES identities and `DeletionPolicy: Retain`.
 - [ ] Claude prepares the import from the branch's `cdk synth` and production's deployed template (`aws cloudformation get-template`): that template plus the two `AWS::SES::EmailIdentity` resources under their synthesized logical IDs, and the resources-to-import list (`EmailIdentity` = `whitebirch.io` and the owner's address). Nothing else changes in it.
 - [ ] Scott: `aws cloudformation create-change-set --change-set-type IMPORT …`, review it (two imports, no other changes), then execute it.
 - [ ] Merge. Production's deploy finds both identities already in the stack and only updates what the build changed.

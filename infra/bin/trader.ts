@@ -14,5 +14,5 @@ new CiStack(app, "TraderCi", { env });
 const certs = new CertsStack(app, "TraderCerts", { env });
 // Built by `npm run build -w trader-dashboard` before synth or deploy.
 const dashboard = { certificate: certs.dashboardCertificate, codeDir: fileURLToPath(new URL("../../apps/dashboard/dist/app", import.meta.url)) };
-new EngineStack(app, "TraderStaging", { env, tradingEnv: "staging", ownsSesIdentities: true, dashboard });
-new EngineStack(app, "TraderProduction", { env, tradingEnv: "production", ownsSesIdentities: false, dashboard });
+// The only deployed environment (ADR-018).
+new EngineStack(app, "TraderProduction", { env, tradingEnv: "production", dashboard });

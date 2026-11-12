@@ -20,11 +20,6 @@ const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 export interface EngineStackProps extends StackProps {
   tradingEnv: TradingEnv;
-  /**
-   * SES identities are account-wide, so exactly one stack creates them
-   * (staging) and the other only references them by name.
-   */
-  ownsSesIdentities: boolean;
   /** The dashboard's certificate (TraderCerts) and packaged code directory. */
   dashboard: { certificate: acm.ICertificate; codeDir: string };
 }
@@ -89,16 +84,14 @@ export class EngineStack extends Stack {
       }),
     );
 
-    if (props.ownsSesIdentities) {
-      // Retained: they're account-wide and outlive the stack that owns them, so
-      // retiring staging keeps production's email working (ADR-018).
-      const domain = new ses.EmailIdentity(this, "MailDomain", { identity: ses.Identity.domain(MAIL_DOMAIN) });
-      const owner = new ses.EmailIdentity(this, "OwnerAddress", { identity: ses.Identity.email(OWNER_EMAIL) });
-      for (const identity of [domain, owner]) identity.applyRemovalPolicy(RemovalPolicy.RETAIN);
-      domain.dkimRecords.forEach((r, i) => {
-        new CfnOutput(this, `DkimRecord${i + 1}`, { value: `${r.name} CNAME ${r.value}`, description: "Add in Cloudflare DNS (DNS only)" });
-      });
-    }
+    // SES identities are account-wide. Retained, so they outlive the stack
+    // (TraderStaging created them; production imported them, ADR-018).
+    const domain = new ses.EmailIdentity(this, "MailDomain", { identity: ses.Identity.domain(MAIL_DOMAIN) });
+    const owner = new ses.EmailIdentity(this, "OwnerAddress", { identity: ses.Identity.email(OWNER_EMAIL) });
+    for (const identity of [domain, owner]) identity.applyRemovalPolicy(RemovalPolicy.RETAIN);
+    domain.dkimRecords.forEach((r, i) => {
+      new CfnOutput(this, `DkimRecord${i + 1}`, { value: `${r.name} CNAME ${r.value}`, description: "Add in Cloudflare DNS (DNS only)" });
+    });
 
     // Every 15 minutes; the scheduled time feeds the job runner's slot (ADR-007).
     const schedulerRole = new iam.Role(this, "SchedulerRole", {
