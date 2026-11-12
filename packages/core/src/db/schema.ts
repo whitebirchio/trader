@@ -92,6 +92,7 @@ export const APPEND_ONLY_TABLES = [
   "capital_commands",
   "capital_command_results",
   "watchlist_notes",
+  "thesis_lessons",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -484,6 +485,32 @@ export const watchlistNotes = pgTable(
     at: timestamptz().notNull().defaultNow(),
   },
   (t) => [index("watchlist_notes_symbol_idx").on(t.symbol, t.at)],
+);
+
+/**
+ * Post-mortems on closed theses (#28): what was expected, what happened, and
+ * what to do differently, with the outcome frozen as the scorecard had it when
+ * the lesson was written. A thesis's latest row is its lesson. Insert-only.
+ * No trading effect.
+ */
+export const thesisLessons = pgTable(
+  "thesis_lessons",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** The id Claude named: one of the scorecard row's ids. */
+    thesisId: text().notNull(),
+    symbol: text().notNull(),
+    primaryKind: text(),
+    ending: text().notNull(),
+    expected: text().notNull(),
+    happened: text().notNull(),
+    lesson: text().notNull(),
+    /** daysHeld, closedAt, and returnPct / vtiPct / excessPct (null when unscored), when written. */
+    outcome: jsonb().$type<Record<string, unknown>>().notNull(),
+    actor: auditActor().notNull(),
+    at: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [index("thesis_lessons_symbol_idx").on(t.symbol, t.at), index("thesis_lessons_thesis_idx").on(t.thesisId, t.at)],
 );
 
 /** Thesis lifecycle transitions. `stopped` is permanent: re-entry needs a new thesis id. */

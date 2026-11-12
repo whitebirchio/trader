@@ -238,6 +238,27 @@ describe("digest watchlist section (#32)", () => {
   });
 });
 
+describe("digest lessons section (#28)", () => {
+  it("lists each post-mortem with how the thesis ended and its excess over VTI; nothing without one", () => {
+    const email = composeDigest(
+      {
+        ...base,
+        events: [
+          ev("lessons.recorded", {
+            lessons: [
+              { thesisId: "rol-family-buy-2026q4", symbol: "ROL", ending: "removed", excessPct: "1.09", lesson: "A family buy alone wasn't a business case.", replaced: false },
+              { thesisId: "x-a", symbol: "XYZ", ending: "stopped", excessPct: null, lesson: "The stop was too tight for its volatility.", replaced: true },
+            ],
+          }),
+        ],
+      },
+      "production",
+    );
+    expect(email.text).toContain("Lessons\n  ROL (removed, +1.09% vs VTI): A family buy alone wasn't a business case.\n  XYZ (stopped) [revised]: The stop was too tight for its volatility.");
+    expect(composeDigest(base, "production").text).not.toContain("Lessons");
+  });
+});
+
 describe("footer", () => {
   const at = new Date("2026-11-02T14:45:00Z");
   it("ends every email with its time; only staging names the environment", () => {

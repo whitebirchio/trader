@@ -44,8 +44,14 @@ Then call `get_strategy`, `get_holdings`, `get_activity` (7 days), `get_track_re
 - each thesis's state, `daysSinceReaffirmed` (theses unwind at 30) and `daysToReview` (an `overdue` thesis has already unwound);
 - open wash-sale windows and stopped thesis ids (never reuse a stopped id);
 - what the last rebalance steps did, and any risk clips or rejections.
-- how past theses did against the same dollars in VTI (`get_track_record`), overall and by kind of signal.
+- how past theses did against the same dollars in VTI (`get_track_record`), overall and by kind of signal, and the lessons you wrote when they closed.
 - your watchlist (`get_watchlist`): names past runs researched but didn't buy, each with its trigger and revisit date, and its SEC filings since it went on the list. `due` ones are past their revisit date.
+
+- **Write a lesson for each closed thesis in `get_track_record`'s `lessonsDue`** (`record_lesson`, before researching). Re-read the thesis as it last stood (`get_strategy` with its `lastVersion`), including its bear case, and say:
+  - `expected`: what the thesis expected, and why it said the market was wrong;
+  - `happened`: what actually happened, and what drove the result (the row's ending and return against VTI);
+  - `lesson`: what you'd do differently next time, or why the result was luck rather than judgement.
+  Be honest, and separate judgement from luck: a good call can lose and a bad one can win. A hold of days, not weeks, says little about the thesis; say so rather than drawing a rule from it. Did the bear case call it? Say in the summary which lessons you wrote.
 
 - **If `capital.withdrawal` is set,** the owner is taking money out (see section 3a). Plan it this run.
 - **If `capital.sinceLastStrategy.net` isn't zero,** money came in or went out since the theses were last set. A deposit is already invested pro rata; decide whether it belongs somewhere better.
@@ -75,6 +81,8 @@ For **new candidates**, start from the watchlist. Check every `due` name, and an
 - **Insider buys (supporting evidence only):** SEC EDGAR Form 4, open-market purchases (code P) by officers and directors. Ignore option exercises and planned 10b5-1 sales. They can add weight to a thesis built on something else; by themselves they haven't beaten VTI (see the owner's direction).
 - **13F holdings:** new or increased positions from concentrated, long-horizon managers (e.g. Berkshire Hathaway). 13Fs lag up to 45 days after the quarter.
 - **Fundamentals and catalysts:** changes in the business you can verify in filings, dated catalysts, durable growth at a reasonable price, a quantifiable valuation gap. An earnings surprise or guidance raise alone hasn't beaten VTI (see the owner's direction).
+
+**Read your past lessons before drafting.** `check_eligibility` gives each candidate's `pastLessons` (your post-mortems on past theses in the same stock), and `get_track_record`'s closed rows carry theirs. Read the lessons on theses led by the same kind of signal too. If one applies, say how the new thesis avoids that mistake, or don't buy. Say in the summary when a lesson shaped a decision.
 
 Run `check_eligibility` on every candidate before drafting. Besides risk's verdict, its `signals` give the 12-1 month return and the last earnings reaction for the owner's rules, and `nextEarnings` the next report date (null until the company announces it, usually two to four weeks ahead; until then, expect it about three months after `signals.lastEarnings`). Don't open a position in the few days before a report unless the thesis is about that report. When a watchlist trigger is a report, set its revisit date just after it.
 
