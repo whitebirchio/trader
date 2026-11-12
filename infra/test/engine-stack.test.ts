@@ -17,11 +17,10 @@ function synth() {
   const codeDir = mkdtempSync(join(tmpdir(), "dashboard-code-"));
   writeFileSync(join(codeDir, "index.js"), "// test stand-in for apps/dashboard/dist/app\n");
   const dashboard = { certificate: certs.dashboardCertificate, codeDir };
-  const staging = new EngineStack(app, "TraderStaging", { env, tradingEnv: "staging", ownsSesIdentities: true, dashboard });
-  const production = new EngineStack(app, "TraderProduction", { env, tradingEnv: "production", ownsSesIdentities: false, dashboard });
-  return { staging: Template.fromStack(staging), production: Template.fromStack(production), certs: Template.fromStack(certs) };
+  const production = new EngineStack(app, "TraderProduction", { env, tradingEnv: "production", dashboard });
+  return { production: Template.fromStack(production), certs: Template.fromStack(certs) };
 }
-const { staging, production, certs } = synth();
+const { production, certs } = synth();
 
 type Statement = { Sid?: string; Action: unknown; Resource: unknown; Condition?: unknown };
 const roleStatements = (t: Template): Statement[] =>
@@ -31,17 +30,17 @@ const roleStatements = (t: Template): Statement[] =>
 
 describe("EngineStack", () => {
   it("has the engine and MCP functions, Node 22 arm64, configured by name only", () => {
-    staging.resourceCountIs("AWS::Lambda::Function", 3); // engine, MCP, and the dashboard's code-upload handler
-    staging.hasResourceProperties("AWS::Lambda::Function", {
-      FunctionName: "trader-engine-staging",
+    production.resourceCountIs("AWS::Lambda::Function", 3); // engine, MCP, and the dashboard's code-upload handler
+    production.hasResourceProperties("AWS::Lambda::Function", {
+      FunctionName: "trader-engine-production",
       Runtime: "nodejs22.x",
       Architectures: ["arm64"],
       MemorySize: 512,
       Timeout: 300,
       Environment: {
         Variables: {
-          TRADING_ENV: "staging",
-          SECRETS_PATH: "/trader/staging/",
+          TRADING_ENV: "production",
+          SECRETS_PATH: "/trader/production/",
           NOTIFY_FROM: "trader@whitebirch.io",
           NOTIFY_TO: "scott.schmalz@gmail.com",
         },
@@ -54,8 +53,8 @@ describe("EngineStack", () => {
   const named = (t: Template, name: string) => schedules(t).find((s) => s.Properties.Name === name);
 
   it("ticks every 15 minutes with the full job list and the scheduled time", () => {
-    staging.resourceCountIs("AWS::Scheduler::Schedule", 2);
-    const tick = named(staging, "trader-tick-staging");
+    production.resourceCountIs("AWS::Scheduler::Schedule", 2);
+    const tick = named(production, "trader-tick-production");
     expect(tick?.Properties.ScheduleExpression).toBe("cron(0/15 * * * ? *)");
     expect(JSON.parse(tick?.Properties.Target.Input ?? "{}")).toEqual({
       jobs: ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-backfill", "notify-urgent", "notify-digest", "notify-weekly"],
@@ -70,113 +69,80 @@ describe("EngineStack", () => {
   });
 
   it("exposes the health URL and the MCP URL (which does its own OAuth)", () => {
-    staging.resourceCountIs("AWS::Lambda::Url", 2);
-    staging.hasResourceProperties("AWS::Lambda::Url", { AuthType: "NONE" });
-    expect(Object.keys(staging.findOutputs("*"))).toEqual(expect.arrayContaining(["HealthUrl", "McpUrl"]));
+    production.resourceCountIs("AWS::Lambda::Url", 2);
+    production.hasResourceProperties("AWS::Lambda::Url", { AuthType: "NONE" });
+    expect(Object.keys(production.findOutputs("*"))).toEqual(expect.arrayContaining(["HealthUrl", "McpUrl"]));
   });
 
   it("runs MCP as its own function: its own named secrets only, no SES, no schedule", () => {
-    staging.hasResourceProperties("AWS::Lambda::Function", {
-      FunctionName: "trader-mcp-staging",
+    production.hasResourceProperties("AWS::Lambda::Function", {
+      FunctionName: "trader-mcp-production",
       Runtime: "nodejs22.x",
       Architectures: ["arm64"],
       Timeout: 60,
-      Environment: { Variables: { TRADING_ENV: "staging", SECRETS_PATH: "/trader/staging/" } },
+      Environment: { Variables: { TRADING_ENV: "production", SECRETS_PATH: "/trader/production/" } },
     });
-    staging.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: "/aws/lambda/trader-mcp-staging", RetentionInDays: 30 });
-    const mcpRole = Object.keys(staging.findResources("AWS::IAM::Role")).find((k) => k.startsWith("McpServiceRole"));
-    const mcpPolicies = Object.values(staging.findResources("AWS::IAM::Policy")).filter((p) => JSON.stringify(p).includes(`"${mcpRole}"`));
+    production.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: "/aws/lambda/trader-mcp-production", RetentionInDays: 30 });
+    const mcpRole = Object.keys(production.findResources("AWS::IAM::Role")).find((k) => k.startsWith("McpServiceRole"));
+    const mcpPolicies = Object.values(production.findResources("AWS::IAM::Policy")).filter((p) => JSON.stringify(p).includes(`"${mcpRole}"`));
     const actions = JSON.stringify(mcpPolicies.map((p) => (p as { Properties: { PolicyDocument: unknown } }).Properties.PolicyDocument));
     expect(actions).toContain("ssm:GetParameters");
     expect(actions).not.toContain("ssm:GetParametersByPath");
     expect(actions).not.toContain("ses:");
     // Least privilege (review finding R1): exactly the MCP_* parameters, never the engine's database URL or Alpaca keys.
-    const mcpRead = roleStatements(staging).find((s) => s.Sid === "ReadMcpSecrets");
-    expect(mcpRead?.Resource).toEqual(MCP_PARAMETERS.map((n) => `arn:aws:ssm:us-east-1:111111111111:parameter/trader/staging/${n}`));
+    const mcpRead = roleStatements(production).find((s) => s.Sid === "ReadMcpSecrets");
+    expect(mcpRead?.Resource).toEqual(MCP_PARAMETERS.map((n) => `arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/${n}`));
     expect(JSON.stringify(mcpRead?.Resource)).not.toMatch(/\/(DATABASE_URL|ALPACA_KEY_ID|ALPACA_SECRET_KEY)"/);
-    const targets = JSON.stringify(Object.values(staging.findResources("AWS::Scheduler::Schedule")));
+    const targets = JSON.stringify(Object.values(production.findResources("AWS::Scheduler::Schedule")));
     expect(targets).not.toContain("Mcp");
   });
 
   it("can read only its own environment's secrets", () => {
-    const read = (t: Template) => roleStatements(t).find((s) => s.Sid === "ReadOwnSecrets");
-    for (const t of [staging, production]) {
-      const reads = roleStatements(t).filter((s) => s.Sid === "ReadOwnSecrets");
-      expect(reads).toHaveLength(1); // the engine; the MCP server has its own named list (ReadMcpSecrets)
-    }
+    const reads = roleStatements(production).filter((s) => s.Sid === "ReadOwnSecrets");
+    expect(reads).toHaveLength(1); // the engine; the MCP server has its own named list (ReadMcpSecrets)
     // Exactly the engine's own names, read with GetParameters: never the whole path, which holds the MCP server's and dashboard's secrets.
-    for (const env of ["staging", "production"] as const) {
-      const statement = read(env === "staging" ? staging : production);
-      expect(statement?.Action).toBe("ssm:GetParameters");
-      expect(statement?.Resource).toEqual(ENGINE_PARAMETERS.map((n) => `arn:aws:ssm:us-east-1:111111111111:parameter/trader/${env}/${n}`));
-    }
-    for (const t of [staging, production]) expect(JSON.stringify(roleStatements(t))).not.toContain("ssm:GetParametersByPath");
-    for (const t of [staging, production]) {
-      expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(3); // engine, MCP, dashboard
-      expect(roleStatements(t).filter((s) => JSON.stringify(s.Action).includes("ses:"))).toHaveLength(1);
-    }
+    expect(reads[0]?.Action).toBe("ssm:GetParameters");
+    expect(reads[0]?.Resource).toEqual(ENGINE_PARAMETERS.map((n) => `arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/${n}`));
+    expect(JSON.stringify(roleStatements(production))).not.toContain("ssm:GetParametersByPath");
+    expect(roleStatements(production).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(3); // engine, MCP, dashboard
+    expect(roleStatements(production).filter((s) => JSON.stringify(s.Action).includes("ses:"))).toHaveLength(1);
   });
 
   it("can send email only from Trader's address", () => {
-    const send = roleStatements(staging).find((s) => s.Sid === "SendOwnerEmail");
+    const send = roleStatements(production).find((s) => s.Sid === "SendOwnerEmail");
     expect(send).toMatchObject({
       Action: "ses:SendEmail",
       Condition: { StringEquals: { "ses:FromAddress": "trader@whitebirch.io" } },
     });
   });
 
-  it("creates the SES identities in staging only", () => {
-    staging.resourceCountIs("AWS::SES::EmailIdentity", 2);
-    production.resourceCountIs("AWS::SES::EmailIdentity", 0);
-    staging.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "whitebirch.io" });
-    // Destroying the stack must leave them: production sends through them (ADR-018).
-    for (const r of Object.values(staging.findResources("AWS::SES::EmailIdentity"))) expect(r).toMatchObject({ DeletionPolicy: "Retain", UpdateReplacePolicy: "Retain" });
+  it("owns the SES identities, retained so they outlive the stack (ADR-018)", () => {
+    production.resourceCountIs("AWS::SES::EmailIdentity", 2);
+    production.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "whitebirch.io" });
+    production.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "scott.schmalz@gmail.com" });
+    for (const r of Object.values(production.findResources("AWS::SES::EmailIdentity"))) expect(r).toMatchObject({ DeletionPolicy: "Retain", UpdateReplacePolicy: "Retain" });
   });
 
   it("alarms when the MCP server throws, to the same topic (#13)", () => {
-    for (const [t, env] of [[staging, "staging"], [production, "production"]] as const) {
-      const [alarm] = Object.values(t.findResources("AWS::CloudWatch::Alarm", { Properties: { AlarmName: `trader-${env}-mcp-errors` } })) as { Properties: Record<string, unknown> }[];
-      expect(alarm?.Properties).toMatchObject({ MetricName: "Errors", Threshold: 1, Period: 900, TreatMissingData: "notBreaching" });
-      expect(JSON.stringify(alarm?.Properties.Dimensions)).toContain("Mcp");
-      expect(JSON.stringify(alarm?.Properties.AlarmActions)).toContain("Alarms");
-      expect(JSON.stringify(alarm?.Properties.OKActions)).toContain("Alarms");
-    }
+    const [alarm] = Object.values(production.findResources("AWS::CloudWatch::Alarm", { Properties: { AlarmName: "trader-production-mcp-errors" } })) as { Properties: Record<string, unknown> }[];
+    expect(alarm?.Properties).toMatchObject({ MetricName: "Errors", Threshold: 1, Period: 900, TreatMissingData: "notBreaching" });
+    expect(JSON.stringify(alarm?.Properties.Dimensions)).toContain("Mcp");
+    expect(JSON.stringify(alarm?.Properties.AlarmActions)).toContain("Alarms");
+    expect(JSON.stringify(alarm?.Properties.OKActions)).toContain("Alarms");
   });
 
   it("alarms on errors and on silence, emailing the owner", () => {
-    for (const t of [staging, production]) {
-      t.resourceCountIs("AWS::CloudWatch::Alarm", 3);
-      t.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Errors", Threshold: 1, TreatMissingData: "notBreaching" });
-      t.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Invocations", ComparisonOperator: "LessThanThreshold", TreatMissingData: "breaching" });
-      t.hasResourceProperties("AWS::SNS::Subscription", { Protocol: "email", Endpoint: "scott.schmalz@gmail.com" });
-    }
+    production.resourceCountIs("AWS::CloudWatch::Alarm", 3);
+    production.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Errors", Threshold: 1, TreatMissingData: "notBreaching" });
+    production.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Invocations", ComparisonOperator: "LessThanThreshold", TreatMissingData: "breaching" });
+    production.hasResourceProperties("AWS::SNS::Subscription", { Protocol: "email", Endpoint: "scott.schmalz@gmail.com" });
   });
 
   it("keeps logs for 30 days and tags everything", () => {
-    staging.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: "/aws/lambda/trader-engine-staging", RetentionInDays: 30 });
-    staging.hasResourceProperties("AWS::Lambda::Function", {
-      Tags: Match.arrayWith([{ Key: "app", Value: "trader" }, { Key: "env", Value: "staging" }]),
+    production.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: "/aws/lambda/trader-engine-production", RetentionInDays: 30 });
+    production.hasResourceProperties("AWS::Lambda::Function", {
+      Tags: Match.arrayWith([{ Key: "app", Value: "trader" }, { Key: "env", Value: "production" }]),
     });
-  });
-
-  it("differs between environments only in names, env and paths", () => {
-    const normalize = (t: Template) =>
-      JSON.stringify(t.toJSON())
-        .replaceAll("trader-staging.whitebirch.io", "trader.whitebirch.io")
-        // BucketDeployment tags its bucket with a hash of the construct path.
-        .replace(/aws-cdk:cr-owned:[0-9a-f]+/g, "aws-cdk:cr-owned:HASH")
-        .replaceAll("production", "ENV")
-        .replaceAll("staging", "ENV")
-        .replaceAll("Production", "Env")
-        .replaceAll("Staging", "Env");
-    const strip = (s: string) => {
-      const doc = JSON.parse(s) as { Resources: Record<string, { Type: string }>; Outputs?: Record<string, unknown> };
-      // SES identities and their DKIM outputs live in staging only, by design.
-      for (const [k, r] of Object.entries(doc.Resources)) if (r.Type === "AWS::SES::EmailIdentity") delete doc.Resources[k];
-      for (const k of Object.keys(doc.Outputs ?? {})) if (k.startsWith("DkimRecord")) delete doc.Outputs?.[k];
-      return doc;
-    };
-    expect(strip(normalize(production))).toEqual(strip(normalize(staging)));
   });
 
   describe("dashboard", () => {
@@ -184,17 +150,17 @@ describe("EngineStack", () => {
     const one = (t: Template, type: string) => Object.values(t.findResources(type))[0] as WithProps;
 
     it("is a Web Function with an IamAuth endpoint, capped and throttled", () => {
-      staging.hasResourceProperties("AWS::Lambda::WebFunction", { FunctionName: "trader-dashboard-staging" });
-      staging.hasResourceProperties("AWS::Lambda::WebFunctionEndpoint", {
+      production.hasResourceProperties("AWS::Lambda::WebFunction", { FunctionName: "trader-dashboard-production" });
+      production.hasResourceProperties("AWS::Lambda::WebFunctionEndpoint", {
         EndpointType: "HomeRegion",
         AuthType: "IamAuth",
         ScalingConfig: { MaxEnvironments: 2 },
         ThrottleConfig: { RateLimit: 100 },
       });
-      staging.hasResourceProperties("AWS::Lambda::WebFunctionRevision", {
+      production.hasResourceProperties("AWS::Lambda::WebFunctionRevision", {
         BuildConfig: Match.objectLike({ RuntimeConfig: { Runtime: "nodejs24.x" } }),
         ServiceConfig: Match.objectLike({
-          EnvironmentVariables: Match.objectLike({ TRADING_ENV: "staging", DASHBOARD_URL: "https://trader-staging.whitebirch.io", SECRETS_PATH: "/trader/staging/", NODE_ENV: "production" }),
+          EnvironmentVariables: Match.objectLike({ TRADING_ENV: "production", DASHBOARD_URL: "https://trader.whitebirch.io", SECRETS_PATH: "/trader/production/", NODE_ENV: "production" }),
         }),
       });
       production.hasResourceProperties("AWS::Lambda::WebFunctionRevision", {
@@ -203,49 +169,49 @@ describe("EngineStack", () => {
     });
 
     it("can be invoked only by its own CloudFront distribution", () => {
-      const policy = JSON.stringify(one(staging, "AWS::Lambda::ResourcePolicy").Properties.PolicyDocument);
+      const policy = JSON.stringify(one(production, "AWS::Lambda::ResourcePolicy").Properties.PolicyDocument);
       expect(policy).toContain('"Service":"cloudfront.amazonaws.com"');
       expect(policy).toContain("lambda:InvokeWebFunctionEndpoint");
       expect(policy).toContain("aws:SourceArn");
       expect(policy).not.toContain('"Principal":"*"');
-      staging.hasResourceProperties("AWS::CloudFront::OriginAccessControl", {
+      production.hasResourceProperties("AWS::CloudFront::OriginAccessControl", {
         OriginAccessControlConfig: Match.objectLike({ OriginAccessControlOriginType: "lambda", SigningBehavior: "always-amz-auth" }),
       });
-      const dist = JSON.stringify(one(staging, "AWS::CloudFront::Distribution").Properties);
+      const dist = JSON.stringify(one(production, "AWS::CloudFront::Distribution").Properties);
       expect(dist).toContain("OriginAccessControlId");
-      expect(dist).toContain('"Aliases":["trader-staging.whitebirch.io"]');
+      expect(dist).toContain('"Aliases":["trader.whitebirch.io"]');
       expect(dist).toContain('"ViewerProtocolPolicy":"redirect-to-https"');
       expect(dist).toContain("4135ea2d-6df8-44a3-9df3-4b5a84be39ad"); // CachingDisabled for pages
       expect(dist).toContain('"EventType":"viewer-request"'); // + → %20 before OAC signs
-      staging.hasResourceProperties("AWS::CloudFront::Function", { FunctionCode: Match.stringLikeRegexp('replace\\(/\\\\\\+/g, "%20"\\)') });
+      production.hasResourceProperties("AWS::CloudFront::Function", { FunctionCode: Match.stringLikeRegexp('replace\\(/\\\\\\+/g, "%20"\\)') });
     });
 
     it("reads only its three secrets: never the Alpaca keys, no SES, no path reads", () => {
-      const read = roleStatements(staging).find((s) => s.Sid === "ReadDashboardSecrets");
+      const read = roleStatements(production).find((s) => s.Sid === "ReadDashboardSecrets");
       expect(read?.Action).toBe("ssm:GetParameters");
-      expect(JSON.stringify(read?.Resource)).toContain("parameter/trader/staging/DATABASE_READ_URL");
+      expect(JSON.stringify(read?.Resource)).toContain("parameter/trader/production/DATABASE_READ_URL");
       expect((read?.Resource as unknown[]).length).toBe(3);
       expect(JSON.stringify(read?.Resource)).not.toMatch(/ALPACA|MCP_/);
-      const dashboardRole = Object.keys(staging.findResources("AWS::IAM::Role")).find((k) => k.startsWith("DashboardRole"));
-      const policies = JSON.stringify(Object.values(staging.findResources("AWS::IAM::Policy")).filter((p) => JSON.stringify(p).includes(`"${dashboardRole}"`)));
+      const dashboardRole = Object.keys(production.findResources("AWS::IAM::Role")).find((k) => k.startsWith("DashboardRole"));
+      const policies = JSON.stringify(Object.values(production.findResources("AWS::IAM::Policy")).filter((p) => JSON.stringify(p).includes(`"${dashboardRole}"`)));
       expect(policies).not.toContain("ses:");
       expect(policies).not.toContain("GetParametersByPath");
     });
 
     it("keeps code versions the live revision needs, and logs for 30 days", () => {
-      staging.hasResourceProperties("AWS::S3::Bucket", {
+      production.hasResourceProperties("AWS::S3::Bucket", {
         VersioningConfiguration: { Status: "Enabled" },
         LifecycleConfiguration: { Rules: [Match.objectLike({ NoncurrentVersionExpiration: { NoncurrentDays: 30 } })] },
       });
-      for (const g of ["/aws/lambda/web/trader-dashboard-staging", "/aws/lambda/web/trader-dashboard-staging.local"]) {
-        staging.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: g, RetentionInDays: 30 });
+      for (const g of ["/aws/lambda/web/trader-dashboard-production", "/aws/lambda/web/trader-dashboard-production.local"]) {
+        production.hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: g, RetentionInDays: 30 });
       }
     });
 
     it("gets one certificate for both names from TraderCerts", () => {
       certs.hasResourceProperties("AWS::CertificateManager::Certificate", {
         DomainName: "trader.whitebirch.io",
-        SubjectAlternativeNames: ["trader-staging.whitebirch.io"],
+        SubjectAlternativeNames: ["trader-staging.whitebirch.io"], // dropped when the certificate is next reissued (ADR-018),
         ValidationMethod: "DNS",
       });
     });

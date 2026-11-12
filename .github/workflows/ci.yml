@@ -1,7 +1,8 @@
-# Build → migrate → deploy, routed by branch (ADR-006):
-# AWS deploys use GitHub OIDC (no stored keys): the trader-github-deploy role
-# can only assume CDK's bootstrap roles (SPEC-platform-aws).
-#   - any branch other than main → TraderStaging (Alpaca paper)
+# Build every push; migrate and deploy only main (ADR-018: production is the
+# only deployed environment). AWS deploys use GitHub OIDC (no stored keys):
+# the trader-github-deploy role can only assume CDK's bootstrap roles
+# (SPEC-platform-aws).
+#   - any branch other than main → build and test only
 #   - main                       → TraderProduction (live money)
 # Migrations run before the Worker deploys, so new code never meets an old
 # schema. Secrets are repo-level (no GitHub Environments: the org is on the
@@ -49,33 +50,6 @@ jobs:
       - run: npm run build -w trader-dashboard
       # Infra errors fail every branch, not just deploys (no AWS credentials needed to synth).
       - run: npm run synth -w trader-infra
-
-  deploy-staging:
-    needs: build
-    if: github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    # Queue rather than cancel: a half-finished migrate+deploy is worse than a late one.
-    concurrency:
-      group: deploy-staging
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Migrate Neon staging branch
-        run: npm run db:migrate -w @trader/core
-        env:
-          DATABASE_URL: ${{ secrets.STAGING_MIGRATE_URL }}
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: us-east-1
-      - run: npm run build -w trader-dashboard
-      - name: Deploy TraderStaging (AWS)
-        run: npm run deploy:staging -w trader-infra
 
   deploy-production:
     needs: build
