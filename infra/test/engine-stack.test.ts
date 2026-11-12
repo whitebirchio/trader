@@ -129,6 +129,8 @@ describe("EngineStack", () => {
     staging.resourceCountIs("AWS::SES::EmailIdentity", 2);
     production.resourceCountIs("AWS::SES::EmailIdentity", 0);
     staging.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "whitebirch.io" });
+    // Destroying the stack must leave them: production sends through them (ADR-018).
+    for (const r of Object.values(staging.findResources("AWS::SES::EmailIdentity"))) expect(r).toMatchObject({ DeletionPolicy: "Retain", UpdateReplacePolicy: "Retain" });
   });
 
   it("alarms when the MCP server throws, to the same topic (#13)", () => {
