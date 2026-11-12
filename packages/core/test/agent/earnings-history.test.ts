@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AlphaVantageEarnings, BACKFILL, type EarningsHistoryPort, type HistoryReply, backfillEarningsHistory, backfillProgress, parseEarningsJson } from "../../src/agent/earnings-history.js";
+import { AlphaVantageEarnings, BACKFILL, type EarningsHistoryPort, type HistoryReply, backfillEarningsHistory, backfillProgress, describeProgress, parseEarningsJson } from "../../src/agent/earnings-history.js";
 import { EARNINGS_UNIVERSE } from "../../src/agent/earnings-universe.js";
 import type { Db } from "../../src/db/client.js";
 import { earningsHistory, earningsHistoryFetches } from "../../src/db/schema.js";
@@ -172,7 +172,10 @@ describe("the earnings-backfill job", () => {
       status: "succeeded",
       detail: { fetched: [{ symbol: EARNINGS_UNIVERSE[0], status: "ok" }], limited: true, progress: { ok: 1, quarters: 1 } },
     });
-    expect(await runJob({ ...deps(port), now: () => at(0.02) }, "earnings-backfill", at(0.02))).toMatchObject({ status: "skipped", reason: expect.stringContaining("resumes tomorrow") });
+    expect(await runJob({ ...deps(port), now: () => at(0.02) }, "earnings-backfill", at(0.02))).toMatchObject({
+      status: "skipped",
+      reason: `Alpha Vantage refused a request at ${at(0.01).toISOString()}; resumes tomorrow; so far 1 of ${EARNINGS_UNIVERSE.length} companies asked for (1 with earnings, 0 without, 0 to retry), 1 quarters stored`,
+    });
     const tomorrow = fakePort();
     expect(await runJob({ ...deps(tomorrow), now: () => at(1) }, "earnings-backfill", at(1))).toMatchObject({ status: "succeeded", detail: { limited: false } });
     expect(tomorrow.asked).toEqual(EARNINGS_UNIVERSE.slice(1, 1 + BACKFILL.perTick));
@@ -184,5 +187,11 @@ describe("EARNINGS_UNIVERSE", () => {
     expect(EARNINGS_UNIVERSE.length).toBeGreaterThan(2000);
     expect(new Set(EARNINGS_UNIVERSE).size).toBe(EARNINGS_UNIVERSE.length);
     expect(EARNINGS_UNIVERSE.every((t) => /^[A-Z]{1,5}(\.[A-Z])?$/.test(t))).toBe(true);
+  });
+});
+
+describe("describeProgress", () => {
+  it("puts the totals in one line", () => {
+    expect(describeProgress({ ok: 40, none: 2, error: 1, quarters: 1600 })).toBe(`so far 43 of ${EARNINGS_UNIVERSE.length} companies asked for (40 with earnings, 2 without, 1 to retry), 1600 quarters stored`);
   });
 });

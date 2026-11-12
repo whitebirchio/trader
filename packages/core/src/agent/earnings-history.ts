@@ -197,3 +197,8 @@ export async function backfillProgress(db: Db): Promise<{ ok: number; none: numb
   const by = (s: string) => counts.find((c) => c.status === s)?.n ?? 0;
   return { ok: by("ok"), none: by("none"), error: by("error"), quarters: q?.n ?? 0 };
 }
+
+/** The progress in one line, for a skipped run's reason: the backfill's total, readable from the run alone. */
+export function describeProgress(p: { ok: number; none: number; error: number; quarters: number }): string {
+  return `so far ${p.ok + p.none + p.error} of ${EARNINGS_UNIVERSE.length} companies asked for (${p.ok} with earnings, ${p.none} without, ${p.error} to retry), ${p.quarters} quarters stored`;
+}
