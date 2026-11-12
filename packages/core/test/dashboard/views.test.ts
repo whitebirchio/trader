@@ -243,6 +243,8 @@ describe("thesisChanges", () => {
       "reasoning updated",
     ]);
     expect(thesisChanges(t, { ...t, plainSummary: "Apple sells iPhones and the services on them." })).toEqual(["plain summary added"]);
+    expect(thesisChanges(t, { ...t, bearCase: `${t.bearCase} And services growth is slowing.` })).toEqual(["bear case updated"]);
+    expect(thesisChanges({ ...t, bearCase: undefined }, t)).toEqual(["bear case added"]);
     expect(thesisChanges(null, t)).toEqual(["added at 10%"]);
     expect(thesisChanges(t, null)).toEqual(["removed"]);
   });

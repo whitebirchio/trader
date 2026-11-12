@@ -8,6 +8,7 @@ export function thesis(overrides: Partial<Thesis> = {}): Thesis {
     thesis: "Services revenue keeps compounding while the market prices it like hardware.",
     evidence: [{ kind: "fundamental", summary: "Services gross margin above 70% for 8 quarters" }],
     stopLossPct: "15",
+    bearCase: "Hardware is still most of the revenue, so a weak iPhone cycle could swamp services; but services keep growing through weak cycles.",
     ...overrides,
   };
 }

@@ -50,7 +50,7 @@ export function StrategyDocument({ document, states }: { document: Strategy; sta
   );
 }
 
-/** A thesis's plain-language summary (#60), then its reasoning and evidence, with source links. */
+/** A thesis's plain-language summary (#60), its reasoning, the case against it (#106), and its evidence, with source links. */
 export function ThesisBody({ thesis: t, plain = true }: { thesis: Thesis; plain?: boolean }) {
   return (
     <>
@@ -61,6 +61,12 @@ export function ThesisBody({ thesis: t, plain = true }: { thesis: Thesis; plain?
         </div>
       )}
       <p className="mt-2 whitespace-pre-line text-sm leading-relaxed [overflow-wrap:anywhere]">{t.thesis}</p>
+      {t.bearCase && (
+        <p className="mt-2 text-sm leading-relaxed [overflow-wrap:anywhere]">
+          <span className="font-medium">The case against: </span>
+          {t.bearCase}
+        </p>
+      )}
       <ul className="mt-3 grid gap-1.5 text-sm">
         {t.evidence.map((e, i) => {
           const href = safeHref(e.source);

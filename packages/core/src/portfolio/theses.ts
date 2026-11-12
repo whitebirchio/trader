@@ -173,6 +173,23 @@ export function reviewDateErrors(next: Strategy, active: Strategy, today: string
   return errors;
 }
 
+/**
+ * A new thesis, or a larger weight on one, needs a bear case (#106): written
+ * before the money moves, so the idea has faced the best argument against
+ * it. Held theses at the same or a lower weight are left alone. Applied to
+ * Claude's submissions only (the owner's and the withdrawal fallback's are
+ * exempt, and so are replayed historical versions).
+ */
+export function bearCaseErrors(next: Strategy, active: Strategy): string[] {
+  const before = new Map(active.conviction.map((t) => [t.id, t]));
+  return next.conviction.flatMap((t, i) => {
+    if (t.bearCase) return [];
+    const prev = before.get(t.id);
+    const why = !prev ? `a new thesis (${t.id})` : compare(t.targetWeightPct, prev.targetWeightPct) > 0 ? `raising ${t.id} from ${prev.targetWeightPct}% to ${t.targetWeightPct}%` : null;
+    return why ? [`conviction[${i}].bearCase: ${why} needs a bear case: the strongest case against it right now, and why it doesn't win`] : [];
+  });
+}
+
 /** Prices in email text: always two decimals ("$49.60", not "$49.6"). Display only. */
 function cents(v: string): string {
   const r = round(v, 2, "half-even");
