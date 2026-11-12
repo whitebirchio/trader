@@ -1,5 +1,7 @@
 # Spec: `portfolio`
 
+> **ADR-018 (2026-11-11): staging is retired.** Production is the only deployed environment. Where this spec runs a command with `--env staging`, paper work now uses `--env paper` (the paper account on a local database), and checks of the deployed system use `--env production`. Records of what was checked on staging stay as written.
+
 > **Status: Approved** (Scott, 2026-10-31). **Revised 2026-11-01 for the AWS platform** (ADR-014): its own schedule, no CPU constraint. Revision approved by Scott, 2026-11-01. Module 5 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker` and `risk` (both implemented) and on `notifications` for emails.
 
 ## Objective

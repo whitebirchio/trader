@@ -1,5 +1,7 @@
 # Spec: `capital`
 
+> **ADR-018 (2026-11-11): staging is retired.** Production is the only deployed environment. Where this spec runs a command with `--env staging`, paper work now uses `--env paper` (the paper account on a local database), and checks of the deployed system use `--env production`. Records of what was checked on staging stay as written.
+
 > **Status: Approved** (Scott, 2026-11-01). Module 8 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `broker`, `risk`, `portfolio`; changes `agent`, `dashboard` and `notifications`. Decision record: [ADR-015](docs/decisions/015-owner-capital-flows.md).
 
 ## Objective

@@ -1,7 +1,7 @@
 /**
  * Show the active strategy (or --version N) and each thesis's current state.
  *
- *   npm run strategy:show -w @trader/core -- --env staging|production [--version N]
+ *   npm run strategy:show -w @trader/core -- --env production|paper [--version N]
  */
 import { parseArgs } from "node:util";
 import { asc, eq } from "drizzle-orm";
@@ -10,11 +10,11 @@ import { brokerActivities, positions, strategies } from "../src/db/schema.js";
 import { activeStrategy, stoppedThesisIds } from "../src/portfolio/store.js";
 import { validateStrategy } from "../src/portfolio/strategy.js";
 import { thesisStates } from "../src/portfolio/theses.js";
-import { withOps } from "./ops.js";
+import { withReadOnly } from "./ops.js";
 
 const { values } = parseArgs({ options: { env: { type: "string" }, version: { type: "string" } } });
 
-await withOps(values.env, async ({ env, db }) => {
+await withReadOnly(values.env, async ({ env, db }) => {
   const now = new Date();
   let shown = await activeStrategy(db, now);
   if (values.version) {

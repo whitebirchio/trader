@@ -3,47 +3,30 @@
  * VTI buy through submitOrder, sync until it fills, then check the lot, the
  * position, the audit trail and idempotency.
  *
- *   npm run broker:smoke -w @trader/core -- --env staging
+ *   npm run broker:smoke -w @trader/core -- --env paper
  *
- * Refuses anything but staging, and refuses while the market is closed. Writes
- * to the staging Neon branch using STAGING_MIGRATE_URL from the repo .env.
+ * Refuses anything but paper, and refuses while the market is closed. Writes
+ * to the paper rehearsal's local database (ADR-018), never to Neon.
  */
 import { parseArgs } from "node:util";
-import { Pool } from "@neondatabase/serverless";
 import { and, eq, inArray } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { AlpacaBroker } from "../src/broker/alpaca.js";
 import { buildLots, openQtyBySymbol } from "../src/broker/lots.js";
 import { submitOrder } from "../src/broker/orders.js";
 import { syncBroker } from "../src/broker/sync.js";
-import type { Db } from "../src/db/client.js";
 import { auditEvents, brokerAccount, brokerActivities, orders, positions } from "../src/db/schema.js";
 import { compare } from "../src/money.js";
 import { marketDate } from "../src/time.js";
-import { readRepoEnv } from "./repo-env.js";
+import { withOps } from "./ops.js";
 
 const { values } = parseArgs({ options: { env: { type: "string" } } });
-if (values.env !== "staging") throw new Error("broker:smoke only runs with --env staging (paper)");
+if (values.env !== "paper") throw new Error("broker:smoke only runs with --env paper");
 
-const repo = readRepoEnv();
-const broker = new AlpacaBroker({
-  env: "staging",
-  keyId: repo.require("STAGING_ALPACA_KEY_ID"),
-  secretKey: repo.require("STAGING_ALPACA_SECRET_KEY"),
-});
-if (!(await broker.getClock()).isOpen) {
-  console.error("market is closed; run during the regular session");
-  process.exit(2);
-}
+await withOps(values.env, async ({ db, broker }) => {
+  if (!(await broker.getClock()).isOpen) throw new Error("market is closed; run during the regular session");
+  const fail = (msg: string): never => {
+    throw new Error(`✗ ${msg}`);
+  };
 
-const pool = new Pool({ connectionString: repo.require("STAGING_MIGRATE_URL") });
-const db = drizzle(pool, { casing: "snake_case" }) as unknown as Db;
-const fail = (msg: string): never => {
-  console.error(`✗ ${msg}`);
-  process.exit(1);
-};
-
-try {
   const key = `smoke:${marketDate(new Date())}:VTI:buy`;
   const intent = { key, symbol: "VTI", side: "buy" as const, notional: "5", strategyRef: "broker-smoke" };
 
@@ -86,6 +69,4 @@ try {
   const again = await submitOrder(db, broker, "staging", intent);
   if (again.status !== "already_submitted") fail(`re-submit returned ${again.status}`);
   console.log("✓ re-submitting the same intent → already_submitted (no second order)");
-} finally {
-  await pool.end();
-}
+});

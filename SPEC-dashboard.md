@@ -1,6 +1,8 @@
 # Spec: `dashboard`
 
-> **Status: Built** (approved and shipped 2026-11-01: #17). Live at https://trader.whitebirch.io and https://trader-staging.whitebirch.io. SC-1 to SC-5 verified; SC-6 (home-screen install) is for Scott to try; SC-7 is covered by the cost check (#16). This is module 7 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md), and it depends on `portfolio`. It replaces the old plan for a PWA behind Cloudflare Access, which ADR-014 made moot. Decisions so far (Scott, 2026-11-01):
+> **ADR-018 (2026-11-11): staging is retired.** Production is the only deployed environment. Where this spec runs a command with `--env staging`, paper work now uses `--env paper` (the paper account on a local database), and checks of the deployed system use `--env production`. Records of what was checked on staging stay as written.
+
+> **Status: Built** (approved and shipped 2026-11-01: #17). Live at https://trader.whitebirch.io (the staging copy was retired with staging, ADR-018). SC-1 to SC-5 verified; SC-6 (home-screen install) is for Scott to try; SC-7 is covered by the cost check (#16). This is module 7 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md), and it depends on `portfolio`. It replaces the old plan for a PWA behind Cloudflare Access, which ADR-014 made moot. Decisions so far (Scott, 2026-11-01):
 > - Host on Lambda **Web Functions**.
 > - Sign in with **Google**.
 > - Serve it at **trader.whitebirch.io**.

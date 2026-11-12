@@ -14,4 +14,4 @@ npm ci
 npm run typecheck && npm test
 ```
 
-Feature branches deploy to **staging** (Alpaca paper). `main` deploys to **production** (live money). Both run on AWS, defined in CDK under `infra/` (ADR-014).
+`main` deploys to **production** (live money), the only deployed environment (ADR-018). Feature branches build, test and check their migrations; order-path changes are rehearsed on the Alpaca paper account from the laptop (`--env paper`). It runs on AWS, defined in CDK under `infra/` (ADR-014).

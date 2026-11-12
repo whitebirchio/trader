@@ -16,7 +16,7 @@ Run Trader's engine entirely on **AWS, provisioned and managed with CDK**, in yo
 | Outbound email | `send_email` binding | **SES** (v2 API), domain identity `whitebirch.io` with Easy DKIM, kept in the **SES sandbox**, so it can only email your verified address |
 | Logs | Workers observability | **CloudWatch Logs**, 30-day retention |
 | Alarms | — | CloudWatch alarms → SNS → your email, for **Lambda errors** and for **no successful invocation in 1 hour** (a dead-man's switch for the scheduler itself) |
-| Deploys | `wrangler-action` | GitHub Actions → **`cdk deploy`** using a **GitHub OIDC role** (no long-lived AWS keys in GitHub). Feature branches → `TraderStaging`, `main` → `TraderProduction`. |
+| Deploys | `wrangler-action` | GitHub Actions → **`cdk deploy`** using a **GitHub OIDC role** (no long-lived AWS keys in GitHub). `main` → `TraderProduction`; feature branches build, test and check migrations only (ADR-018, 2026-11-11; until then they deployed `TraderStaging`). |
 | Database | Neon (free) | **unchanged:** Neon Postgres, same schema and roles |
 | DNS + inbound mail | Cloudflare (free) | **unchanged:** Cloudflare DNS, plus Email Routing's catch-all to Gmail |
 
@@ -28,7 +28,7 @@ Run Trader's engine entirely on **AWS, provisioned and managed with CDK**, in yo
 
 ```
 infra/                         → new workspace "trader-infra" (CDK v2, TypeScript)
-  bin/trader.ts                → app: TraderCi (once), TraderStaging, TraderProduction
+  bin/trader.ts                → app: TraderCi (once), TraderCerts, TraderProduction (TraderStaging retired, ADR-018)
   lib/engine-stack.ts          → one environment: Lambda, schedules, Function URL, SSM grants, SES, alarms
   lib/ci-stack.ts              → GitHub OIDC provider + deploy role (deployed once, by you)
   cdk.json
@@ -67,7 +67,7 @@ apps/engine/
 | Trigger | Jobs |
 |---|---|
 | Every push | `build`: `npm ci` → typecheck → test → **`cdk synth`** (catches infra errors on every branch) |
-| Non-`main` push | `build` → migrate the Neon `staging` branch → `cdk deploy TraderStaging` |
+| Non-`main` push | `build` → `migrate-check`: migrate a temporary child branch of `production`, then delete it (ADR-018; before 2026-11-11, migrate `staging` → `cdk deploy TraderStaging`) |
 | `main` push | `build` → migrate the Neon `production` branch → `cdk deploy TraderProduction` |
 
 AWS access is through `aws-actions/configure-aws-credentials` assuming the OIDC role from `TraderCi`. The trust policy is restricted to `repo:whitebirchio/trader:*`. The Neon migrate URLs stay as GitHub secrets, and `CLOUDFLARE_API_TOKEN` is removed after cutover.
@@ -99,11 +99,10 @@ Both platforms can safely run side by side, because every job claims `(job, slot
 npm run typecheck && npm test                     # gate (now includes infra typecheck)
 npm run synth -w trader-infra                     # cdk synth all stacks
 npm run deploy:ci -w trader-infra                 # once, by you: OIDC role (needs your AWS credentials)
-npm run deploy:staging -w trader-infra            # what CI runs on feature branches
 npm run deploy:production -w trader-infra         # what CI runs on main (manual = break-glass)
-scripts/set-db-secret.sh staging|production       # trader_app role → SSM (rewritten)
-scripts/set-alpaca-secret.sh staging|production   # Alpaca keys → SSM (rewritten)
-npm run invoke -w trader-engine -- --env staging --jobs heartbeat,sync-broker   # run the deployed Lambda now (fast verification)
+scripts/set-db-secret.sh production              # trader_app role → SSM (rewritten)
+scripts/set-alpaca-secret.sh production          # Alpaca keys → SSM (rewritten)
+npm run invoke -w trader-lambda -- --env production --jobs heartbeat,sync-broker   # run the deployed Lambda now (fast verification)
 ```
 
 ## Testing Strategy
@@ -114,8 +113,8 @@ npm run invoke -w trader-engine -- --env staging --jobs heartbeat,sync-broker   
   - Each stack has exactly one function, one schedule, and one Function URL with `AuthType NONE`.
   - The IAM role can read only its own environment's SSM path, and SES is pinned to the from-address.
   - The alarms exist.
-  - Production and staging differ only in names, `TRADING_ENV` and SSM paths.
-- **Live (fast, no cron waits):** `npm run invoke` runs the deployed staging Lambda on demand. Heartbeat, sync-broker and notify-urgent are each verified in seconds, and `notify:test` sends through SES.
+  - The SES identities are retained (production owns them since ADR-018).
+- **Live (fast, no cron waits):** `npm run invoke` runs the deployed production Lambda on demand (idempotent per slot). Heartbeat, sync-broker and notify-urgent are each verified in seconds, and `notify:test` sends through SES.
 
 ## Boundaries
 
@@ -137,3 +136,11 @@ npm run invoke -w trader-engine -- --env staging --jobs heartbeat,sync-broker   
 
 1. **AWS credentials:** a CLI profile **`whitebirch`**, through **IAM Identity Center** (SSO) with an `AdministratorAccess` permission set. That gives short-lived credentials, refreshed with `aws sso login --profile whitebirch`. No root access keys. All commands, scripts and CDK use `--profile whitebirch` locally. CI uses the OIDC role, not this profile.
 2. **Alarm email:** CloudWatch → SNS → `scott.schmalz@gmail.com`, kept separate from Trader's own email path, so alarms still arrive if Trader's email breaks.
+
+## Amendment (2026-11-11): staging retired (ADR-018)
+
+Production is the only deployed environment.
+- **CI:** `deploy-staging` is gone. A push to any other branch runs `build` and `migrate-check` (`scripts/ci-migrate-check.sh`). That job applies the branch's migrations to a temporary copy-on-write branch of Neon's `production`, which expires after 2 hours if the delete doesn't run. It prints only pass or fail, because the copy holds live data and the logs are public.
+- **SES:** `TraderStaging` owned the account-wide identities. They were retained (#111), the stack was destroyed, and `TraderProduction` imported them with a CloudFormation `IMPORT` change set, before #112 merged with `EngineStack` defining them. DKIM records didn't change.
+- **Paper:** no longer deployed. The operator scripts take `--env paper`: the paper account and a local PGlite database.
+

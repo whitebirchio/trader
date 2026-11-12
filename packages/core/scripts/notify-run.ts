@@ -1,10 +1,10 @@
 /**
  * Run notify-urgent's queueing step now, instead of waiting for the next tick:
  * picks up un-emailed urgent events and queues the email (suppressed on
- * staging). Sending stays with the Worker's next tick, since only it holds the
+ * paper). Sending stays with the Worker's next tick, since only it holds the
  * send_email binding. Safe to run alongside the cron: queueing is idempotent.
  *
- *   npm run notify:run -w @trader/core -- --env staging
+ *   npm run notify:run -w @trader/core -- --env production
  */
 import { parseArgs } from "node:util";
 import { desc, gte } from "drizzle-orm";

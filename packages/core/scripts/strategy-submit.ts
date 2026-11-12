@@ -3,7 +3,7 @@
  * validated exactly as Claude's will be; a rejection is audited and emailed,
  * and the active version stays.
  *
- *   npm run strategy:submit -w @trader/core -- --env staging --file strategy.json
+ *   npm run strategy:submit -w @trader/core -- --env production|paper --file strategy.json
  */
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";

@@ -1,7 +1,7 @@
 /**
  * Show the guardrails' current state for one environment.
  *
- *   npm run risk:status -w @trader/core -- --env staging|production
+ *   npm run risk:status -w @trader/core -- --env production|paper
  */
 import { parseArgs } from "node:util";
 import { eq } from "drizzle-orm";
@@ -10,11 +10,11 @@ import { checkDrawdownReadOnly } from "./risk-readonly.js";
 import { drawdownFromPeak, haltRule } from "../src/risk/equity-index.js";
 import { LIMITS, limitsVersion } from "../src/risk/limits.js";
 import { getRiskState } from "../src/risk/state.js";
-import { withOps } from "./ops.js";
+import { withReadOnly } from "./ops.js";
 
 const { values } = parseArgs({ options: { env: { type: "string" } } });
 
-await withOps(values.env, async ({ env, db }) => {
+await withReadOnly(values.env, async ({ env, db }) => {
   const state = await getRiskState(db);
   const account = (await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1)))[0];
   const index = await checkDrawdownReadOnly(db, new Date());

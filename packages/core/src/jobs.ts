@@ -98,14 +98,8 @@ const processCapitalJob: JobFn = async ({ db, broker, now }) => {
 /** After a failed fetch, wait this long before spending another of the free tier's 25 requests a day. */
 const EARNINGS_RETRY_AFTER_MS = 2 * 60 * 60_000;
 
-/**
- * Today's earnings calendar snapshot, once a day (#30). Fails soft: the tools
- * report a stale or missing calendar. Production only: the environments share
- * one free key, so staging's snapshot is fetched on demand with
- * earnings:refresh (Scott, 2026-11-11).
- */
-const earningsCalendarJob: JobFn = async ({ db, env, earnings, now }) => {
-  if (env === "staging") return { status: "skipped", reason: "no scheduled calendar in staging: run earnings:refresh when a test needs one" };
+/** Today's earnings calendar snapshot, once a day (#30). Fails soft: the tools report a stale or missing calendar. */
+const earningsCalendarJob: JobFn = async ({ db, earnings, now }) => {
   if (!earnings) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
   const [lastFailure] = await db
     .select({ at: jobRuns.scheduledFor })
@@ -127,7 +121,7 @@ const earningsCalendarJob: JobFn = async ({ db, env, earnings, now }) => {
  */
 const DAY_MS = 86_400_000;
 
-const earningsBackfillJob: JobFn = async ({ db, env, earningsHistory, now }) => {
+const earningsBackfillJob: JobFn = async ({ db, earningsHistory, now }) => {
   if (!earningsHistory) return { status: "skipped", reason: "no ALPHAVANTAGE_API_KEY" };
   const [refused] = await db
     .select({ at: jobRuns.scheduledFor })
@@ -137,7 +131,7 @@ const earningsBackfillJob: JobFn = async ({ db, env, earningsHistory, now }) => 
     .limit(1);
   if (refused && marketDate(refused.at) === marketDate(now())) return { status: "skipped", reason: `Alpha Vantage refused a request at ${refused.at.toISOString()}; resumes tomorrow` };
   const priority = (await filingTargets(db, now())).map((t) => t.symbol);
-  const result = await backfillEarningsHistory(db, earningsHistory, { env, priority, now: now() });
+  const result = await backfillEarningsHistory(db, earningsHistory, { priority, now: now() });
   if (result.status === "skipped") return result;
   const { status: _, ...detail } = result;
   return { status: "succeeded", detail: { ...detail, progress: await backfillProgress(db) } };

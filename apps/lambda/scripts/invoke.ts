@@ -1,7 +1,7 @@
 /**
  * Run the deployed engine Lambda now, instead of waiting for its schedule:
  *
- *   npm run invoke -w trader-lambda -- --env staging [--jobs heartbeat,sync-broker]
+ *   npm run invoke -w trader-lambda -- --env production [--jobs heartbeat,sync-broker]
  *
  * Without a scheduled time the slot is the current minute, so a second invoke
  * within the same minute is a recorded no-op (ADR-007). Uses AWS_PROFILE
@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 
 const { values } = parseArgs({ options: { env: { type: "string" }, jobs: { type: "string" } } });
-if (values.env !== "staging" && values.env !== "production") throw new Error("--env staging|production is required");
+if (values.env !== "production") throw new Error("--env production is required (staging was retired, ADR-018)");
 
 const payload = values.jobs ? { jobs: values.jobs.split(",").map((j) => j.trim()) } : {};
 const dir = mkdtempSync(join(tmpdir(), "trader-invoke-"));

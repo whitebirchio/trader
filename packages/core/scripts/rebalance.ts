@@ -1,8 +1,8 @@
 /**
  * Run the daily check by hand, without waiting for its schedule.
  *
- *   npm run rebalance:plan -w @trader/core -- --env staging|production   # dry run through risk: records and orders nothing
- *   npm run rebalance:run  -w @trader/core -- --env staging              # one real step on PAPER, ignoring the window
+ *   npm run rebalance:plan -w @trader/core -- --env production|paper   # dry run through risk: records and orders nothing
+ *   npm run rebalance:run  -w @trader/core -- --env paper              # one real step on PAPER, ignoring the window
  *
  * `run` refuses production: live orders only come from the scheduled job.
  * --sync runs a broker sync first (ignoring market hours), so risk sees fresh data.
@@ -14,7 +14,7 @@ import { withOps } from "./ops.js";
 
 const { values } = parseArgs({ options: { env: { type: "string" }, mode: { type: "string" }, sync: { type: "boolean" } } });
 const dryRun = values.mode !== "run";
-if (!dryRun && values.env !== "staging") throw new Error("rebalance:run is staging-only; production trades only on its schedule");
+if (!dryRun && values.env !== "paper") throw new Error("rebalance:run is paper-only; production trades only on its schedule");
 
 await withOps(values.env, async ({ env, db, broker }) => {
   if (values.sync) await syncBroker(db, broker, env, new Date(), { ignoreSession: true });
