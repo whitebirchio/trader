@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenLot } from "../../src/broker/lots.js";
-import { averageCost, highSinceEntry, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
+import { averageCost, bearCaseErrors, highSinceEntry, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
 import { strategy, thesis } from "./fixtures.js";
 
 const created = new Date("2026-11-02T15:00:00Z");
@@ -204,3 +204,22 @@ describe("trailing stop and profit target (#35)", () => {
     expect(run35({}, "400")).toMatchObject({ state: "active" });
   });
 });
+
+describe("bearCaseErrors (#106)", () => {
+  const doc = (over: Parameters<typeof thesis>[0]) => strategy({ conviction: [thesis(over)] });
+  const none = { bearCase: undefined };
+
+  it("needs a bear case on a new thesis and on a raised weight", () => {
+    expect(bearCaseErrors(doc(none), strategy({ conviction: [] }))).toEqual(["conviction[0].bearCase: a new thesis (aapl-services) needs a bear case: the strongest case against it right now, and why it doesn't win"]);
+    expect(bearCaseErrors(doc({ ...none, targetWeightPct: "15" }), doc({ ...none, targetWeightPct: "10" }))).toEqual([
+      "conviction[0].bearCase: raising aapl-services from 10% to 15% needs a bear case: the strongest case against it right now, and why it doesn't win",
+    ]);
+  });
+
+  it("leaves a held thesis at the same or a lower weight alone, and accepts any thesis that has one", () => {
+    expect(bearCaseErrors(doc(none), doc(none))).toEqual([]);
+    expect(bearCaseErrors(doc({ ...none, targetWeightPct: "5" }), doc(none))).toEqual([]);
+    expect(bearCaseErrors(doc({ targetWeightPct: "20" }), strategy({ conviction: [] }))).toEqual([]);
+  });
+});
+

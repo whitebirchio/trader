@@ -5,7 +5,7 @@ import { strategies, thesisEvents } from "../db/schema.js";
 import { add } from "../money.js";
 import { marketDate } from "../time.js";
 import { EXIT_RULES, type ExitRules, type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
-import { CLOSING_KINDS, reviewDateErrors } from "./theses.js";
+import { CLOSING_KINDS, bearCaseErrors, reviewDateErrors } from "./theses.js";
 
 export interface ActiveStrategy {
   version: number;
@@ -65,7 +65,7 @@ export type SubmitStrategyResult = { status: "activated"; version: number } | { 
  * stopped thesis id reused, and the review-date rules. preview_strategy and
  * submitStrategy both check it, so a preview never passes what submit rejects.
  */
-export async function submissionErrors(db: Db, s: Strategy, now: Date, rules: ExitRules = EXIT_RULES): Promise<string[]> {
+export async function submissionErrors(db: Db, s: Strategy, now: Date, rules: ExitRules = EXIT_RULES, opts: SubmitOptions = {}): Promise<string[]> {
   const stopped = await stoppedThesisIds(db);
   const errors = s.conviction.flatMap((t, i) => [
     ...(stopped.has(t.id) ? [`conviction[${i}].id: "${t.id}" was stopped out; re-entering needs a new thesis id`] : []),
@@ -73,12 +73,17 @@ export async function submissionErrors(db: Db, s: Strategy, now: Date, rules: Ex
     ...(t.takeProfitPct !== undefined && !rules.takeProfit ? [`conviction[${i}].takeProfitPct: profit targets aren't switched on; leave it out`] : []),
   ]);
   const active = await activeStrategy(db, now);
-  return [...errors, ...reviewDateErrors(s, active.strategy, marketDate(now))];
+  return [...errors, ...reviewDateErrors(s, active.strategy, marketDate(now)), ...(opts.requireBearCase ? bearCaseErrors(s, active.strategy) : [])];
 }
 
-export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner" | "system", now: Date): Promise<SubmitStrategyResult> {
+/** requireBearCase: Claude's tools turn it on (#106); owner, fallback and replayed submissions leave it off. */
+export interface SubmitOptions {
+  requireBearCase?: boolean;
+}
+
+export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner" | "system", now: Date, opts: SubmitOptions = {}): Promise<SubmitStrategyResult> {
   const parsed = validateStrategy(doc);
-  const errors = parsed.ok ? await submissionErrors(db, parsed.strategy, now) : parsed.errors;
+  const errors = parsed.ok ? await submissionErrors(db, parsed.strategy, now, EXIT_RULES, opts) : parsed.errors;
   if (!parsed.ok || errors.length > 0) {
     const active = await activeStrategy(db, now);
     await recordEvent(db, { actor, kind: "strategy.rejected", payload: { authoredBy: actor, errors, activeVersion: active.version } });

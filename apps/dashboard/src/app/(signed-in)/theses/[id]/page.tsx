@@ -50,6 +50,12 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
         </Card>
       )}
 
+      {v.thesis.bearCase && (
+        <Card title="The case against">
+          <p className="text-sm leading-relaxed [overflow-wrap:anywhere]">{v.thesis.bearCase}</p>
+        </Card>
+      )}
+
       {m ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatTile label="Bought" value={formatUsd(m.bought)} detail={sign(m.proceeds) > 0 ? `${formatUsd(m.proceeds)} sold` : undefined} />

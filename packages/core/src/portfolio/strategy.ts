@@ -86,6 +86,13 @@ const thesis = z.object({
    * stored versions stay valid; the routine writes one for every thesis.
    */
   plainSummary: z.string().trim().min(20, "needs at least a sentence").max(600, "keep it to 2–4 sentences (600 characters)").optional(),
+  /**
+   * The strongest case against the thesis right now, and why it doesn't win
+   * (#106): the other side's argument, not the exit trigger (that's in
+   * plainSummary). Optional so stored versions stay valid; Claude's tools
+   * require one on a new thesis or a raised weight (bearCaseErrors).
+   */
+  bearCase: z.string().trim().min(40, "needs the argument and the answer to it").max(1200, "keep it to a short paragraph (1,200 characters)").optional(),
 });
 
 const systematic = z.object({

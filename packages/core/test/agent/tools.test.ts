@@ -21,6 +21,7 @@ import { syncBroker } from "../../src/broker/sync.js";
 import { auditEvents, benchmarkCloses, brokerActivities, capitalCommands, jobRuns, orders, positions, rebalancePlans, secFilings, thesisEvents, withdrawals } from "../../src/db/schema.js";
 import { WINDOW_CLOSE, WINDOW_OPEN } from "../../src/portfolio/rebalance.js";
 import { FakeBroker } from "../broker/fake-broker.js";
+import { submitStrategy } from "../../src/portfolio/store.js";
 import { createTestDb } from "../helpers.js";
 import { strategy, thesis } from "../portfolio/fixtures.js";
 
@@ -340,6 +341,21 @@ describe("preview_strategy", () => {
     expect((await deps.db.select().from(auditEvents)).filter((e) => e.kind.startsWith("strategy."))).toEqual([]);
   });
 
+  it("refuses a new thesis or a raised weight without a bear case, and warns about a held one without (#106)", async () => {
+    const vti = { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null };
+    const bare = thesis({ targetWeightPct: "10", bearCase: undefined, plainSummary: "Apple sells iPhones and the services people pay for on them every month." });
+    expect(await previewStrategy(deps, strategy({ conviction: [bare], systematic: vti }))).toEqual({
+      valid: false,
+      errors: ["conviction[0].bearCase: a new thesis (aapl-services) needs a bear case: the strongest case against it right now, and why it doesn't win"],
+    });
+    await submitStrategy(deps.db, strategy({ conviction: [bare], systematic: vti }), "owner", NOW);
+    expect(await previewStrategy(deps, strategy({ conviction: [bare], systematic: vti }))).toMatchObject({
+      valid: true,
+      warnings: ["No bearCase on aapl-services: write the strongest case against each and why it doesn't win, and drop any you can't answer."],
+    });
+    expect(await previewStrategy(deps, strategy({ conviction: [{ ...bare, targetWeightPct: "15" }], systematic: vti }))).toMatchObject({ valid: false, errors: [expect.stringContaining("raising aapl-services from 10% to 15%")] });
+  });
+
   it("judges stale broker data (pre-market, weekends) on its merits, and says the real step re-checks", async () => {
     const draft = strategy({ conviction: [thesis({ targetWeightPct: "20" })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } });
     const later = { ...deps, now: new Date(NOW.getTime() + 3 * 3_600_000) }; // 3h after the last sync
@@ -374,5 +390,15 @@ describe("submit_strategy", () => {
     expect(await submitStrategyTool(deps, strategy())).toEqual({ status: "activated", version: 1 });
     const [event] = (await deps.db.select().from(auditEvents)).filter((e) => e.kind === "strategy.activated");
     expect(event?.actor).toBe("claude");
+  });
+
+  it("refuses a new thesis without a bear case from Claude, but not from the owner (#106)", async () => {
+    const draft = strategy({ conviction: [thesis({ bearCase: undefined })] });
+    const refused = await submitStrategyTool(deps, draft);
+    expect(refused).toEqual({ status: "rejected", errors: [expect.stringContaining("a new thesis (aapl-services) needs a bear case")] });
+    expect((await deps.db.select().from(auditEvents)).map((e) => e.kind)).toContain("strategy.rejected");
+    expect(await submitStrategy(deps.db, draft, "owner", NOW)).toEqual({ status: "activated", version: 1 });
+    // Held at the same weight, it goes through, and preview_strategy only warns.
+    expect(await submitStrategyTool(deps, draft)).toEqual({ status: "activated", version: 2 });
   });
 });

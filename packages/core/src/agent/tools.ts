@@ -13,7 +13,7 @@ import { loadScorecard } from "../portfolio/scorecard.js";
 import { WASH_SALE_DAYS, washSaleWindow } from "../portfolio/planner.js";
 import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.js";
 import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submissionErrors, submitStrategy } from "../portfolio/store.js";
-import { EVIDENCE_KINDS, validateStrategy } from "../portfolio/strategy.js";
+import { EVIDENCE_KINDS, EXIT_RULES, validateStrategy } from "../portfolio/strategy.js";
 import { IDLE_SYMBOL } from "../portfolio/systematic.js";
 import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
 import { assetFacts, ineligibleReasons } from "../risk/eligibility.js";
@@ -387,7 +387,7 @@ export async function getExposure({ db, broker, now, filings }: ToolDeps, candid
 export function getRules() {
   return {
     strategySchema: {
-      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required), reviewBy (optional YYYY-MM-DD; see lifecycle), plainSummary (optional, 20–600 characters: the thesis in plain language for the owner; write one for every thesis). Total ≤ 100%.`,
+      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required), reviewBy (optional YYYY-MM-DD; see lifecycle), plainSummary (optional, 20–600 characters: the thesis in plain language for the owner; write one for every thesis), bearCase (40–1,200 characters: the strongest case against the thesis right now and why it doesn't win; required on a new thesis or a raised weight, and preview_strategy warns about any thesis without one). Total ≤ 100%.`,
       systematic: "universe (1–100 symbols), lookbackDays (21–252), skipRecentDays (0–21, < lookback), topN (1–20, ≤ universe), trendFilterDays (50–250 or null), weighting (equal | inverse_volatility), volatilityDays (20–126), defensive (symbol or null).",
       drift: "relativePct (1–100), minTradeUsd (1–1000): a holding is traded back to target only when off by more than max(relativePct × target, minTradeUsd).",
     },
@@ -445,10 +445,14 @@ export function getRules() {
 export async function previewStrategy({ db, broker, env, now }: ToolDeps, document: unknown) {
   const parsed = validateStrategy(document);
   if (!parsed.ok) return { valid: false, errors: parsed.errors };
-  const errors = await submissionErrors(db, parsed.strategy, now);
+  const errors = await submissionErrors(db, parsed.strategy, now, EXIT_RULES, { requireBearCase: true });
   if (errors.length) return { valid: false, errors };
   const missing = parsed.strategy.conviction.filter((t) => !t.plainSummary).map((t) => t.id);
-  const warnings = missing.length ? [`No plainSummary on ${missing.join(", ")}: the owner reads it first, so add 2–4 plain sentences to each.`] : [];
+  const noBear = parsed.strategy.conviction.filter((t) => !t.bearCase).map((t) => t.id);
+  const warnings = [
+    ...(missing.length ? [`No plainSummary on ${missing.join(", ")}: the owner reads it first, so add 2–4 plain sentences to each.`] : []),
+    ...(noBear.length ? [`No bearCase on ${noBear.join(", ")}: write the strongest case against each and why it doesn't win, and drop any you can't answer.`] : []),
+  ];
   // Outside the session the mirror is hours old and risk would reject every
   // trade for staleness alone. Preview on the last-synced data instead and say
   // so: the real step runs after a fresh sync and re-checks the age.
@@ -505,7 +509,7 @@ function saleTax(open: Parameters<typeof estimateSale>[0], symbol: string, qty: 
 
 /** Store a validated draft as the next version (actor "claude"). The owner is emailed either way. */
 export async function submitStrategyTool({ db, now }: ToolDeps, document: unknown): Promise<SubmitStrategyResult> {
-  return submitStrategy(db, document, "claude", now);
+  return submitStrategy(db, document, "claude", now, { requireBearCase: true });
 }
 
 const maxDate = (a: string, b: string) => (a > b ? a : b);

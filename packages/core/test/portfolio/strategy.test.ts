@@ -48,6 +48,14 @@ describe("validateStrategy", () => {
     expect(long.ok ? [] : long.errors).toEqual(["conviction[0].plainSummary: keep it to 2–4 sentences (600 characters)"]);
   });
 
+  it("takes an optional bear case of 40–1,200 characters (#106)", () => {
+    const noAnswer = validateStrategy(strategy({ conviction: [thesis({ bearCase: "It could fall." })] }));
+    expect(noAnswer.ok ? [] : noAnswer.errors).toEqual(["conviction[0].bearCase: needs the argument and the answer to it"]);
+    expect(validateStrategy(strategy({ conviction: [thesis({ bearCase: undefined })] })).ok).toBe(true);
+    const long = validateStrategy(strategy({ conviction: [thesis({ bearCase: "x".repeat(1201) })] }));
+    expect(long.ok ? [] : long.errors).toEqual(["conviction[0].bearCase: keep it to a short paragraph (1,200 characters)"]);
+  });
+
   it("caps total conviction at 100% and forbids duplicate ids and symbols", () => {
     const many = Array.from({ length: 6 }, (_, i) => thesis({ id: `t-${i}`, symbol: `S${i}`, targetWeightPct: "20" }));
     expect(errorsOf(strategy({ conviction: many }))).toContain("conviction: target weights add up to 120%, more than 100%");
