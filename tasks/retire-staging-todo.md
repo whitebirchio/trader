@@ -59,4 +59,4 @@
 - [x] After T3: the production test email arrives, and `TraderProduction` lists both identities as resources (2026-11-11).
 - [ ] The first feature PR after T5 runs `migrate-check` green with a new migration, and deploys nothing until merge.
 - [ ] The paper rehearsal runs end to end in market hours.
-- [ ] Claude runs the four read-only checks against production without a permission prompt.
+- [x] Claude runs the four read-only checks against production without a permission prompt (2026-11-11, through `trader_readonly`, after #114).
