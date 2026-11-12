@@ -45,7 +45,7 @@ Give Claude its seat at the table (ADR-003, ADR-004): a remote **MCP server** wh
 
 A **Claude Code scheduled routine** in your claude.ai account, with the Trader production connector attached.
 - **When:** weekdays at 8:00 and 12:00 ET (one routine, two fire times). On market holidays, Claude sees from `get_overview` that the market is closed and does no trading research.
-- **What it runs:** a checked-in prompt, `agent/routine-prompt.md`, versioned with the code.
+- **What it runs:** a checked-in prompt, `agent/routine-prompt.md`, versioned with the code. *(2026-11-12, #118)* The routine stores only a stub (`agent/routine-stub.md`): each run fetches `main` in its checkout and reads the prompt from it (`git show origin/main:agent/routine-prompt.md`), so a prompt change ships with its merge and needs no update to the routine. If it can't read `origin/main` it reads the checkout's copy, and if neither reads it stops without submitting. Its report ends with the commit it read. A run that starts during a deploy can read a prompt a few minutes ahead of the tools; it trusts the tools. The stub changes only when the loading steps do, and then needs a RemoteTrigger update.
 - **Each run, Claude:**
   1. Reads `get_overview`, `get_strategy`, `get_holdings` and `get_activity`.
   2. Researches with its own web tools. Sources: Congress trade disclosures (STOCK Act filings and aggregator sites), SEC EDGAR Form 4 insider buys and 13F holdings (e.g. Berkshire Hathaway), earnings, guidance and news for current and candidate names.
@@ -107,7 +107,8 @@ curl -s -H "Authorization: Bearer $TOKEN" -X POST $MCP_URL -d '{"jsonrpc":"2.0",
 packages/core/src/agent/      → tool implementations (pure core over Db + Broker): overview, strategy, holdings, activity, prices, eligibility, rules, preview, submit
 apps/mcp/                     → trader-mcp Lambda: Function URL adapter, auth (from Fred), protocol (from Fred), tool registry, instructions
 infra/lib/engine-stack.ts     → + the MCP function, its URL and its IAM (its own named MCP_* parameters, no SES)
-agent/routine-prompt.md       → the routine's prompt (checked in)
+agent/routine-prompt.md       → the routine's prompt (each run reads it from main)
+agent/routine-stub.md         → the routine's stored message: load the prompt from main
 ```
 
 ## Testing Strategy
