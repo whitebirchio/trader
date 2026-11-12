@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
-import { ROUTINE_GRACE_MINUTES, checkRoutineRuns } from "../../src/agent/routine-watch.js";
+import { ROUTINE_GRACE_MINUTES, ROUTINE_RUNS_UTC, checkRoutineRuns } from "../../src/agent/routine-watch.js";
 import { recordEvent } from "../../src/audit.js";
 import type { Db } from "../../src/db/client.js";
 import { auditEvents } from "../../src/db/schema.js";
@@ -88,5 +89,28 @@ describe("the check-routine job", () => {
     expect(d.headline).toBe("Research run missed");
     expect(d.lines[0]).toMatch(/^The research run due at .+8:00 AM ET hadn't submitted a strategy by .+8:45 AM ET\.$/);
     expect(d.lines[1]).toMatch(/^Strategy v18 \(claude, .+\) keeps executing/);
+  });
+});
+
+describe("agent/routines.json", () => {
+  const config = JSON.parse(readFileSync(new URL("../../../../agent/routines.json", import.meta.url), "utf8")) as {
+    routines: { name: string; triggerId: string; cron: string; model: string; role: string }[];
+  };
+
+  it("lists every routine's fire time in ROUTINE_RUNS_UTC, so the missed-run alert looks at the right times", () => {
+    const times = config.routines.map((r) => {
+      // Only the simple form the alert understands: minute hour * * 1-5 (weekdays, UTC).
+      const m = /^(\d{1,2}) (\d{1,2}) \* \* 1-5$/.exec(r.cron);
+      if (!m) throw new Error(`${r.name}: cron "${r.cron}" must be "M H * * 1-5"`);
+      return `${m[2]!.padStart(2, "0")}:${m[1]!.padStart(2, "0")}`;
+    });
+    expect([...times].sort()).toEqual([...ROUTINE_RUNS_UTC].sort());
+  });
+
+  it("names a trigger and a Claude model for each", () => {
+    for (const r of config.routines) {
+      expect(r.triggerId).toMatch(/^trig_\w+$/);
+      expect(r.model).toMatch(/^claude-[a-z]+-\d/);
+    }
   });
 });
