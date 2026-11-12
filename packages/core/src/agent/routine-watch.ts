@@ -16,8 +16,9 @@ import { marketDate } from "../time.js";
  */
 
 /**
- * The routine's fire times, UTC: its trigger's cron is `0 13,17 * * 1-5`
- * (8:00 and 12:00 ET in winter). Change both together (#14).
+ * The routines' fire times, UTC (8:00 and 12:00 ET in winter): one per
+ * routine in agent/routines.json, whose crons a test checks against this.
+ * Change both together (#14).
  */
 export const ROUTINE_RUNS_UTC = ["13:00", "17:00"] as const;
 
