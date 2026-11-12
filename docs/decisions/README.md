@@ -21,3 +21,4 @@ Why Trader is built the way it is. Each ADR follows the `documentation-and-adrs`
 | [015](015-owner-capital-flows.md) | Owner capital flows are first-class; withdrawals are strategy-funded requests | Accepted | 2026-11-01 |
 | [016](016-aggressive-swing-no-day-trades.md) | Aggressive swing trading; no systematic sleeve, no day trades | Accepted | 2026-11-04 |
 | [017](017-halts-let-exits-out-resume-rebases.md) | A drawdown halt lets closed theses out, and a resume re-bases the peak | Accepted | 2026-11-10 |
+| [018](018-production-is-the-only-deployed-environment.md) | Production is the only deployed environment; paper is a local tool | Proposed | 2026-11-11 |
