@@ -26,8 +26,8 @@
   - create a temporary copy-on-write branch of production, expiring in 2 hours. Not schema-only after all: a schema-only branch has no rows, so Drizzle's migration journal would be empty and every migration would rerun. The migrate output is suppressed instead;
   - run `npm run db:migrate` against it, printing only pass or fail;
   - delete it on exit.
-- [ ] Repo secret `NEON_API_KEY` and variable `NEON_PROJECT_ID` (Scott sets them; the key is never echoed).
-- [ ] Acceptance: the PR's push runs `build` and `migrate-check` and no deploy, and its temporary branch is gone afterwards (Neon console).
+- [x] Repo secret `NEON_API_KEY` and variable `NEON_PROJECT_ID` (Scott sets them; the key is never echoed).
+- [x] Acceptance: the PR's push runs `build` and `migrate-check` and no deploy, and its temporary branch is gone afterwards (Neon console).
 - [x] Core: remove #109's staging special cases:
   - the `earnings-calendar` skip;
   - `BACKFILL.perDay` becomes one number.
@@ -36,8 +36,8 @@
 - [x] `scripts/ops.ts`: `--env production|paper` (`staging` is refused with a pointer to `paper`). Paper is the rehearsal: the paper keys and a local PGlite database in `.cache/paper-db`, kept between commands and rebuilt when the migrations change:
   - `broker:smoke`: the $5 VTI buy, fill, lot and audit checks;
   - `rebalance:run`: sync the paper account, submit a strategy file, run one real step.
-- [x] `risk:status`, `strategy:show`, `capital:status` and `scorecard:show` open the dashboard's SELECT-only role (its URL read from SSM `/trader/production/DATABASE_READ_URL` with the laptop's AWS profile, so no copy goes in `.env`) and fetch market data through the paper keys: no owner role, no live key. `withReadOnly` checks the role's privileges in the catalog (`writableTables`, tested) and refuses a connection that could change any table.
-- [ ] Claude Code's local settings (`.claude/settings.local.json`, not committed) allow exactly those four with `--env production`.
+- [x] `risk:status`, `strategy:show`, `capital:status` and `scorecard:show` open `trader_readonly`, a SELECT-only role (its URL read from SSM `/trader/production/READONLY_DATABASE_URL` with the laptop's AWS profile, so no copy goes in `.env`). The plan said the dashboard's role, but that role can INSERT into `capital_commands` (the withdrawal button), and the catalog check refused it on the first run, 2026-11-11. So the checks got a role of their own (`scripts/set-readonly-secret.sh`, Scott runs it) and fetch market data through the paper keys: no owner role, no live key. `withReadOnly` checks the role's privileges in the catalog (`writableTables`, tested) and refuses a connection that could change any table.
+- [x] Claude Code's local settings (`.claude/settings.local.json`, not committed) allow exactly those four with `--env production` (Scott, 2026-11-11, through `/permissions`).
 - [x] CLAUDE.md:
   - the environments table;
   - every `--env staging` command;
@@ -48,12 +48,12 @@
 - [x] Claude's memory: retire "staging holds one branch"; update "verify fast" to production and the paper rehearsal.
 
 ### T6: Clean up (Scott, after T5 merges)
-- [ ] Neon: delete the `staging` branch.
-- [ ] AWS: delete the `/trader/staging/` parameters, plus any log groups or alarm subscriptions the destroy left behind.
-- [ ] GitHub: delete the `STAGING_MIGRATE_URL` secret.
-- [ ] Cloudflare: delete the `trader-staging` CNAME. The certificate keeps the name until it's next reissued.
-- [ ] Google Cloud: remove the staging redirect URI from the "Trader" OAuth client.
-- [ ] claude.ai: remove the "Trader (Staging)" connector.
+- [x] Neon: delete the `staging` branch.
+- [x] AWS: delete the `/trader/staging/` parameters, plus any log groups or alarm subscriptions the destroy left behind. 13 parameters and 2 log groups; no schedules, alarms or topics remained.
+- [x] GitHub: delete the `STAGING_MIGRATE_URL` secret.
+- [x] Cloudflare: delete the `trader-staging` CNAME. The certificate keeps the name until it's next reissued.
+- [x] Google Cloud: remove the staging redirect URI from the "Trader" OAuth client.
+- [x] claude.ai: remove the "Trader (Staging)" connector.
 
 ### T7: Verify
 - [x] After T3: the production test email arrives, and `TraderProduction` lists both identities as resources (2026-11-11).

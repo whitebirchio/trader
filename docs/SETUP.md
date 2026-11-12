@@ -68,6 +68,7 @@ The Lambdas read only `/trader/production/` (SecureStrings, default `aws/ssm` ke
 | `/trader/<env>/ALPACA_KEY_ID`, `/trader/<env>/ALPACA_SECRET_KEY` | `scripts/set-alpaca-secret.sh <env>` |
 | `/trader/<env>/MCP_SIGNING_KEY`, `MCP_PASSPHRASE`, `MCP_TOKEN`, `MCP_DATABASE_URL`, `MCP_ALPACA_KEY_ID`, `MCP_ALPACA_SECRET_KEY` | `scripts/set-mcp-secrets.sh <env>` (values in `.env` as `<ENV>_MCP_*`; it creates or rotates `trader_mcp` with `<ENV>_MIGRATE_URL` and copies the paper key `STAGING_ALPACA_*`) |
 | `/trader/<env>/DATABASE_READ_URL`, `DASHBOARD_SESSION_KEY`, `GOOGLE_CLIENT_SECRET` | `scripts/set-dashboard-secrets.sh <env>` |
+| `/trader/production/READONLY_DATABASE_URL` | `scripts/set-readonly-secret.sh` (creates or rotates `trader_readonly`; read from the laptop only, by the read-only status scripts, never by a Lambda) |
 | `/trader/<env>/ALPHAVANTAGE_API_KEY` *(optional, #30)* | `scripts/set-alphavantage-secret.sh <env>` (value in `.env` as `ALPHAVANTAGE_API_KEY`; one free key from alphavantage.co, 25 requests a day). Without it, the `earnings-calendar` job skips, and the tools say the calendar is missing. `npm run earnings:refresh -w @trader/core -- --env <env> --show AAPL` fetches it now. |
 
 The dashboard's role reads only its three parameters, by exact name (`ssm:GetParameters`), never the path, so it can't see the Alpaca keys.
@@ -80,7 +81,8 @@ The `production` branch has these roles (the same pattern as Fred):
 |---|---|---|
 | `neondb_owner` | CI migrations, this laptop | everything |
 | `trader_app` | the engine's `DATABASE_URL` | DML, except only `SELECT, INSERT` on append-only tables; no DDL |
-| `trader_dashboard` | the dashboard's `DATABASE_READ_URL` | `SELECT` only, read-only transactions; created/rotated by `scripts/set-dashboard-secrets.sh <env>` (which proves INSERT/UPDATE/DELETE/CREATE are denied). The read-only status scripts use it too, and refuse a connection that can write |
+| `trader_dashboard` | the dashboard's `DATABASE_READ_URL` | `SELECT`, plus `INSERT` on `capital_commands` (the dashboard's withdrawal command), in read-only transactions by default; created/rotated by `scripts/set-dashboard-secrets.sh <env>`, which proves every other write is denied |
+| `trader_readonly` | `READONLY_DATABASE_URL`: the read-only status scripts Claude may run (ADR-018) | `SELECT` only, read-only transactions; created/rotated by `scripts/set-readonly-secret.sh`, which proves every write is denied, read-write transactions included |
 
 Roles are per-branch. Create a branch's role, or rotate its password, and store the URL in SSM in one step:
 
@@ -133,7 +135,7 @@ npm run risk:check  -w @trader/core -- --env paper --sync --buy VTI=50 --buy AAP
 | Daily loss pause | ≤ −5% vs prior close | buys only | by itself, next trading day (or on recovery above −5%) |
 | Broker verdict | `broker_account.trading_allowed` is false | every order | fix the account (see Alpaca above) |
 
-These scripts use the owner database URL and the live keys from `.env`, except the read-only ones (`risk:status`, `strategy:show`, `capital:status`, `scorecard:show`). Those read `/trader/production/DATABASE_READ_URL` from SSM (the dashboard's SELECT-only role), take market data from the paper key, and refuse a connection that can write, so Claude may run them.
+These scripts use the owner database URL and the live keys from `.env`, except the read-only ones (`risk:status`, `strategy:show`, `capital:status`, `scorecard:show`). Those read `/trader/production/READONLY_DATABASE_URL` from SSM (`trader_readonly`, SELECT only), take market data from the paper key, and refuse a connection that can write, so Claude may run them.
 
 ## Strategy & rebalancing
 
