@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { CfnOutput, Duration, Stack, type StackProps, Tags } from "aws-cdk-lib";
+import { CfnOutput, Duration, RemovalPolicy, Stack, type StackProps, Tags } from "aws-cdk-lib";
 import type * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cwActions from "aws-cdk-lib/aws-cloudwatch-actions";
@@ -90,8 +90,11 @@ export class EngineStack extends Stack {
     );
 
     if (props.ownsSesIdentities) {
+      // Retained: they're account-wide and outlive the stack that owns them, so
+      // retiring staging keeps production's email working (ADR-018).
       const domain = new ses.EmailIdentity(this, "MailDomain", { identity: ses.Identity.domain(MAIL_DOMAIN) });
-      new ses.EmailIdentity(this, "OwnerAddress", { identity: ses.Identity.email(OWNER_EMAIL) });
+      const owner = new ses.EmailIdentity(this, "OwnerAddress", { identity: ses.Identity.email(OWNER_EMAIL) });
+      for (const identity of [domain, owner]) identity.applyRemovalPolicy(RemovalPolicy.RETAIN);
       domain.dkimRecords.forEach((r, i) => {
         new CfnOutput(this, `DkimRecord${i + 1}`, { value: `${r.name} CNAME ${r.value}`, description: "Add in Cloudflare DNS (DNS only)" });
       });
