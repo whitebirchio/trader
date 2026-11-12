@@ -38,8 +38,12 @@ export interface EarningsHistoryPort {
 }
 
 export const BACKFILL = {
-  /** Requests a day for each environment: the calendar takes one more in each, leaving a few of the 25 for on-demand checks. */
-  perDay: { production: 18, staging: 2 } satisfies Record<TradingEnv, number>,
+  /**
+   * Requests a day for each environment. Production gets them all: the
+   * calendar takes one more in each environment, leaving a few of the 25
+   * for on-demand checks. Staging spends none (Scott, 2026-11-11).
+   */
+  perDay: { production: 20, staging: 0 } satisfies Record<TradingEnv, number>,
   /** Requests a tick, so a day's budget spreads over a few ticks. */
   perTick: 3,
   /** Quarters reported before this aren't stored: the backtests start in 2018. */
@@ -137,6 +141,7 @@ export async function backfillEarningsHistory(
   port: EarningsHistoryPort,
   opts: { env: TradingEnv; priority: string[]; now: Date; universe?: readonly string[] },
 ): Promise<BackfillResult> {
+  if (BACKFILL.perDay[opts.env] === 0) return { status: "skipped", reason: `no backfill in ${opts.env}: the free key's requests go to production` };
   const today = marketDate(opts.now);
   const rows = await db.select({ symbol: earningsHistoryFetches.symbol, status: earningsHistoryFetches.status, fetchedOn: earningsHistoryFetches.fetchedOn }).from(earningsHistoryFetches);
   const usedToday = rows.filter((r) => r.fetchedOn === today).length;

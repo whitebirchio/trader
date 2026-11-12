@@ -121,13 +121,18 @@ describe("backfillEarningsHistory", () => {
     expect(port.asked.slice(3)).toEqual(["U3", "U4", "U5"]);
   });
 
-  it("stops at the environment's daily budget, and starts again the next market date", async () => {
+  it("stops at production's daily budget and starts again the next market date, and spends nothing in staging", async () => {
     const port = fakePort();
-    const opts = { env: "staging" as const, priority: [], universe: UNIVERSE };
-    expect(BACKFILL.perDay.staging).toBe(2);
-    expect(await backfillEarningsHistory(db, port, { ...opts, now: NOW })).toMatchObject({ fetched: [{ symbol: "U1" }, { symbol: "U2" }] });
-    expect(await backfillEarningsHistory(db, port, { ...opts, now: at(0.1) })).toEqual({ status: "skipped", reason: "today's 2 requests are spent" });
-    expect(await backfillEarningsHistory(db, port, { ...opts, now: at(1) })).toMatchObject({ fetched: [{ symbol: "U3" }, { symbol: "U4" }] });
+    const opts = { env: "production" as const, priority: [], universe: UNIVERSE };
+    // Earlier ticks today asked for all but one of the day's budget.
+    const earlier = Array.from({ length: BACKFILL.perDay.production - 1 }, (_, n) => ({ symbol: `E${n}`, fetchedOn: "2026-11-11", fetchedAt: NOW, status: "ok" as const, quarters: 1 }));
+    await db.insert(earningsHistoryFetches).values(earlier);
+    expect(await backfillEarningsHistory(db, port, { ...opts, now: NOW })).toMatchObject({ fetched: [{ symbol: "U1" }] });
+    expect(await backfillEarningsHistory(db, port, { ...opts, now: at(0.1) })).toEqual({ status: "skipped", reason: "today's 20 requests are spent" });
+    expect(await backfillEarningsHistory(db, port, { ...opts, now: at(1) })).toMatchObject({ fetched: [{ symbol: "U2" }, { symbol: "U3" }, { symbol: "U4" }] });
+
+    expect(await backfillEarningsHistory(db, port, { ...opts, env: "staging", now: at(2) })).toEqual({ status: "skipped", reason: "no backfill in staging: the free key's requests go to production" });
+    expect(port.asked).toEqual(["U1", "U2", "U3", "U4"]);
   });
 
   it("records a failed company against today's budget and retries it on a later day, overwriting what it stored", async () => {
