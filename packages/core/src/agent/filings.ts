@@ -280,7 +280,7 @@ export async function describeFiling(feed: FilingsFeedPort, f: IndexedFiling): P
     return { kind: f.items.includes("2.02") ? "results" : "other_8k", summary: `${what}.`, sellSignal: null, detail: { items: f.items } };
   }
   if (/13D/.test(form)) {
-    return { kind: "large_holder", summary: `${form}: ${form.endsWith("/A") ? "an update from an investor" : "an investor"} owning over 5% who may seek to influence the company (an activist-style stake).`, sellSignal: null, detail: {} };
+    return { kind: "large_holder", summary: `${form}: ${form.endsWith("/A") ? "an update from an investor" : "an investor"} owning over 5% who isn't a passive holder (often an activist, sometimes a long-time controlling holder).`, sellSignal: null, detail: {} };
   }
   if (/13G/.test(form)) {
     return { kind: "large_holder", summary: `${form}: ${form.endsWith("/A") ? "an update from a passive investor" : "a passive investor"} owning over 5%.`, sellSignal: null, detail: {} };

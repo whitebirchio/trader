@@ -155,7 +155,7 @@ describe("describeFiling", () => {
     });
     expect(await describeFiling(f, indexed({ accession: "b", form: "8-K", daysAgo: 1, items: ["5.02"] }))).toMatchObject({ kind: "officer_change", sellSignal: null, detail: { departure: null } });
     expect(await describeFiling(f, indexed({ accession: "c", form: "8-K", daysAgo: 1, items: ["2.02", "9.01"] }))).toMatchObject({ kind: "results", summary: "8-K: results of operations." });
-    expect(await describeFiling(f, indexed({ accession: "d", form: "SCHEDULE 13D", daysAgo: 1 }))).toMatchObject({ kind: "large_holder", summary: expect.stringContaining("activist-style") });
+    expect(await describeFiling(f, indexed({ accession: "d", form: "SCHEDULE 13D", daysAgo: 1 }))).toMatchObject({ kind: "large_holder", summary: expect.stringContaining("isn't a passive holder") });
     expect(await describeFiling(f, indexed({ accession: "e", form: "10-Q", daysAgo: 1 }))).toMatchObject({ kind: "periodic", summary: "10-Q: the quarterly report." });
   });
 
