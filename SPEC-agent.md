@@ -53,6 +53,7 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
   3. Decides: **add** a thesis, **change** (resize or replace theses), **exit** a thesis, or **keep** (resubmit unchanged, which reaffirms the theses). Since ADR-016 the stance is aggressive but evidence-based: most of the account in 5–8 theses, a few trades a week, the systematic sleeve idle-only (VTI).
   4. Runs `preview_strategy`, then `submit_strategy`.
 - **If the routine stops running,** the last strategy keeps executing. After 30 days without a resubmission, theses unwind to systematic and you're emailed (ADR-004, ADR-013).
+- **A missed run is emailed** *(2026-11-12)*. Every run on a trading day submits a strategy, unchanged or not. The `check-routine` tick job looks 45 minutes after each fire time (13:00 and 17:00 UTC, `ROUTINE_RUNS_UTC` in `src/agent/routine-watch.ts`, which must match the trigger's cron; #14). If Claude submitted nothing, activated or rejected, between that fire time and the next, it records `routine.missed` once (urgent), and the same tick's `notify-urgent` sends it. A holiday has no runs to miss. It catches a run stopped by the account's weekly usage limit, which skipped two runs in November 2026 with no one told.
 
 ## Lessons
 

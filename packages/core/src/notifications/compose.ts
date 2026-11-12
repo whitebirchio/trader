@@ -89,6 +89,15 @@ export function describe(e: NotifiableEvent): Described {
       return { headline: `${p.trigger === "trailing_stopped" ? "Trailing stop" : "Stop-loss"}: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
     case "thesis.took_profit":
       return { headline: `Profit target: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
+    case "routine.missed":
+      return {
+        headline: "Research run missed",
+        lines: [
+          `The research run due at ${when(p.firedAt)} hadn't submitted a strategy by ${when(p.deadline)}.`,
+          `Strategy v${str(p.activeVersion)} (${str(p.activeBy)}, ${when(p.activeSince)}) keeps executing, but nothing re-judged the theses this run.`,
+          "Check the routine's runs at claude.ai/code. The usual cause is the account's weekly usage limit; a run can also be started there by hand.",
+        ],
+      };
     case "thesis.stale":
       return {
         headline: `Thesis unwound: ${str(e.subject)} (not reviewed)`,

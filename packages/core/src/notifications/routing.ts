@@ -37,6 +37,7 @@ const ROUTES: Record<AuditKind, Route> = {
   "thesis.took_profit": "urgent", // an automatic sale: the profit target was reached (#35)
   "watchlist.updated": "digest", // Claude's research notes (#32): no trading effect
   "lessons.recorded": "digest", // Claude's post-mortems on closed theses (#28): no trading effect
+  "routine.missed": "urgent", // a research run submitted nothing: the theses go un-reviewed until the next one
   "filing.sell_signal": "urgent", // an officer or director leaving, or selling outside a 10b5-1 plan, on a held name (#105)
   "filings.noticed": "digest", // every other new filing on a held or watched name
   "thesis.stale": "urgent", // the research loop may be down
