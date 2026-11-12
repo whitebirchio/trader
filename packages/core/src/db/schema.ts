@@ -406,6 +406,42 @@ export const secFilings = pgTable(
 );
 
 /**
+ * Each company's quarterly earnings, reported vs estimated EPS (#105), from
+ * Alpha Vantage's EARNINGS endpoint, filled by the earnings-backfill job. A
+ * cache of public data, for the earnings-surprise backtest and the routine.
+ * A re-fetch overwrites a quarter in place.
+ */
+export const earningsHistory = pgTable(
+  "earnings_history",
+  {
+    symbol: text().notNull(),
+    fiscalDateEnding: date({ mode: "string" }).notNull(),
+    reportedDate: date({ mode: "string" }).notNull(),
+    /** "pre-market", "post-market" or null when the source doesn't say. */
+    reportTime: text(),
+    reportedEps: numeric(),
+    /** The consensus estimate before the report. */
+    estimatedEps: numeric(),
+    surprise: numeric(),
+    /** The surprise as a percentage of the estimate (5.2 = 5.2%). */
+    surprisePct: numeric(),
+    fetchedAt: timestamptz().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.fiscalDateEnding] }), index("earnings_history_reported_idx").on(t.reportedDate)],
+);
+
+/** The earnings-backfill job's progress: one row per company asked for, and how it went. Today's rows count against its daily budget. */
+export const earningsHistoryFetches = pgTable("earnings_history_fetches", {
+  symbol: text().primaryKey(),
+  fetchedOn: date({ mode: "string" }).notNull(),
+  fetchedAt: timestamptz().notNull(),
+  /** "ok" (quarters stored), "none" (Alpha Vantage has nothing for it) or "error" (retried on a later day). */
+  status: text({ enum: ["ok", "none", "error"] }).notNull(),
+  quarters: integer().notNull(),
+  error: text(),
+});
+
+/**
  * Claude's research memory (#32): names it considered but didn't buy, why,
  * and what would bring each in. One row per change; a symbol's latest row is
  * its state ("watch" or "drop"). Insert-only. No trading effect.
