@@ -25,7 +25,7 @@ npm run invoke -- --env production --jobs heartbeat,sync-broker   # run the depl
 npm run broker:sync -w @trader/core -- --env paper --force       # sync the paper account into the local rehearsal database (see docs/SETUP.md)
 npm run broker:smoke -w @trader/core -- --env paper              # $5 VTI order on paper through submitOrder: the order-path rehearsal (market hours)
 npm run rebalance:plan -w @trader/core -- --env production --sync  # dry-run today's rebalance through risk: records and orders nothing
-npm run risk:status -w @trader/core -- --env production         # read-only checks (also strategy:show, capital:status, scorecard:show): SELECT-only role, no live key
+npm run risk:status -w @trader/core -- --env production         # read-only checks (also strategy:show, capital:status, scorecard:show): trader_readonly (SELECT only), no live key
 npm run notify:run -w @trader/core -- --env production           # queue urgent emails now
 npm run earnings:refresh -w @trader/core -- --env production --show AAPL   # fetch today's earnings calendar now (ALPHAVANTAGE_API_KEY in .env)
 npm run invoke -- --env production --jobs check-filings                     # check SEC filings on every thesis and watchlist name now (runs if the last check was 55+ min ago)

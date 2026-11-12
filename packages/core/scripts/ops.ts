@@ -86,7 +86,8 @@ export async function withOps<T>(
 
 /**
  * For the read-only checks Claude may run against production (ADR-018):
- * the dashboard's SELECT-only role, its URL read from SSM so no copy sits in
+ * trader_readonly, a SELECT-only role (scripts/set-readonly-secret.sh; not the
+ * dashboard's, which can INSERT owner withdrawal commands), its URL read from SSM so no copy sits in
  * .env, and market data through the paper key. No owner role and no live key,
  * so nothing run through it can write or trade, and it refuses a connection
  * whose role could change any table. --env paper reads the local rehearsal
@@ -105,7 +106,7 @@ export async function withReadOnly<T>(envArg: string | undefined, fn: (ops: { en
   }
   const url = execFileSync(
     "aws",
-    ["ssm", "get-parameter", "--name", "/trader/production/DATABASE_READ_URL", "--with-decryption", "--query", "Parameter.Value", "--output", "text", "--region", "us-east-1", "--profile", process.env.AWS_PROFILE ?? "whitebirch"],
+    ["ssm", "get-parameter", "--name", "/trader/production/READONLY_DATABASE_URL", "--with-decryption", "--query", "Parameter.Value", "--output", "text", "--region", "us-east-1", "--profile", process.env.AWS_PROFILE ?? "whitebirch"],
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   ).trim();
   const pool = new Pool({ connectionString: url });

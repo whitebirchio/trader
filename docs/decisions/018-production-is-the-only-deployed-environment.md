@@ -52,7 +52,7 @@ Two things now do staging's job better:
   - the paper rehearsal for order-path changes;
   - risk's limits, the kill switch and additive-only migrations.
 - **Order-path changes need a deliberate step.** The paper rehearsal becomes an "Always" in CLAUDE.md for `src/broker/`, `src/risk/`, `src/portfolio/rebalance.ts` and the order intents, instead of something that happens by default.
-- **Claude's checks after a deploy run against production.** Scott allows four read-only status scripts, which connect through the dashboard's SELECT-only role and paper market data, so they can't write or trade. Other production reads stay his to run.
+- **Claude's checks after a deploy run against production.** Scott allows four read-only status scripts, which connect through a SELECT-only role (`trader_readonly`) and paper market data, so they can't write or trade. Other production reads stay his to run.
 - **The SES identities move to `TraderProduction`.** `TraderStaging` owns them (they're account-wide), and production sends through them. They're retained when staging is destroyed, then imported into `TraderProduction`, so CDK still manages them (Scott, 2026-11-11).
 - **Less to run:**
   - one deploy per merge;

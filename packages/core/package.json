@@ -40,6 +40,7 @@
     "rebalance:run": "tsx scripts/rebalance.ts --mode run",
     "earnings:refresh": "tsx scripts/earnings-refresh.ts",
     "db:dashboard-role": "tsx scripts/dashboard-role.ts",
+    "db:readonly-role": "tsx scripts/readonly-role.ts",
     "db:mcp-role": "tsx scripts/mcp-role.ts",
     "replay": "tsx scripts/replay.ts",
     "replay:data": "tsx scripts/replay-data.ts",
