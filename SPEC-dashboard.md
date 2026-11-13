@@ -154,7 +154,7 @@ The design adds no standing cost. CloudFront and ACM fall under their always-fre
 
 Web Functions bill $0.30 per million requests, active CPU time, and **memory for as long as an execution environment exists**, including idle time until it scales to zero. AWS hasn't said whether the Lambda free tier covers them. The estimate is about $0.001 per visit, or **cents a month** for personal use.
 
-To bound the cost, the endpoint gets `maxEnvironments: 2` (the minimum, per the D1 spike) and a rate limit of 100 requests per second. Issue #16's cost check covers this too. If "exactly $0" matters more than Web Functions, the fallback is a regular Lambda behind a Function URL (see Open question 4).
+To bound the cost, the endpoint gets `maxEnvironments: 2` (the minimum, per the D1 spike) and a rate limit of 100 requests per second. *(2026-11-12, #123)* Each environment serves up to 32 requests at once (`MaxConcurrencyPerEnvironment` on the revision). Left unset, an environment took about one, so a page load's burst (the page plus Next.js prefetching each link on screen) outran the two environments, and about 8% of requests got a bare 429 from the endpoint (`EndpointActiveEnvironmentThrottles`). Issue #16's cost check covers this too. If "exactly $0" matters more than Web Functions, the fallback is a regular Lambda behind a Function URL (see Open question 4).
 
 ## Commands
 

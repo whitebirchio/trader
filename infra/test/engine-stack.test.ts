@@ -161,6 +161,8 @@ describe("EngineStack", () => {
         BuildConfig: Match.objectLike({ RuntimeConfig: { Runtime: "nodejs24.x" } }),
         ServiceConfig: Match.objectLike({
           EnvironmentVariables: Match.objectLike({ TRADING_ENV: "production", DASHBOARD_URL: "https://trader.whitebirch.io", SECRETS_PATH: "/trader/production/", NODE_ENV: "production" }),
+          // A page load's burst fits in one environment, under the cap of 2 (#123).
+          MaxConcurrencyPerEnvironment: 32,
         }),
       });
       production.hasResourceProperties("AWS::Lambda::WebFunctionRevision", {

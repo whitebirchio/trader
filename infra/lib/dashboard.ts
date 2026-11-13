@@ -20,6 +20,9 @@ export interface DashboardProps {
 /** Secrets the dashboard may read, by exact name. Never the Alpaca keys. */
 export const DASHBOARD_SECRETS = ["DATABASE_READ_URL", "GOOGLE_CLIENT_SECRET", "DASHBOARD_SESSION_KEY"] as const;
 
+/** Requests one environment serves at once (1–128). */
+export const DASHBOARD_CONCURRENCY_PER_ENVIRONMENT = 32;
+
 /**
  * The read-only dashboard (SPEC-dashboard; D1 spike findings): a Lambda Web
  * Function whose IamAuth endpoint only this CloudFront distribution can call
@@ -91,6 +94,11 @@ export class Dashboard extends Construct {
       serviceConfig: {
         executionRoleArn: role.roleArn,
         timeoutSeconds: 30,
+        // One Next.js server handles many requests at once. Unset, an
+        // environment took about one, so a page load's burst (the page plus a
+        // prefetch per link on screen) outran the 2-environment cap and got
+        // 429s (#123). This needs no extra environments, so the cap still bounds cost.
+        maxConcurrencyPerEnvironment: DASHBOARD_CONCURRENCY_PER_ENVIRONMENT,
         environmentVariables: {
           NODE_ENV: "production",
           TRADING_ENV: env,
