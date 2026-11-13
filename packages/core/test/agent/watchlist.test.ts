@@ -7,7 +7,8 @@ import { createTestDb } from "../helpers.js";
 let db: Db;
 const NOW = new Date("2026-11-11T17:00:00Z"); // Wednesday, market date 2026-11-11
 const later = (days: number) => new Date(NOW.getTime() + days * 86_400_000);
-const watch = (symbol: string, revisitBy = "2026-12-15", over: object = {}) => ({ action: "watch", symbol, why: `${symbol} looked good but missed the bar`, trigger: `${symbol} files a 10-Q confirming the turn`, revisitBy, ...over });
+const FORECAST = { beatVtiPct: 40, expectedExcessPct: "-2" };
+const watch = (symbol: string, revisitBy = "2026-12-15", over: object = {}) => ({ action: "watch", symbol, why: `${symbol} looked good but missed the bar`, trigger: `${symbol} files a 10-Q confirming the turn`, revisitBy, forecast: FORECAST, ...over });
 const drop = (symbol: string) => ({ action: "drop", symbol, why: "the catalyst passed without a move" });
 
 beforeEach(async () => {
@@ -76,6 +77,21 @@ describe("updateWatchlist and readWatchlist (#32)", () => {
     for (let i = 0; i < many.length; i += WATCHLIST_LIMITS.perCall) expect((await updateWatchlist(db, many.slice(i, i + WATCHLIST_LIMITS.perCall), "claude", NOW)).status).toBe("updated");
     expect(await updateWatchlist(db, [watch("UPBD")], "claude", NOW)).toMatchObject({ status: "rejected", errors: [expect.stringContaining(`at most ${WATCHLIST_LIMITS.open}`)] });
     expect(await updateWatchlist(db, [drop(many[0]!.symbol), watch("UPBD")], "claude", NOW)).toMatchObject({ status: "updated", open: WATCHLIST_LIMITS.open });
+  });
+
+  it("needs a forecast on a new name, not on an update, and stores the first one for the stay (forecast ledger)", async () => {
+    expect(await updateWatchlist(db, [watch("UPBD", "2026-12-15", { forecast: undefined })], "claude", NOW)).toEqual({
+      status: "rejected",
+      errors: ["changes[0].forecast: UPBD is new to the watchlist, so it needs a forecast: the chance (5–95%) it beats VTI by its horizon (default: revisitBy), and the expected excess"],
+    });
+    await updateWatchlist(db, [watch("UPBD", "2026-12-15")], "claude", NOW);
+    expect(await updateWatchlist(db, [watch("UPBD", "2026-12-20", { forecast: undefined })], "claude", later(1))).toMatchObject({ status: "updated" });
+    await updateWatchlist(db, [watch("UPBD", "2026-12-20", { forecast: { beatVtiPct: 55, expectedExcessPct: "3", horizon: "2026-12-18" } })], "claude", later(2));
+    // The horizon defaults to the revisit date; a restatement is kept but the first forecast is the one scored.
+    expect((await readWatchlist(db, later(2))).open[0]!.forecast).toEqual({ beatVtiPct: 40, expectedExcessPct: "-2", horizon: "2026-12-15" });
+    const rows = await db.select().from(watchlistNotes);
+    expect(rows.map((r) => r.beatVtiPct)).toEqual([40, null, 55]);
+    expect(await updateWatchlist(db, [watch("HGV", "2026-12-15", { forecast: { ...FORECAST, horizon: "2026-11-11" } })], "claude", NOW)).toMatchObject({ status: "rejected", errors: ["changes[0].forecast.horizon: must be after today (2026-11-11)"] });
   });
 
   it("is insert-only: a row can't be changed or removed", async () => {

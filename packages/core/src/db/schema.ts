@@ -481,6 +481,14 @@ export const watchlistNotes = pgTable(
     trigger: text(),
     /** When to look again (watch only). */
     revisitBy: date({ mode: "string" }),
+    /**
+     * Claude's forecast for the name it's passing on (SPEC-portfolio § Forecast
+     * ledger, watch only): the chance it beats VTI by `horizon`, and by how
+     * much. Null on notes written before the ledger.
+     */
+    beatVtiPct: integer(),
+    expectedExcessPct: numeric(),
+    horizon: date({ mode: "string" }),
     actor: auditActor().notNull(),
     at: timestamptz().notNull().defaultNow(),
   },

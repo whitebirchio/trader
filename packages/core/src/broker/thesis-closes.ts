@@ -1,6 +1,6 @@
 import { asc } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { strategies, thesisCloses } from "../db/schema.js";
+import { strategies, thesisCloses, watchlistNotes } from "../db/schema.js";
 import { marketDate } from "../time.js";
 import { writeChangedCloses } from "./closes.js";
 import type { BrokerAdapter } from "./port.js";
@@ -26,14 +26,20 @@ export function thesisSymbols(versions: { createdAt: Date; document: unknown }[]
 }
 
 /**
- * Re-read the adjusted daily closes of every thesis symbol, from CLOSES_LEAD_DAYS
- * before the first version that held any of them, and upsert the ones that are
- * new or changed (writeChangedCloses). One bars request; re-reading the whole
- * window keeps each symbol's closes on one adjustment basis. Returns the
- * number of closes written.
+ * Re-read the adjusted daily closes of every thesis symbol and every name ever
+ * on the watchlist (the forecast ledger scores both against VTI; SPEC-portfolio
+ * § Forecast ledger), from CLOSES_LEAD_DAYS before the first version or note
+ * that named any of them, and upsert the ones that are new or changed
+ * (writeChangedCloses). One bars request; re-reading the whole window keeps
+ * each symbol's closes on one adjustment basis. Returns the number of closes
+ * written.
  */
 export async function recordThesisCloses(db: Db, broker: BrokerAdapter, now: Date): Promise<number> {
   const symbols = thesisSymbols(await db.select({ createdAt: strategies.createdAt, document: strategies.document }).from(strategies).orderBy(asc(strategies.version)));
+  for (const w of await db.select({ symbol: watchlistNotes.symbol, at: watchlistNotes.at }).from(watchlistNotes)) {
+    const seen = symbols.get(w.symbol);
+    if (!seen || w.at < seen) symbols.set(w.symbol, w.at);
+  }
   if (symbols.size === 0) return 0;
   const earliest = Math.min(...[...symbols.values()].map((d) => d.getTime()));
   const bars = await broker.getDailyBars([...symbols.keys()], new Date(earliest - CLOSES_LEAD_DAYS * DAY_MS), now);

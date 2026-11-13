@@ -78,6 +78,18 @@ const watchChange = {
     why: { type: "string", description: "Why it's worth watching, or why it's dropped (10–600 characters)." },
     trigger: { type: "string", description: "watch only: what would make it a thesis, e.g. a dated catalyst or a filing (10–400 characters)." },
     revisitBy: { type: "string", description: "watch only: YYYY-MM-DD, after today and at most 120 days out." },
+    forecast: {
+      type: "object",
+      description:
+        "watch only, required for a name new to the list: your forecast for the stock you're passing on, scored against VTI like a thesis's (the forecast ledger). The first one for each stay on the list is scored; restating it later is optional.",
+      properties: {
+        beatVtiPct: { type: "integer", minimum: 5, maximum: 95, description: "The chance, in whole percent, that the stock beats VTI from now to the horizon." },
+        expectedExcessPct: { type: "string", description: "The expected return against VTI over the window, in percentage points, as a decimal string (−50 to 200)." },
+        horizon: { type: "string", description: "Optional YYYY-MM-DD, after today and at most 120 days out; defaults to revisitBy." },
+      },
+      required: ["beatVtiPct", "expectedExcessPct"],
+      additionalProperties: false,
+    },
   },
   required: ["action", "symbol", "why"],
   additionalProperties: false,
@@ -141,7 +153,7 @@ export const TOOLS: Tool[] = [
     name: "get_track_record",
     title: "Track record",
     description:
-      "Every thesis ever held, scored: its return on the dollars bought (realized, unrealized and dividends) vs the same dollars held in VTI over the same days (each buy buys VTI at that day's close, each sell sells the same fraction), with how it ended (open, removed, stopped, stale) and days held. Rolled up overall and by primary evidence kind (the most frequent kind in its evidence). Use it to see which kinds of signal have beaten VTI. A handful of theses held for days is noise, not a verdict. Each closed thesis carries its post-mortem (lesson); lessonsDue lists the closed ones still waiting for one (write it with record_lesson).",
+      "Every thesis ever held, scored: its return on the dollars bought (realized, unrealized and dividends) vs the same dollars held in VTI over the same days (each buy buys VTI at that day's close, each sell sells the same fraction), with how it ended (open, removed, stopped, stale) and days held. Rolled up overall and by lead signal (each thesis's declared leadSignal; older rows without one are inferred from the most frequent kind in its evidence, marked kindSource: inferred). Use it to see which kinds of signal have beaten VTI. A handful of theses held for days is noise, not a verdict. Each closed thesis carries its post-mortem (lesson); lessonsDue lists the closed ones still waiting for one (write it with record_lesson). `forecasts` is the forecast ledger: how your forecasts on theses and watchlist names have resolved against VTI (Brier score, skill against the 45% base rate, reliability by bucket, expected vs realized excess), whether what you bought beat what you passed on after 20 and 60 sessions, and which forecasts are still open; backfilled ones are kept out of the headline, and below 30 resolved it says too few to judge.",
     inputSchema: schema({}),
     readOnly: true,
     handler: (deps) => getTrackRecord(deps),
@@ -202,7 +214,7 @@ export const TOOLS: Tool[] = [
     name: "update_watchlist",
     title: "Update the research watchlist",
     description:
-      "Record names you researched but didn't buy, so the next run starts from them: `watch` adds a name or replaces its note (why, trigger, revisitBy); `drop` takes it off. All changes apply together, or none if any is invalid. It has no trading effect, and the owner sees each change in the daily digest.",
+      "Record names you researched but didn't buy, so the next run starts from them: `watch` adds a name or replaces its note (why, trigger, revisitBy, and a forecast on a new name); `drop` takes it off. All changes apply together, or none if any is invalid. It has no trading effect, and the owner sees each change in the daily digest.",
     inputSchema: schema({ changes: { type: "array", items: watchChange, minItems: 1, maxItems: 25, description: "At most 25 changes." } }, ["changes"]),
     readOnly: false,
     handler: (deps, args) => {

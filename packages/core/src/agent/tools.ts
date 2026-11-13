@@ -13,6 +13,7 @@ import { loadScorecard } from "../portfolio/scorecard.js";
 import { WASH_SALE_DAYS, washSaleWindow } from "../portfolio/planner.js";
 import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.js";
 import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submissionErrors, submitStrategy } from "../portfolio/store.js";
+import { loadForecastReport } from "../portfolio/forecasts.js";
 import { EVIDENCE_KINDS, EXIT_RULES, FORECAST_LIMITS, validateStrategy } from "../portfolio/strategy.js";
 import { IDLE_SYMBOL } from "../portfolio/systematic.js";
 import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
@@ -287,7 +288,7 @@ export async function getActivity({ db, now }: DbDeps, days = 14) {
  * held in VTI, rolled up overall and by primary evidence kind (SPEC-portfolio § Scorecard).
  */
 export async function getTrackRecord({ db, now }: DbDeps) {
-  const [card, lessons] = await Promise.all([loadScorecard(db, now), latestLessons(db)]);
+  const [card, lessons, forecasts] = await Promise.all([loadScorecard(db, now), latestLessons(db), loadForecastReport(db, now)]);
   const iso = (d: Date | null) => d?.toISOString() ?? null;
   const due = rowsDueLessons(card.theses, lessons);
   const listedIn = await lastListedVersions(db, due.flatMap((r) => r.ids));
@@ -310,6 +311,7 @@ export async function getTrackRecord({ db, now }: DbDeps) {
       ids: r.ids,
       symbol: r.symbol,
       primaryKind: r.primaryKind,
+      kindSource: r.kindSource,
       kinds: r.kinds,
       ending: r.ending,
       openedAt: iso(r.openedAt),
@@ -320,6 +322,14 @@ export async function getTrackRecord({ db, now }: DbDeps) {
       ...(r.money ?? { unscored: r.unscored }),
       ...(r.closedAt ? { lesson: lessonView(lessonFor(r, lessons)) } : {}),
     })),
+    /**
+     * The forecast ledger (SPEC-portfolio § Forecast ledger): how well your
+     * forecasts on theses and watchlist names are calibrated against what the
+     * stocks did vs VTI, and whether what you bought beat what you passed on.
+     * Backfilled forecasts are kept out of the headline. Below 30 resolved,
+     * every figure is too few to judge.
+     */
+    forecasts,
   };
 }
 

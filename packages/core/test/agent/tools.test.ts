@@ -129,7 +129,7 @@ describe("read tools", () => {
     broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
     broker.positions = [{ symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" }];
     await syncBroker(deps.db, broker, "staging", NOW);
-    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" }]);
+    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}]);
     expect((await getHoldings(deps)).filingsCheck).toMatchObject({ checkedAt: null, stale: true });
 
     const row = (accession: string, symbol: string, filedOn: string, kind: string, sellSignal: string | null = null) => ({ accession, symbol, cik: "1", form: kind === "periodic" ? "10-Q" : "4", filedOn, acceptedAt: new Date(`${filedOn}T21:00:00Z`), items: "", url: `https://www.sec.gov/${accession}`, kind, summary: `${kind} filing`, sellSignal });
@@ -155,7 +155,7 @@ describe("read tools", () => {
     broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
     broker.positions = [{ symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" }];
     await syncBroker(deps.db, broker, "staging", NOW);
-    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" }]);
+    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}]);
     const point = (eps: string, eps30dAgo: string) => ({ period: "2026-12-31", eps, eps7dAgo: eps, eps30dAgo, eps60dAgo: eps30dAgo, eps90dAgo: eps30dAgo, raised7d: 0, cut7d: 1, raised30d: 1, cut30d: 4, analysts: 20, revenue: null });
     await deps.db.insert(earningsEstimates).values([
       { symbol: "AAPL", fetchedOn: "2026-11-01", fetchedAt: NOW, status: "ok", quarter: point("1.80", "2.00"), fiscalYear: null },
@@ -168,13 +168,20 @@ describe("read tools", () => {
   });
 
   it("get_watchlist and update_watchlist: Claude's notes, flagged once a name is a thesis; get_overview counts them (#32)", async () => {
-    const note = (symbol: string, revisitBy: string) => ({ action: "watch", symbol, why: `${symbol} missed the bar this run`, trigger: `${symbol} confirms the turn in a 10-Q`, revisitBy });
+    const note = (symbol: string, revisitBy: string) => ({ action: "watch", symbol, why: `${symbol} missed the bar this run`, trigger: `${symbol} confirms the turn in a 10-Q`, revisitBy, forecast: { beatVtiPct: 40, expectedExcessPct: "-2" } });
     expect(await updateWatchlistTool(deps, [note("AAPL", "2026-11-30"), note("MSFT", "2026-11-20")])).toMatchObject({ status: "updated", open: 2 });
     await submitStrategyTool(deps, strategy()); // the fixture's thesis is AAPL
     const w = await getWatchlist(deps);
     expect(w.open.map((e) => [e.symbol, "nowThesis" in e])).toEqual([["MSFT", false], ["AAPL", true]]);
     expect(w.limits).toMatchObject({ perCall: 25, open: 40 });
     expect((await getOverview({ ...deps, now: new Date("2026-11-25T15:00:00Z") })).watchlist).toEqual({ open: 2, due: ["MSFT"] });
+    expect(w.open[0]).toMatchObject({ forecast: { beatVtiPct: 40, expectedExcessPct: "-2", horizon: "2026-11-20" } });
+  });
+
+  it("get_track_record: the forecast ledger and each row's kind source (forecast ledger)", async () => {
+    await submitStrategyTool(deps, strategy());
+    const t = await getTrackRecord(deps);
+    expect(t.forecasts).toMatchObject({ baseRatePct: 45, overall: { forecasts: 1, resolved: 0, tooFewToJudge: true }, open: [{ source: "thesis", id: "aapl-services", beatVtiPct: 55 }] });
   });
 
   it("get_activity: recent events, orders and rebalance steps", async () => {

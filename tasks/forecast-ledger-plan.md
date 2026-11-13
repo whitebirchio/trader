@@ -1,6 +1,6 @@
 # Plan: the forecast ledger and a declared lead signal
 
-> **Status: In progress** (PR 1 built) (spec approved by Scott 2026-11-13: SPEC-portfolio § Forecast ledger). Three PRs, in order. The higher position-cap tier is not in this plan.
+> **Status: In progress** (PR 1 merged as #126; PR 2 built) (spec approved by Scott 2026-11-13: SPEC-portfolio § Forecast ledger). Three PRs, in order. The higher position-cap tier is not in this plan.
 
 ## Why
 Every tested signal failed to beat VTI on its own, so Trader's bet is Claude's judgment, and P&L can't measure that for years. Forecasts on theses and on the names Claude passes on can show calibration and selection skill within months. The scorecard's inferred signal kind mislabels insider-origin theses as "fundamental", so each thesis declares its lead signal.
@@ -28,18 +28,18 @@ Every tested signal failed to beat VTI on its own, so Trader's bet is Claude's j
   - **Accept:** MCP tests; the gate.
 
 ## PR 2: the ledger
-- [ ] **F4. Closes for forecast symbols.**
-  - `src/broker/benchmark-closes.ts` / `sync.ts`: after the close, record adjusted closes for VTI plus each symbol with an unresolved forecast or yardstick, from its earliest start (Alpaca bar limits respected; chunked).
+- [x] **F4. Closes for forecast symbols.**
+  - `src/broker/thesis-closes.ts`: `recordThesisCloses` (after the close) also keeps every name ever on the watchlist, beside the thesis symbols it already did; VTI stays in `benchmark_closes`.
   - **Accept:** sync test with a fake broker; **paper rehearsal:** `broker:sync --env paper --force`, then the closes are in the local paper database.
-- [ ] **F5. Watchlist forecasts.**
+- [x] **F5. Watchlist forecasts.**
   - Migration `0029`: nullable `beat_vti_pct`, `expected_excess_pct`, `horizon` on `watchlist_notes` (trader_mcp's INSERT already covers them).
   - `watchlist.ts`: the `watch` action takes the three fields, required on a new watch (not on an update of a watched name), horizon defaulting to `revisitBy`, at most 120 days out. `readWatchlist` returns them.
   - `apps/mcp` `update_watchlist` schema and pin.
   - **Accept:** migration applies (`migrate-check`); tests for required-on-new, optional-on-update, the default.
-- [ ] **F6. Scoring.**
+- [x] **F6. Scoring.**
   - `src/portfolio/forecasts.ts`: collect scored forecasts (each thesis id's first stated, with `backfilled`; each watchlist run's first watch); resolve from recorded closes (a horizon on a holiday rolls to the next session); Brier, skill vs 45%, buckets (5–34, 35–49, 50–64, 65–95), expected vs realized excess (correlation from 20 resolved); "too few to judge" below 30; bought vs passed at 20 and 60 trading days with standard errors.
   - **Accept:** hand-computed Brier and skill; a forecast that beat, one that missed, one unresolved; a holiday horizon; first-forecast-only; backfilled excluded from the headline; yardsticks.
-- [ ] **F7. Reads and prompt.**
+- [x] **F7. Reads and prompt.**
   - `getTrackRecord` gains `forecasts`; `scorecard:show` prints it.
   - Prompt: Orient reads the calibration and says if it leans one way; the watchlist step states a forecast on each new name.
   - **Accept:** tool test; MCP pin; the gate.

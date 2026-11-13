@@ -261,7 +261,7 @@ describe("the check-filings job", () => {
   it("checks every thesis, then the open watchlist names that aren't theses", async () => {
     await submitStrategy(db, strategy({ conviction: [thesis(), thesis({ id: "lkq-1", symbol: "LKQ" })] }), "claude", NOW);
     const why = "worth a closer look later";
-    await updateWatchlist(db, [{ action: "watch", symbol: "CWST", why, trigger: "margins turn in the 10-Q", revisitBy: day(-20) }, { action: "watch", symbol: "LKQ", why, trigger: "a cleaner quarter", revisitBy: day(-20) }], "claude", NOW);
+    await updateWatchlist(db, [{ action: "watch", symbol: "CWST", why, trigger: "margins turn in the 10-Q", revisitBy: day(-20) , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}, { action: "watch", symbol: "LKQ", why, trigger: "a cleaner quarter", revisitBy: day(-20) , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}], "claude", NOW);
     expect(await filingTargets(db, NOW)).toEqual([
       { symbol: "AAPL", thesisId: "aapl-services" },
       { symbol: "LKQ", thesisId: "lkq-1" },
