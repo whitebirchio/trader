@@ -56,6 +56,22 @@ describe("validateStrategy", () => {
     expect(long.ok ? [] : long.errors).toEqual(["conviction[0].bearCase: keep it to a short paragraph (1,200 characters)"]);
   });
 
+  it("takes an optional lead signal, which must match an evidence item's kind (forecast ledger)", () => {
+    expect(errorsOf(strategy({ conviction: [thesis({ leadSignal: "insider" })] }))).toEqual(['conviction[0].leadSignal: "insider" must match the kind of at least one evidence item']);
+    expect(errorsOf(strategy({ conviction: [thesis({ leadSignal: undefined, forecast: undefined })] }))).toEqual([]);
+  });
+
+  it("takes an optional forecast: 5–95%, an expected excess, and a horizon no later than the review date", () => {
+    const f = (forecast: object, over: object = {}) => errorsOf(strategy({ conviction: [thesis({ forecast: forecast as never, ...over })] }));
+    expect(f({ beatVtiPct: 4, expectedExcessPct: "3", horizon: "2027-01-15" })).toEqual(["conviction[0].forecast.beatVtiPct: must be at least 5"]);
+    expect(f({ beatVtiPct: 96, expectedExcessPct: "3", horizon: "2027-01-15" })).toEqual(["conviction[0].forecast.beatVtiPct: must be at most 95"]);
+    expect(f({ beatVtiPct: 60, expectedExcessPct: "-51", horizon: "2027-01-15" })).toEqual(["conviction[0].forecast.expectedExcessPct: must be at least -50 and at most 200"]);
+    // The horizon defaults to the review date, and may not run past it.
+    expect(f({ beatVtiPct: 60, expectedExcessPct: "8" }, { reviewBy: "2027-01-15" })).toEqual([]);
+    expect(f({ beatVtiPct: 60, expectedExcessPct: "8", horizon: "2027-01-16" }, { reviewBy: "2027-01-15" })).toEqual(["conviction[0].forecast.horizon: 2027-01-16 is after the review date (2027-01-15)"]);
+    expect(f({ beatVtiPct: 60, expectedExcessPct: "8" })).toEqual(["conviction[0].forecast.horizon: needs a horizon, or a reviewBy date to default to"]);
+  });
+
   it("caps total conviction at 100% and forbids duplicate ids and symbols", () => {
     const many = Array.from({ length: 6 }, (_, i) => thesis({ id: `t-${i}`, symbol: `S${i}`, targetWeightPct: "20" }));
     expect(errorsOf(strategy({ conviction: many }))).toContain("conviction: target weights add up to 120%, more than 100%");

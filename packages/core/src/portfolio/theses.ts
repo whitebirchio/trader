@@ -190,6 +190,31 @@ export function bearCaseErrors(next: Strategy, active: Strategy): string[] {
   });
 }
 
+/**
+ * What Claude's tools also require on every thesis (SPEC-portfolio § Forecast
+ * ledger): a declared lead signal and a forecast. A new or changed forecast's
+ * horizon must be after today; an unchanged one passes once its horizon has
+ * gone by, so a held thesis can still be reaffirmed. Only each thesis's first
+ * forecast is scored; later ones are restatements.
+ */
+export function ledgerErrors(next: Strategy, active: Strategy, today: string): string[] {
+  const before = new Map(active.conviction.map((t) => [t.id, t]));
+  return next.conviction.flatMap((t, i) => {
+    const errors: string[] = [];
+    if (!t.leadSignal) errors.push(`conviction[${i}].leadSignal: ${t.id} needs a lead signal: the kind of evidence that surfaced the idea and carries the case`);
+    if (!t.forecast) {
+      errors.push(`conviction[${i}].forecast: ${t.id} needs a forecast: the chance (5–95%) it beats VTI by its horizon, and the expected excess`);
+      return errors;
+    }
+    const horizon = t.forecast.horizon ?? t.reviewBy;
+    const prev = before.get(t.id)?.forecast;
+    const prevHorizon = prev ? (prev.horizon ?? before.get(t.id)?.reviewBy) : undefined;
+    const changed = !prev || prev.beatVtiPct !== t.forecast.beatVtiPct || compare(prev.expectedExcessPct, t.forecast.expectedExcessPct) !== 0 || prevHorizon !== horizon;
+    if (changed && horizon && horizon <= today) errors.push(`conviction[${i}].forecast.horizon: ${horizon} must be after today (${today})`);
+    return errors;
+  });
+}
+
 /** Prices in email text: always two decimals ("$49.60", not "$49.6"). Display only. */
 function cents(v: string): string {
   const r = round(v, 2, "half-even");

@@ -13,7 +13,7 @@ import { loadScorecard } from "../portfolio/scorecard.js";
 import { WASH_SALE_DAYS, washSaleWindow } from "../portfolio/planner.js";
 import { WINDOW_CLOSE, WINDOW_OPEN, runRebalance } from "../portfolio/rebalance.js";
 import { type SubmitStrategyResult, activeStrategy, stoppedThesisIds, submissionErrors, submitStrategy } from "../portfolio/store.js";
-import { EVIDENCE_KINDS, EXIT_RULES, validateStrategy } from "../portfolio/strategy.js";
+import { EVIDENCE_KINDS, EXIT_RULES, FORECAST_LIMITS, validateStrategy } from "../portfolio/strategy.js";
 import { IDLE_SYMBOL } from "../portfolio/systematic.js";
 import { STALE_AFTER_MS, averageCost, thesisStates } from "../portfolio/theses.js";
 import { assetFacts, ineligibleReasons } from "../risk/eligibility.js";
@@ -410,7 +410,7 @@ export async function getExposure({ db, broker, now, filings }: ToolDeps, candid
 export function getRules() {
   return {
     strategySchema: {
-      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required), reviewBy (optional YYYY-MM-DD; see lifecycle), plainSummary (optional, 20–600 characters: the thesis in plain language for the owner; write one for every thesis), bearCase (40–1,200 characters: the strongest case against the thesis right now and why it doesn't win; required on a new thesis or a raised weight, and preview_strategy warns about any thesis without one). Total ≤ 100%.`,
+      conviction: `Theses: id (lowercase slug; a stopped id can never be reused), symbol, targetWeightPct (0 < w ≤ ${LIMITS.positionCapPct}, % of equity), thesis (prose), evidence (≥ 1; kinds: ${EVIDENCE_KINDS.join(", ")}), stopLossPct (5–50, required), reviewBy (optional YYYY-MM-DD; see lifecycle), plainSummary (optional, 20–600 characters: the thesis in plain language for the owner; write one for every thesis), bearCase (40–1,200 characters: the strongest case against the thesis right now and why it doesn't win; required on a new thesis or a raised weight, and preview_strategy warns about any thesis without one), leadSignal (required: one of the evidence kinds, the signal that surfaced the idea and carries the case, not the first or most frequent item; it must match an evidence item, and the track record rolls up by it), forecast (required: { beatVtiPct: whole percent ${FORECAST_LIMITS.minBeatVtiPct}–${FORECAST_LIMITS.maxBeatVtiPct}, the chance the stock beats VTI from now to the horizon; expectedExcessPct: ${FORECAST_LIMITS.minExcessPct} to ${FORECAST_LIMITS.maxExcessPct}, the expected return against VTI in points; horizon: optional YYYY-MM-DD, defaulting to reviewBy and no later than it; a new or changed horizon must be after today }. Only each thesis's first forecast is scored, against the stock's price vs VTI's whatever the trades did; later versions restate it). Total ≤ 100%.`,
       systematic: "universe (1–100 symbols), lookbackDays (21–252), skipRecentDays (0–21, < lookback), topN (1–20, ≤ universe), trendFilterDays (50–250 or null), weighting (equal | inverse_volatility), volatilityDays (20–126), defensive (symbol or null).",
       drift: "relativePct (1–100), minTradeUsd (1–1000): a holding is traded back to target only when off by more than max(relativePct × target, minTradeUsd).",
     },
@@ -478,7 +478,7 @@ export function getRules() {
 export async function previewStrategy({ db, broker, env, now }: ToolDeps, document: unknown) {
   const parsed = validateStrategy(document);
   if (!parsed.ok) return { valid: false, errors: parsed.errors };
-  const errors = await submissionErrors(db, parsed.strategy, now, EXIT_RULES, { requireBearCase: true });
+  const errors = await submissionErrors(db, parsed.strategy, now, EXIT_RULES, { requireBearCase: true, requireLedger: true });
   if (errors.length) return { valid: false, errors };
   const missing = parsed.strategy.conviction.filter((t) => !t.plainSummary).map((t) => t.id);
   const noBear = parsed.strategy.conviction.filter((t) => !t.bearCase).map((t) => t.id);
@@ -542,7 +542,7 @@ function saleTax(open: Parameters<typeof estimateSale>[0], symbol: string, qty: 
 
 /** Store a validated draft as the next version (actor "claude"). The owner is emailed either way. */
 export async function submitStrategyTool({ db, now }: ToolDeps, document: unknown): Promise<SubmitStrategyResult> {
-  return submitStrategy(db, document, "claude", now, { requireBearCase: true });
+  return submitStrategy(db, document, "claude", now, { requireBearCase: true, requireLedger: true });
 }
 
 const maxDate = (a: string, b: string) => (a > b ? a : b);

@@ -38,6 +38,8 @@ export interface ThesisWindow {
   symbol: string;
   /** Evidence kinds in the latest listing of any of `ids`, in document order. */
   kinds: string[];
+  /** The latest listing's declared lead signal, or null (SPEC-portfolio § Forecast ledger). */
+  leadSignal: string | null;
   openedAt: Date;
   /** When the last of `ids` stopped being the symbol's thesis; null while it still is. */
   leftAt: Date | null;
@@ -57,6 +59,7 @@ const listingSchema = z.object({
   id: z.string(),
   symbol: z.string(),
   evidence: z.array(z.object({ kind: z.string() }).passthrough()).optional().catch(undefined),
+  leadSignal: z.string().optional().catch(undefined),
 });
 const documentSchema = z.object({ conviction: z.array(z.unknown()) });
 
@@ -64,6 +67,7 @@ interface Listing {
   id: string;
   symbol: string;
   kinds: string[];
+  leadSignal: string | null;
 }
 
 function listings(document: unknown): Listing[] | null {
@@ -72,7 +76,7 @@ function listings(document: unknown): Listing[] | null {
   const out: Listing[] = [];
   for (const item of doc.data.conviction) {
     const l = listingSchema.safeParse(item);
-    if (l.success) out.push({ id: l.data.id, symbol: l.data.symbol, kinds: (l.data.evidence ?? []).map((e) => e.kind) });
+    if (l.success) out.push({ id: l.data.id, symbol: l.data.symbol, kinds: (l.data.evidence ?? []).map((e) => e.kind), leadSignal: l.data.leadSignal ?? null });
   }
   return out;
 }
@@ -118,7 +122,7 @@ export function thesisWindows(versions: ScorecardVersion[], events: ScorecardThe
   const windows: ThesisWindow[] = [];
 
   const openWindow = (symbol: string, id: string, at: Date, unscored: string | null) => {
-    const w: ThesisWindow = { ids: [id], symbol, kinds: latest.get(id)?.kinds ?? [], openedAt: at, leftAt: null, closedAt: null, ending: "open", fills: [], unscored };
+    const w: ThesisWindow = { ids: [id], symbol, kinds: latest.get(id)?.kinds ?? [], leadSignal: latest.get(id)?.leadSignal ?? null, openedAt: at, leftAt: null, closedAt: null, ending: "open", fills: [], unscored };
     open.set(symbol, w);
     windows.push(w);
     return w;
@@ -163,7 +167,10 @@ export function thesisWindows(versions: ScorecardVersion[], events: ScorecardThe
         const id = next.get(symbol) ?? null;
         if (claims.get(symbol) !== id) claim(symbol, id, s.at, "removed");
       }
-      for (const w of open.values()) w.kinds = latest.get(w.ids.at(-1)!)?.kinds ?? w.kinds;
+      for (const w of open.values()) {
+        const l = latest.get(w.ids.at(-1)!);
+        if (l) [w.kinds, w.leadSignal] = [l.kinds, l.leadSignal];
+      }
     } else if (s.kind !== "fill") {
       if (s.kind === "stopped" || s.kind === "trailing_stopped" || s.kind === "took_profit") stopped.add(s.thesisId);
       for (const [symbol, id] of claims) if (id === s.thesisId) claim(symbol, null, s.at, s.kind);
@@ -213,8 +220,13 @@ export interface ThesisMoney {
 export interface ScorecardRow {
   ids: string[];
   symbol: string;
-  /** The most frequent evidence kind (ties: the earliest listed); null without evidence. */
+  /**
+   * The declared lead signal, or else the most frequent evidence kind (ties:
+   * the earliest listed); null without either.
+   */
   primaryKind: string | null;
+  /** Whether primaryKind was declared (leadSignal) or inferred from the evidence. */
+  kindSource: "declared" | "inferred";
   kinds: string[];
   openedAt: Date;
   leftAt: Date | null;
@@ -300,7 +312,7 @@ export function scoreTheses(windows: ThesisWindow[], input: ScoreInputs): Scorec
     if (compare(bought, "0") <= 0) unscored ??= "no buys in the window";
 
     const daysHeld = Math.floor(((w.closedAt ?? input.asOf).getTime() - w.openedAt.getTime()) / DAY_MS);
-    const row = { ids: w.ids, symbol: w.symbol, primaryKind: primaryKind(w.kinds), kinds: w.kinds, openedAt: w.openedAt, leftAt: w.leftAt, closedAt: w.closedAt, ending: w.ending, daysHeld, qty, fills: w.fills };
+    const row = { ids: w.ids, symbol: w.symbol, primaryKind: w.leadSignal ?? primaryKind(w.kinds), kindSource: w.leadSignal ? ("declared" as const) : ("inferred" as const), kinds: w.kinds, openedAt: w.openedAt, leftAt: w.leftAt, closedAt: w.closedAt, ending: w.ending, daysHeld, qty, fills: w.fills };
     if (unscored) return { ...row, unscored, money: null };
 
     const marketValue = held ? mul(qty, mark!) : "0";

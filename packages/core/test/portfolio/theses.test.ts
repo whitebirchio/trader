@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenLot } from "../../src/broker/lots.js";
-import { averageCost, bearCaseErrors, highSinceEntry, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
+import { averageCost, bearCaseErrors, highSinceEntry, ledgerErrors, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
 import { strategy, thesis } from "./fixtures.js";
 
 const created = new Date("2026-11-02T15:00:00Z");
@@ -223,3 +223,24 @@ describe("bearCaseErrors (#106)", () => {
   });
 });
 
+
+describe("ledgerErrors (forecast ledger)", () => {
+  const doc = (over: Parameters<typeof thesis>[0]) => strategy({ conviction: [thesis(over)] });
+  const empty = strategy({ conviction: [] });
+  const today = "2026-11-13";
+
+  it("needs a lead signal and a forecast on every thesis, new or held", () => {
+    expect(ledgerErrors(doc({ leadSignal: undefined, forecast: undefined }), doc({}), today)).toEqual([
+      "conviction[0].leadSignal: aapl-services needs a lead signal: the kind of evidence that surfaced the idea and carries the case",
+      "conviction[0].forecast: aapl-services needs a forecast: the chance (5–95%) it beats VTI by its horizon, and the expected excess",
+    ]);
+    expect(ledgerErrors(doc({}), empty, today)).toEqual([]);
+  });
+
+  it("wants a new or changed horizon after today, but lets an unchanged one pass after it", () => {
+    const past = { beatVtiPct: 60, expectedExcessPct: "5", horizon: "2026-11-13" };
+    expect(ledgerErrors(doc({ forecast: past }), empty, today)).toEqual(["conviction[0].forecast.horizon: 2026-11-13 must be after today (2026-11-13)"]);
+    expect(ledgerErrors(doc({ forecast: past }), doc({ forecast: past }), today)).toEqual([]);
+    expect(ledgerErrors(doc({ forecast: { ...past, beatVtiPct: 65 } }), doc({ forecast: past }), today)).toHaveLength(1);
+  });
+});
