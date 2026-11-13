@@ -70,7 +70,7 @@ describe("MarketDataOnly", () => {
     await checkEligibility(deps, ["AAPL", "VTI"]);
     await getExposure(deps, ["AAPL"]);
     await getWatchlist(deps);
-    expect(await updateWatchlistTool(deps, [{ action: "watch", symbol: "AAPL", why: "a reason in a sentence", trigger: "a trigger in a sentence", revisitBy: "2026-12-01" }])).toMatchObject({ status: "updated" });
+    expect(await updateWatchlistTool(deps, [{ action: "watch", symbol: "AAPL", why: "a reason in a sentence", trigger: "a trigger in a sentence", revisitBy: "2026-12-01" , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}])).toMatchObject({ status: "updated" });
     getRules();
     expect(await previewStrategy(deps, draft)).toMatchObject({ valid: true });
     expect(await submitStrategyTool(deps, draft)).toMatchObject({ status: "activated" });

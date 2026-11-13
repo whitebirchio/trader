@@ -204,6 +204,13 @@
       "when": 1794517720179,
       "tag": "0028_thesis_lessons",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794592196820,
+      "tag": "0029_watchlist_forecasts",
+      "breakpoints": true
     }
   ]
 }

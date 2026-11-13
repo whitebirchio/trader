@@ -224,7 +224,7 @@ For each row, over its fills (`FILL`) and dividends (`DIV`) in the window:
 2. Probabilities are **whole percents, 5–95**. Nothing is certain, and the bounds keep one confident miss from dominating.
 3. **Only the first forecast for each thesis id is scored** in v1. Later versions may restate it; restatements are shown, not scored (see Open questions).
 4. The **watchlist is the control group**: names researched and passed on get the same forecast, so calibration covers "no" decisions too, and bought vs passed can be compared at fixed horizons.
-5. **No new LLM calls and no paid data.** Closes come from Alpaca's daily bars, cached in `benchmark_closes` (already keyed by symbol), which the after-close sync extends to every symbol with an unresolved forecast.
+5. **No new LLM calls and no paid data.** Closes come from Alpaca's daily bars: each symbol's in `thesis_closes` (the thesis chart's cache, #39), which the after-close sync now also fills for every name ever on the watchlist, and VTI's in `benchmark_closes`.
 6. Everything is **computed on read**, like the scorecard, except the watchlist's forecast fields (stored with the note) and the closes cache.
 
 ### Lead signal
@@ -264,7 +264,7 @@ For resolved forecasts, overall and split by source (thesis, watchlist, backfill
 ### Data model (additive)
 - No change to the strategy table: `leadSignal` and `forecast` live in the document (jsonb).
 - `watchlist_notes`: three nullable columns. `trader_mcp`'s INSERT grant already covers them.
-- `benchmark_closes`: no schema change; the after-close sync records closes for VTI plus each symbol with an unresolved forecast or yardstick (from its start date), within Alpaca's bar limits.
+- `thesis_closes`: no schema change; `recordThesisCloses` (the after-close sync) adds every name ever on the watchlist to the thesis symbols it already keeps. VTI's closes stay in `benchmark_closes`. *(Built: the spec first named `benchmark_closes` for both; `thesis_closes` already held every thesis symbol.)*
 
 ### Testing
 - PGlite tests in `packages/core/test/`: schema validation (`leadSignal` matches an evidence kind, `forecast` bounds and horizon ≤ `reviewBy`); the tools refusing a missing lead signal or forecast; resolution from recorded closes (beat, missed, unresolved, a horizon on a holiday rolls to the next session); first-forecast-only scoring; the backfill label; watchlist forecasts; Brier and skill score against hand-computed values; buckets; bought vs passed; the closes sync adding forecast symbols.

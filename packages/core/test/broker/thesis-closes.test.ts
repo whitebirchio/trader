@@ -3,7 +3,7 @@ import type { Bar } from "../../src/broker/port.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import { recordThesisCloses, thesisSymbols } from "../../src/broker/thesis-closes.js";
 import type { Db } from "../../src/db/client.js";
-import { thesisCloses } from "../../src/db/schema.js";
+import { thesisCloses, watchlistNotes } from "../../src/db/schema.js";
 import { submitStrategy } from "../../src/portfolio/store.js";
 import { createTestDb } from "../helpers.js";
 import { strategy, thesis } from "../portfolio/fixtures.js";
@@ -55,6 +55,19 @@ describe("recordThesisCloses", () => {
       { symbol: "AAPL", tradingDate: "2026-10-30", close: "201.5" },
       { symbol: "MSFT", tradingDate: "2026-10-30", close: "400" },
     ]);
+  });
+
+  it("also keeps the closes of every name ever on the watchlist, which the forecast ledger scores", async () => {
+    await db.insert(watchlistNotes).values({ symbol: "MSFT", action: "watch", why: "Buyback, but guidance fell", trigger: "Q4 margins recover", revisitBy: "2026-12-01", actor: "claude", at: new Date("2026-11-01T15:00:00Z") });
+    const requested: string[][] = [];
+    const getDailyBars = broker.getDailyBars.bind(broker);
+    broker.getDailyBars = (async (symbols: string[]) => {
+      requested.push([...symbols].sort());
+      return getDailyBars(symbols);
+    }) as typeof broker.getDailyBars;
+    await recordThesisCloses(db, broker, AFTER_CLOSE);
+    expect(requested).toEqual([["MSFT"]]);
+    expect((await stored()).map((r) => r.symbol)).toContain("MSFT");
   });
 
   it("is recorded by sync-broker after the close, and a bars failure never blocks the account verdict", async () => {

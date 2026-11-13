@@ -3,6 +3,7 @@ import { z } from "zod";
 import { recordEvent } from "../audit.js";
 import type { Db } from "../db/client.js";
 import { watchlistNotes } from "../db/schema.js";
+import { forecast } from "../portfolio/strategy.js";
 import { marketDate } from "../time.js";
 
 /**
@@ -26,6 +27,8 @@ const change = z.discriminatedUnion("action", [
     why,
     trigger: z.string().trim().min(10, "say what would make it a thesis").max(400, "keep it to 400 characters"),
     revisitBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD"),
+    /** SPEC-portfolio § Forecast ledger: required on a new name; horizon defaults to revisitBy. */
+    forecast: forecast.optional(),
   }),
   z.object({ action: z.literal("drop"), symbol, why }),
 ]);
@@ -43,6 +46,8 @@ export interface WatchlistEntry {
   /** When it went on the list, and when its note last changed. */
   watchedSince: string;
   updatedAt: string;
+  /** The forecast scored for this stay on the list: the first one stated since it went on (null before the ledger). */
+  forecast: { beatVtiPct: number; expectedExcessPct: string; horizon: string } | null;
 }
 
 type Row = typeof watchlistNotes.$inferSelect;
@@ -80,6 +85,9 @@ export async function readWatchlist(db: Db, now: Date, droppedDays = 14): Promis
       continue;
     }
     const revisitBy = last.revisitBy!;
+    const stated = rows
+      .filter((r) => r.symbol === s && r.action === "watch" && r.at.getTime() >= watchedSince.getTime() && r.beatVtiPct !== null)
+      .sort((a, b) => a.at.getTime() - b.at.getTime())[0];
     open.push({
       symbol: s,
       why: last.why,
@@ -89,6 +97,7 @@ export async function readWatchlist(db: Db, now: Date, droppedDays = 14): Promis
       due: revisitBy < today,
       watchedSince: watchedSince.toISOString(),
       updatedAt: last.at.toISOString(),
+      forecast: stated ? { beatVtiPct: stated.beatVtiPct!, expectedExcessPct: stated.expectedExcessPct!, horizon: stated.horizon! } : null,
     });
   }
   open.sort((a, b) => a.revisitBy.localeCompare(b.revisitBy) || a.symbol.localeCompare(b.symbol));
@@ -123,6 +132,12 @@ export async function updateWatchlist(db: Db, input: unknown, actor: "claude" | 
       if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== c.revisitBy) errors.push(`changes[${i}].revisitBy: must be a real date`);
       else if (c.revisitBy <= today) errors.push(`changes[${i}].revisitBy: must be after today (${today})`);
       else if (days(today, c.revisitBy) > WATCHLIST_LIMITS.revisitMaxDays) errors.push(`changes[${i}].revisitBy: at most ${WATCHLIST_LIMITS.revisitMaxDays} days out`);
+      if (!c.forecast && !openNow.has(c.symbol)) {
+        errors.push(`changes[${i}].forecast: ${c.symbol} is new to the watchlist, so it needs a forecast: the chance (5–95%) it beats VTI by its horizon (default: revisitBy), and the expected excess`);
+      } else if (c.forecast?.horizon) {
+        if (c.forecast.horizon <= today) errors.push(`changes[${i}].forecast.horizon: must be after today (${today})`);
+        else if (days(today, c.forecast.horizon) > WATCHLIST_LIMITS.revisitMaxDays) errors.push(`changes[${i}].forecast.horizon: at most ${WATCHLIST_LIMITS.revisitMaxDays} days out`);
+      }
     }
   });
   const after = new Set(openNow);
@@ -131,7 +146,21 @@ export async function updateWatchlist(db: Db, input: unknown, actor: "claude" | 
   if (errors.length) return { status: "rejected", errors };
 
   await db.insert(watchlistNotes).values(
-    changes.map((c) => ({ symbol: c.symbol, action: c.action, why: c.why, trigger: c.action === "watch" ? c.trigger : null, revisitBy: c.action === "watch" ? c.revisitBy : null, actor, at: now })),
+    changes.map((c) => {
+      const f = c.action === "watch" ? c.forecast : undefined;
+      return {
+        symbol: c.symbol,
+        action: c.action,
+        why: c.why,
+        trigger: c.action === "watch" ? c.trigger : null,
+        revisitBy: c.action === "watch" ? c.revisitBy : null,
+        beatVtiPct: f?.beatVtiPct ?? null,
+        expectedExcessPct: f?.expectedExcessPct ?? null,
+        horizon: f ? (f.horizon ?? (c.action === "watch" ? c.revisitBy : null)) : null,
+        actor,
+        at: now,
+      };
+    }),
   );
   const watched = changes.filter((c) => c.action === "watch");
   const dropped = changes.filter((c) => c.action === "drop");
@@ -140,7 +169,7 @@ export async function updateWatchlist(db: Db, input: unknown, actor: "claude" | 
     kind: "watchlist.updated",
     subject: changes.map((c) => c.symbol).join(", "),
     payload: {
-      watched: watched.map((c) => ({ symbol: c.symbol, trigger: c.trigger, revisitBy: c.revisitBy, new: !openNow.has(c.symbol) })),
+      watched: watched.map((c) => ({ symbol: c.symbol, trigger: c.trigger, revisitBy: c.revisitBy, new: !openNow.has(c.symbol), ...(c.forecast ? { beatVtiPct: c.forecast.beatVtiPct } : {}) })),
       dropped: dropped.map((c) => ({ symbol: c.symbol, why: c.why })),
       open: after.size,
     },
