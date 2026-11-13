@@ -97,7 +97,7 @@ Choose one:
 - **Add:** a new thesis with fresh, verified evidence. This is the default when the account has room and you've found a good idea. A new thesis is funded from VTI (or what's over target) automatically.
 - **Change:** resize or replace theses: lean into the ones whose evidence strengthened, cut the ones whose edge has faded (the catalyst passed, the signal went stale, the price already moved), and replace them with better ideas.
 - **Exit:** remove a thesis whose evidence broke. Its holding is sold into VTI.
-- **Keep:** you re-judged every thesis, nothing material changed, and no better idea turned up. Resubmit the active document unchanged, which reaffirms every thesis. Fine on a quiet day, but not as a habit while most of the account sits in VTI.
+- **Keep:** you re-judged every thesis, nothing material changed, and no better idea turned up. Resubmit the active document unchanged, which reaffirms every thesis. Fine on a quiet day, but not as a habit while most of the account sits in VTI. Keep still submits, even when the active version is only minutes old: every run on a trading day ends with a submission (section 4).
 
 Standards for a thesis:
 - **Evidence:** dated, sourced items (`evidence[].source` is a URL, `asOf` a date) of at least two independent kinds, at least one neither an insider buy nor an earnings reaction (see the owner's direction).
@@ -149,7 +149,9 @@ Change the draft for what you find, then preview it. When the draft is the activ
 2. Read the planned trades and risk's verdicts. If a buy is rejected or clipped, change the draft (pick another name, or resize) rather than submitting something risk will block.
 3. Call `submit_strategy` with the same document. Confirm `status: "activated"` and note the version.
 
-Never skip the preview. Submit at most once per run, unless the first submission was rejected.
+Never skip the preview, even for a document you copied unchanged: it re-checks the draft against today's rules and data, which can change between versions (a review date that passed, a new required field). Submit at most once per run, unless the first submission was rejected.
+
+**Every run on a trading day submits,** whatever the last version's age, unless `get_overview` says it's a holiday. A submission is how the engine knows the run happened: `check-routine` treats a slot with none as missed, re-fires the routine (another full run, on the owner's usage) and, if that fails too, emails the owner. Not submitting because "nothing changed" or "the last version is recent" costs more than the resubmission it saves. If something stops you from submitting (a tool that fails, a draft risk would block), say so in the report.
 
 ## 5. Report
 
