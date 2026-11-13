@@ -55,7 +55,7 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
   4. Reviews the draft as one book *(2026-11-13, #106)*: hidden one-bet pairs and sector weight (`get_exposure`), weight crowded on one kind of signal, theses reporting earnings in the same week, the one move that would hurt most of it at once, and the weakest thesis. Risk stays deterministic code; this catches a book that passes every limit and is still one bet. The summary carries a "Book:" line.
   5. Runs `preview_strategy`, then `submit_strategy`.
 - **If the routine stops running,** the last strategy keeps executing. After 30 days without a resubmission, theses unwind to systematic and you're emailed (ADR-004, ADR-013).
-- **A missed run is emailed** *(2026-11-12)*. Every run on a trading day submits a strategy, unchanged or not. The `check-routine` tick job looks 45 minutes after each fire time (13:00 and 17:00 UTC, `ROUTINE_RUNS_UTC` in `src/agent/routine-watch.ts`, which must match the trigger's cron; #14). If Claude submitted nothing, activated or rejected, between that fire time and the next, it records `routine.missed` once (urgent), and the same tick's `notify-urgent` sends it. A holiday has no runs to miss. It catches a run stopped by the account's weekly usage limit, which skipped two runs in November 2026 with no one told.
+- **A missed run is emailed** *(2026-11-12)*. Every run on a trading day submits a strategy, unchanged or not. The `check-routine` tick job looks 45 minutes after each fire time (13:00 and 17:00 UTC, `ROUTINE_RUNS_UTC` in `src/agent/routine-watch.ts`, which must match the trigger's cron; #14). If Claude submitted nothing, activated or rejected, between that fire time and the next, it records `routine.missed` once (urgent), and the same tick's `notify-urgent` sends it. A holiday has no runs to miss. It catches a run stopped by the account's weekly usage limit, which skipped two runs in November 2026 with no one told. *(2026-11-13)* With routine tokens set, it re-fires the run first (§ Missed-run recovery).
 
 ## Lessons
 
@@ -70,6 +70,68 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
 - **Read back:** each closed `get_track_record` row carries its `lesson`. `check_eligibility` carries `pastLessons` for each symbol (the latest lesson for each past thesis on it, newest first, up to 3).
 - **The owner:** `lessons.recorded` routes to the digest, under "Lessons".
 - **The routine:** writes a lesson for every `lessonsDue` thesis in Orient, and reads `pastLessons` and same-signal lessons before drafting. A lesson from a hold of days is weak evidence.
+
+## Missed-run recovery (2026-11-13)
+
+> **Status: Built** (approved by Scott 2026-11-13, after an outage cost the day's 8:00 run; open questions resolved below). Live once Scott stores the tokens (`scripts/set-routine-tokens.sh`; docs/SETUP.md). Plan: [tasks/routine-retry-plan.md](tasks/routine-retry-plan.md). Builds on the missed-run alert (#121).
+
+**Why.** On 2026-11-13 Anthropic's incident "Elevated errors on claude.ai, the Claude API, and Claude Code" (from 13:09 UTC; connectors degraded until at least 14:36) cost the 8:00 run twice over: the scheduled fire at 13:05 never started a session, and two manual re-fires (14:35, 14:47) started but couldn't reach the Trader connector (a 502 from the connector gateway; Trader's MCP server logged no requests). Earlier in November the weekly usage limit stopped two runs. Each time `check-routine` emailed, and recovering needed a person to notice and press **Run now**. Missed runs will keep happening, for reasons outside Trader. Recovery shouldn't depend on someone watching.
+
+**What.** When a run submits nothing, `check-routine` re-fires that routine through the routines API, waits, and tries once more; it emails only when the retries fail too, or can't be made.
+
+**Assumptions (correct any of these):**
+1. **The routines API's fire endpoint** (`POST https://api.anthropic.com/v1/claude_code/routines/{trigger_id}/fire`, `Authorization: Bearer <per-routine token>`, `anthropic-version`) is the mechanism. It's documented, in research preview ("might change"), and a routine keeps its schedule while it also accepts fires. Each fire creates a new session; there's no idempotency key. Limits: 30 fires an hour per routine, 100 per account.
+2. **Tokens are made by Scott, by hand.** Each routine's token is generated in its settings on claude.ai (Trigger → + → API → Generate token), is shown once, and can only fire that routine (no read access). There's no API to create one. They go in SSM as one SecureString, `/trader/production/ROUTINE_FIRE_TOKENS`: JSON `{ "<trigger id>": "<token>" }`. Setting it is Scott's (CLAUDE.md: production secrets).
+3. **Without tokens nothing changes:** the parameter is optional, and with it absent (or a slot's trigger missing from it) `check-routine` alerts at +45 minutes as today.
+4. **A failed run costs little and a retried success costs one normal run** of that routine's model. Two retries a slot at most.
+5. **The engine learns nothing from claude.ai.** It sees only whether a strategy was submitted (as #121 does): it can't tell "never started" from "failed to connect" from "still running". The retry delays allow for a slow run.
+
+### When to retry
+- Each fire time gets its trigger id and name beside it in core: `ROUTINES = [{ fireUtc: "13:00", triggerId: "trig_…", name }, …]` (`ROUTINE_RUNS_UTC` is derived from it). The existing test that keeps `agent/routines.json`'s crons in step also checks the trigger ids.
+- **Retry 1** at fire time **+30 minutes**, **retry 2** at **+90 minutes**, each only if nothing has been submitted for the slot (the existing rule: a submission belongs to the latest fire time before it) and it's still a trading day (the calendar is asked only when something is missing, as now).
+- **No retry fired after 14:45 ET**, so a retried run (~5 minutes) can submit before the rebalance window closes at 15:30. **No retry within 30 minutes of the next slot's fire time:** that run covers it.
+- A run that's merely slow (still running at +30) can lead to two submissions for the slot; that's harmless (the second is a newer version) and accepted.
+
+### Recording it (audit; ADR-008)
+- **`routine.retry`**, before the API call, subject `<slot ISO>#<attempt>`: its existence is the claim, so a redelivered tick (ADR-007 already dedupes by `(job, scheduled_for)`) or a second tick can't fire twice. Payload: slot, attempt, trigger id, and the outcome once known (`fired` with the session URL, or `failed` with the HTTP status and error type, never the token).
+  - Because rows can't be updated, the outcome is a second event: **`routine.retry_result`**, same subject.
+- **`routine.missed`** (urgent, as now) moves later when tokens are set: at **+45 minutes after the last retry** (+135) if still nothing, or straight away when a retry can't be made (API error, 401/403 meaning a bad or revoked token, 429, no token for that trigger). Its email says what was tried: "Retried at 8:30 and 9:30 ET; neither submitted", or "Retry refused: the token for this routine was rejected (401). Regenerate it on claude.ai and update ROUTINE_FIRE_TOKENS."
+- **Routing:** `routine.retry` and `routine.retry_result` go to the **digest** ("Research run retried at 8:30 ET; it submitted v19"). A retry that worked isn't an emergency; the owner reads it after the close.
+
+### Shape (hexagonal, ADR-002)
+- Core: a **`RoutineFirer` port** (`fire(triggerId, text) → { status: "fired", sessionUrl } | { status: "failed", httpStatus, errorType }`), and `checkRoutineRuns` extended with the retry schedule; a fake in tests.
+- **`AnthropicRoutineFirer`** in core beside the port, on an injected `fetch` like `AlpacaBroker`, with a 15-second timeout; the token never reaches a log line, an event or an error message. `apps/lambda` builds it from the parsed config; `routine:fire` builds it from SSM.
+- The fire's `text` names the retry ("Automatic retry 1 of the 8:00 ET run: the scheduled run submitted nothing by 8:30 ET"). The routine's stub doesn't need to read it; the session shows why it ran.
+- **Config:** `ROUTINE_FIRE_TOKENS` added to `ENGINE_PARAMETERS` (so the engine role's `ssm:GetParameters` grant gains one ARN; `infra/test` pins it), optional and Zod-validated (a JSON object of `trig_…` ids to `sk-ant-oat01-…` tokens). Invalid JSON is a config error naming the variable, never its value; config fails closed as today.
+
+### Not in scope
+- Reading run logs or session status from claude.ai (no credential for that in the engine).
+- Fixing a stuck schedule (the 8:00 routine's next-run time stayed at the outage's slot); that's on the claude.ai side and is watched by hand.
+- Retrying a run that submitted something the owner dislikes, or one rejected by `submit_strategy` (`strategy.rejected` already counts as a run, as in #121).
+
+### Testing
+- Core (PGlite + a fake firer): no retry before +30; retry 1 at +30 and 2 at +90 when nothing was submitted; none once a submission lands; none on a holiday; none after 14:45 ET or within 30 minutes of the next slot; a redelivered tick doesn't fire twice; the missed alert at +135 after two failed retries, and at once when a fire is refused (401, 429, no token); without tokens, today's behaviour exactly.
+- The adapter (core, fetch faked): its request (URL, headers, body), its timeout, and that error results carry no token. `apps/lambda`: it's built only when the tokens are configured.
+- `infra/test`: the engine role's parameter list.
+- Compose and routing tests for the new kinds.
+
+### Boundaries
+- **Always:** claim before firing; at most two retries a slot; keep the token out of logs, events and emails.
+- **Ask first:** more retries, earlier retries, or retrying outside the trading window.
+- **Never:** fire a routine other than the one whose slot was missed; store the token anywhere but SSM.
+
+### Success criteria
+1. With tokens set, a slot with no submission is re-fired at +30 and +90 minutes, each recorded before the call, and never twice for one attempt.
+2. A retried run that submits closes the slot: no `routine.missed`, and the digest says it was retried.
+3. If the retries don't produce a submission, or a fire is refused, Scott gets one urgent email saying what was tried and why it failed.
+4. With `ROUTINE_FIRE_TOKENS` absent, behaviour is today's, and every existing `check-routine` test passes unchanged.
+5. **Live check** (after Scott sets the tokens). A missed slot can't be staged on purpose, so the adapter is checked directly: `npm run routine:fire -w @trader/core -- --env production --routine 8:00 --dry-run` prints the request it would send (without the token); without `--dry-run` it fires once, and the session appears in RemoteTrigger's `list_runs`.
+
+### Resolved questions (Scott, 2026-11-13)
+1. **Retry times:** +30 and +90 minutes.
+2. **Model:** a retry fires the slot's own routine, so it runs on the model that slot would have used (Opus at 8:00, Sonnet at 12:00).
+3. **A successful retry** goes in the digest, not an urgent email.
+4. **`routine:fire`**, a laptop command to fire a routine by hand (with `--dry-run`), is in scope: the live check, and manual recovery.
 
 ## Architecture
 

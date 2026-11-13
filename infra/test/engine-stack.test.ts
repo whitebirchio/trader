@@ -103,6 +103,8 @@ describe("EngineStack", () => {
     // Exactly the engine's own names, read with GetParameters: never the whole path, which holds the MCP server's and dashboard's secrets.
     expect(reads[0]?.Action).toBe("ssm:GetParameters");
     expect(reads[0]?.Resource).toEqual(ENGINE_PARAMETERS.map((n) => `arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/${n}`));
+    // The routines API tokens (SPEC-agent § Missed-run recovery): the engine re-fires a missed research run.
+    expect(ENGINE_PARAMETERS).toContain("ROUTINE_FIRE_TOKENS");
     expect(JSON.stringify(roleStatements(production))).not.toContain("ssm:GetParametersByPath");
     expect(roleStatements(production).filter((s) => JSON.stringify(s.Action).includes("ssm:"))).toHaveLength(3); // engine, MCP, dashboard
     expect(roleStatements(production).filter((s) => JSON.stringify(s.Action).includes("ses:"))).toHaveLength(1);

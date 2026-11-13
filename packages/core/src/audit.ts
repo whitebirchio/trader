@@ -38,6 +38,8 @@ export const AUDIT_KINDS = [
   "watchlist.updated",
   "lessons.recorded",
   "routine.missed",
+  "routine.retry",
+  "routine.retry_result",
   // SEC filings on held and watched names (#105).
   "filing.sell_signal",
   "filings.noticed",

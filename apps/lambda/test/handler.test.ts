@@ -60,6 +60,25 @@ describe("scheduled ticks", () => {
     expect(closed).toBe(1);
   });
 
+  it("hands check-routine a routine firer when tokens are configured (missed-run recovery)", async () => {
+    const fired: string[] = [];
+    const monday = new Date("2026-11-02T13:30:00Z");
+    const withFirer = (): HandlerDeps => ({
+      ...deps(),
+      now: () => monday,
+      makeRoutineFirer: (config) =>
+        config.routineFireTokens ? { fire: async (triggerId) => (fired.push(triggerId), { status: "fired", sessionUrl: null }) } : undefined,
+    });
+    const tick = { jobs: ["check-routine"], scheduledTime: "2026-11-02T13:30:00Z" };
+    // Without tokens: as before, nothing is due until 45 minutes past the fire time.
+    expect(await createHandler(withFirer())(tick)).toMatchObject({ results: [{ job: "check-routine", status: "skipped" }] });
+    env = { ...ENV, ROUTINE_FIRE_TOKENS: JSON.stringify({ trig_019uVfvbsEyzRfobyggy8kzy: "sk-ant-oat01-abcdefghijklmnop" }) };
+    const result = await createHandler(withFirer())({ ...tick, scheduledTime: "2026-11-02T13:31:00Z" });
+    expect(result).toMatchObject({ results: [{ job: "check-routine", status: "succeeded", detail: { retried: [{ attempt: 1, outcome: "fired" }] } }] });
+    expect(fired).toEqual(["trig_019uVfvbsEyzRfobyggy8kzy"]);
+    expect(JSON.stringify(logs)).not.toContain("sk-ant");
+  });
+
   it("treats a redelivered tick as a no-op (ADR-007)", async () => {
     const handler = createHandler(deps());
     await handler({ jobs: ["heartbeat"], scheduledTime: "2026-11-01T17:00:00Z" });

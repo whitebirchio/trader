@@ -3,6 +3,7 @@ import { type EarningsCalendarPort, refreshEarningsCalendar } from "./agent/earn
 import { type EarningsHistoryPort, backfillEarningsHistory, backfillProgress, describeProgress } from "./agent/earnings-history.js";
 import { type EstimatesPort, refreshEstimates } from "./agent/estimates.js";
 import { checkFilings, filingTargets } from "./agent/filings.js";
+import type { RoutineFirer } from "./agent/routine-firer.js";
 import { checkRoutineRuns } from "./agent/routine-watch.js";
 import type { FilingsFeedPort } from "./agent/sec.js";
 import { recordEvent } from "./audit.js";
@@ -34,6 +35,8 @@ export interface JobDeps {
   estimates?: EstimatesPort;
   /** SEC EDGAR, for the filings check (#105); absent in tests that don't need it. */
   filings?: FilingsFeedPort;
+  /** The routines API, to re-fire a missed research run (SPEC-agent § Missed-run recovery); absent without tokens. */
+  routineFirer?: RoutineFirer;
 }
 
 export interface JobContext extends JobDeps {
@@ -190,8 +193,8 @@ const checkFilingsJob: JobFn = async ({ db, filings, now }) => {
 };
 
 /** A research run that submitted nothing within its grace period (agent/routine-watch.ts). Before notify-urgent, so the email goes the same tick. */
-const checkRoutineJob: JobFn = async ({ db, broker, now }) => {
-  const result = await checkRoutineRuns(db, broker, now());
+const checkRoutineJob: JobFn = async ({ db, broker, now, routineFirer }) => {
+  const result = await checkRoutineRuns(db, broker, now(), routineFirer);
   if (result.status === "skipped") return result;
   const { status: _, ...detail } = result;
   return { status: "succeeded", detail };

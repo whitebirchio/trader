@@ -8,6 +8,7 @@ import {
   type EstimatesPort,
   type FilingsFeedPort,
   type Mailer,
+  type RoutineFirer,
   TICK_JOBS,
   getHealth,
   isJobName,
@@ -35,6 +36,8 @@ export interface HandlerDeps {
   makeEarningsHistory?(config: Config): (EarningsHistoryPort & EstimatesPort) | undefined;
   /** SEC EDGAR for the filings check (#105); one per container, so SEC's ticker map loads once. */
   filings?: FilingsFeedPort;
+  /** The routines API, when routine tokens are configured (SPEC-agent § Missed-run recovery). */
+  makeRoutineFirer?(config: Config): RoutineFirer | undefined;
   now(): Date;
   log(level: "info" | "error", message: string, detail?: Record<string, unknown>): void;
 }
@@ -88,11 +91,12 @@ export function createHandler(deps: HandlerDeps) {
     const mailer = deps.makeMailer(config);
     const earnings = deps.makeEarnings?.(config);
     const earningsHistory = deps.makeEarningsHistory?.(config);
+    const routineFirer = deps.makeRoutineFirer?.(config);
     const { db, close } = await deps.openDb(config);
     const results: unknown[] = [];
     try {
       for (const job of requested.filter(isJobName)) {
-        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now, earnings, earningsHistory, estimates: earningsHistory, filings: deps.filings }, job, scheduledFor);
+        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now, earnings, earningsHistory, estimates: earningsHistory, filings: deps.filings, routineFirer }, job, scheduledFor);
         deps.log("info", "job", { job, scheduledFor: scheduledFor.toISOString(), ...outcome });
         results.push({ job, ...outcome });
       }

@@ -38,6 +38,8 @@ const ROUTES: Record<AuditKind, Route> = {
   "watchlist.updated": "digest", // Claude's research notes (#32): no trading effect
   "lessons.recorded": "digest", // Claude's post-mortems on closed theses (#28): no trading effect
   "routine.missed": "urgent", // a research run submitted nothing: the theses go un-reviewed until the next one
+  "routine.retry": "ignore", // the claim before a retry; routine.retry_result says how it went
+  "routine.retry_result": "digest", // a missed run re-fired by check-routine (SPEC-agent § Missed-run recovery); a failed one also records routine.missed
   "filing.sell_signal": "urgent", // an officer or director leaving, or selling outside a 10b5-1 plan, on a held name (#105)
   "filings.noticed": "digest", // every other new filing on a held or watched name
   "thesis.stale": "urgent", // the research loop may be down

@@ -89,15 +89,33 @@ export function describe(e: NotifiableEvent): Described {
       return { headline: `${p.trigger === "trailing_stopped" ? "Trailing stop" : "Stop-loss"}: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
     case "thesis.took_profit":
       return { headline: `Profit target: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
-    case "routine.missed":
+    case "routine.missed": {
+      const retries = Array.isArray(p.retries) ? (p.retries as { attempt?: unknown; at?: unknown; result?: { status?: unknown; httpStatus?: unknown; errorType?: unknown } | null }[]) : [];
+      const refused = retries.find((r) => r.result?.status === "failed")?.result;
       return {
         headline: "Research run missed",
         lines: [
           `The research run due at ${when(p.firedAt)} hadn't submitted a strategy by ${when(p.deadline)}.`,
+          ...(retries.length ? [`Retried automatically at ${retries.map((r) => when(r.at)).join(" and ")}: ${refused ? `the retry was refused (${retryFailure(refused)})` : "no strategy came back"}.`] : []),
+          ...(refused?.errorType === "no_token" || refused?.httpStatus === 401 || refused?.httpStatus === 403
+            ? ["The routine's API token is missing or was rejected: generate a new one in its settings on claude.ai and update ROUTINE_FIRE_TOKENS in SSM."]
+            : []),
           `Strategy v${str(p.activeVersion)} (${str(p.activeBy)}, ${when(p.activeSince)}) keeps executing, but nothing re-judged the theses this run.`,
-          "Check the routine's runs at claude.ai/code. The usual cause is the account's weekly usage limit; a run can also be started there by hand.",
+          "Check the routine's runs at claude.ai/code and status.claude.com. Usual causes: the account's weekly usage limit, or an Anthropic outage. A run can also be started by hand (claude.ai, or npm run routine:fire).",
         ],
       };
+    }
+    case "routine.retry_result": {
+      const r = (p.result ?? {}) as { status?: unknown; sessionUrl?: unknown; httpStatus?: unknown; errorType?: unknown };
+      return {
+        headline: `Research run retried: ${str(p.routine)}`,
+        lines: [
+          r.status === "fired"
+            ? `The run hadn't submitted a strategy, so retry ${str(p.attempt)} started it again at ${when(p.at)}${typeof r.sessionUrl === "string" ? ` (${r.sessionUrl})` : ""}.`
+            : `Retry ${str(p.attempt)} at ${when(p.at)} was refused (${retryFailure(r)}).`,
+        ],
+      };
+    }
     case "thesis.stale":
       return {
         headline: `Thesis unwound: ${str(e.subject)} (not reviewed)`,
@@ -176,6 +194,11 @@ export function describe(e: NotifiableEvent): Described {
 
 /** "$500", "-$1000": signed dollars from a decimal string. */
 /** An ISO instant from a payload, as people read it. */
+/** A refused fire as people read it: "401 authentication_error", "timeout". */
+function retryFailure(r: { httpStatus?: unknown; errorType?: unknown }): string {
+  return [r.httpStatus, r.errorType].filter((x) => x !== null && x !== undefined && x !== "").map(String).join(" ") || "unknown error";
+}
+
 function when(v: unknown): string {
   const d = typeof v === "string" ? new Date(v) : null;
   return d && !Number.isNaN(d.getTime()) ? formatMarketTime(d) : str(v);
