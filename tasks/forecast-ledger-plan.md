@@ -1,6 +1,6 @@
 # Plan: the forecast ledger and a declared lead signal
 
-> **Status: In progress** (PR 1 merged as #126; PR 2 built) (spec approved by Scott 2026-11-13: SPEC-portfolio § Forecast ledger). Three PRs, in order. The higher position-cap tier is not in this plan.
+> **Status: Built** (PR 1 #126, PR 2 #128, PR 3 built; live checks below) (spec approved by Scott 2026-11-13: SPEC-portfolio § Forecast ledger). Three PRs, in order. The higher position-cap tier is not in this plan.
 
 ## Why
 Every tested signal failed to beat VTI on its own, so Trader's bet is Claude's judgment, and P&L can't measure that for years. Forecasts on theses and on the names Claude passes on can show calibration and selection skill within months. The scorecard's inferred signal kind mislabels insider-origin theses as "fundamental", so each thesis declares its lead signal.
@@ -45,16 +45,16 @@ Every tested signal failed to beat VTI on its own, so Trader's bet is Claude's j
   - **Accept:** tool test; MCP pin; the gate.
 
 ## PR 3: the owner's view
-- [ ] **F8. Dashboard and letter.**
-  - Dashboard Track record page: a Forecasts section (reliability table, bought vs passed, open forecasts).
+- [x] **F8. Dashboard and letter.**
+  - Dashboard Track record page: a Forecasts section (reliability table, bought vs passed, open forecasts, and the latest 10 resolved). The report gains `resolved` (latest first) and a `backfilled` flag on `open`.
   - Weekly letter: one line (resolved this week, running skill score or "too few to judge").
-  - **Accept:** view and compose tests; `mobile:check` on the page.
-- [ ] **F9. Docs.** SPEC-portfolio § Forecast ledger → Built; SPEC-agent tools table and prompt notes; SPEC-dashboard; SPEC-notifications (the letter line).
+  - **Accept:** view and compose tests; `mobile:check` on the page (pointed at production's read-only data: staging's parameters went with ADR-018).
+- [x] **F9. Docs.** SPEC-portfolio § Forecast ledger → Built; SPEC-agent tools table and prompt notes; SPEC-dashboard; SPEC-notifications (the letter line).
 
 ## Verification
 - **Gate** before each commit: `npm run typecheck && npm test`.
 - **PR 1 live:** the next run declares a lead signal and a forecast on every live thesis (all `backfilled`), and is accepted on the first submit. `get_track_record`'s by-kind roll-up shows `declared`.
-- **PR 2 live:** `db:mcp-role -- --check` unchanged and passing; after the next close, `benchmark_closes` holds the forecast symbols; new watchlist names carry forecasts; `get_track_record.forecasts` reports "too few to judge".
+- **PR 2 live:** `db:mcp-role -- --check` unchanged and passing (2026-11-13: passed); after the next close, `thesis_closes` holds the forecast symbols; new watchlist names carry forecasts; `get_track_record.forecasts` reports "too few to judge".
 - **PR 3 live:** the dashboard section renders on phone and laptop; Friday's letter has the line.
 
 ## Not changing

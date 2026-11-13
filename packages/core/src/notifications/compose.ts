@@ -440,6 +440,8 @@ export interface WeeklyData {
     overall: { theses: number; scored: number; excess: string; excessPct: string | null; beatVtiPct: string | null };
     byKind: { kind: string; theses: number; excessPct: string | null }[];
   };
+  /** The forecast ledger (portfolio/forecasts.ts): this week's resolutions and the running skill score, backfills kept out of both. */
+  forecasts: { resolvedThisWeek: number; beatThisWeek: number; backfilledThisWeek: number; resolved: number; skill: number | null; tooFewToJudge: boolean; baseRatePct: number };
   /** `plainSummary` from the latest version that lists the thesis (#60), when it has one. */
   opened: { symbol: string; thesisId: string; primaryKind: string | null; plainSummary?: string }[];
   closed: { symbol: string; thesisId: string; ending: string; excessPct: string | null; daysHeld: number }[];
@@ -452,6 +454,14 @@ export interface WeeklyData {
   /** Review dates in the next 14 days. */
   reviews: { symbol: string; thesisId: string; reviewBy: string }[];
   state: { killSwitch: boolean; halted: boolean; haltReason: string | null; drawdownPct: string };
+}
+
+/** The weekly letter's one forecast line: what resolved this week, and the running skill score or "too few to judge". */
+export function forecastLine(f: WeeklyData["forecasts"]): string {
+  const week = f.resolvedThisWeek ? `${f.resolvedThisWeek} resolved this week, ${f.beatThisWeek} beat VTI` : "none resolved this week";
+  const backfilled = f.backfilledThisWeek ? ` (${f.backfilledThisWeek} backfilled, not scored)` : "";
+  const skill = f.tooFewToJudge || f.skill === null ? `too few to judge (${f.resolved} resolved)` : `${f.skill > 0 ? "+" : ""}${f.skill.toFixed(2)} over ${f.resolved} resolved`;
+  return `Forecasts: ${week}${backfilled}; skill vs the ${f.baseRatePct}% base rate: ${skill}`;
 }
 
 /** The Friday letter (#38): the week vs VTI, the track record, the week's decisions, and what's coming up. */
@@ -477,12 +487,15 @@ export function composeWeekly(data: WeeklyData, env: TradingEnv, at: Date = new 
     ],
     [
       "Track record (each thesis vs the same dollars in VTI)",
-      t.theses === 0
-        ? ["No theses yet"]
-        : [
-            `${t.theses} theses (${t.scored} scored): ${money(t.excess)} vs VTI (${pct(t.excessPct)}); ${t.beatVtiPct === null ? "–" : `${t.beatVtiPct}%`} beat VTI`,
-            ...data.trackRecord.byKind.map((k) => `${k.kind}: ${k.theses} ${k.theses === 1 ? "thesis" : "theses"}, ${pct(k.excessPct)} vs VTI`),
-          ],
+      [
+        ...(t.theses === 0
+          ? ["No theses yet"]
+          : [
+              `${t.theses} theses (${t.scored} scored): ${money(t.excess)} vs VTI (${pct(t.excessPct)}); ${t.beatVtiPct === null ? "–" : `${t.beatVtiPct}%`} beat VTI`,
+              ...data.trackRecord.byKind.map((k) => `${k.kind}: ${k.theses} ${k.theses === 1 ? "thesis" : "theses"}, ${pct(k.excessPct)} vs VTI`),
+            ]),
+        forecastLine(data.forecasts),
+      ],
     ],
     [
       "This week's strategy changes",

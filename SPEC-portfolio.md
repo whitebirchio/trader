@@ -215,7 +215,7 @@ For each row, over its fills (`FILL`) and dividends (`DIV`) in the window:
 
 ## Forecast ledger (2026-11-13)
 
-> **Status: Approved** (Scott, 2026-11-13: a forecast ledger beside P&L, and a declared lead signal; approved as written). Plan: [tasks/forecast-ledger-plan.md](tasks/forecast-ledger-plan.md). The higher position-cap tier in *Later* is not part of this build.
+> **Status: Built** (Scott approved it as written, 2026-11-13; built in #126, #128 and the owner's-view PR: the dashboard's Forecasts section and the weekly letter's line). Plan: [tasks/forecast-ledger-plan.md](tasks/forecast-ledger-plan.md). The higher position-cap tier in *Later* is not part of this build.
 
 **Why.** Every signal tested so far (insider buys, earnings reactions, momentum, quality and value; `docs/research/`) failed to beat VTI on its own, so Trader's bet is that Claude's judgment adds something on top. Nothing measures that. P&L can't do it fast enough: a 6-name book drifts from VTI by roughly 15–20% a year, so telling a real 5-point annual edge from luck takes decades of returns. Many small, checkable forecasts can show skill (or its absence) within months. Separately, the scorecard's signal kind is inferred (the most frequent `evidence.kind`, ties to the first listed): INTC and LSTR count as "fundamental" though both started from CEO buys, and every live thesis lists a fundamental item first. The routine has already drawn conclusions from that split.
 
@@ -257,7 +257,7 @@ For resolved forecasts, overall and split by source (thesis, watchlist, backfill
 ### Surfaces
 - **`get_track_record`** gains `forecasts`: open forecasts with days to horizon, the calibration report, and bought vs passed.
 - **Routine prompt:** in *Orient*, read the calibration and say if it's poorly calibrated in one direction (e.g. 70% calls winning 40% of the time); in *Decide*, state each forecast honestly, starting from the 45% base rate, and treat 70%+ as a strong claim that needs strong evidence. A forecast is not a sizing rule in v1.
-- **Dashboard:** a *Forecasts* section on the Track record page (reliability table and bought vs passed).
+- **Dashboard:** a *Forecasts* section on the Track record page (reliability table and bought vs passed). *(Built: also the headline figures, the open forecasts and the latest 10 resolved; the report gained `resolved`, latest first.)*
 - **Weekly letter:** one line: forecasts resolved this week, the running skill score, and "too few to judge" while it is.
 - **Operator:** `scorecard:show` prints the same report.
 

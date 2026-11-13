@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The phone check (SPEC-dashboard Amendment 2): start `next dev` against
-// staging's read-only data with the dev sign-in bypass, then visit every page
+// production's data as the dashboard's own role (staging was retired, ADR-018;
+// it only ever GETs, so it reads) with the dev sign-in bypass, then visit every page
 // as an iPhone 15 (WebKit) and at 1280 px (Chromium). Reports sideways scroll
 // (with the elements that cause it), tables that scroll inside their card, tap
 // targets under 44 px, text inputs under 16 px and browser console errors;
@@ -37,8 +38,8 @@ function startServer() {
     env: {
       ...process.env,
       AWS_REGION: process.env.AWS_REGION ?? "us-east-1",
-      SECRETS_PATH: "/trader/staging/",
-      TRADING_ENV: "staging",
+      SECRETS_PATH: "/trader/production/",
+      TRADING_ENV: "production",
       DASHBOARD_URL: BASE,
       OWNER_EMAIL,
       GOOGLE_CLIENT_ID,
@@ -191,7 +192,7 @@ async function pageList(browser) {
 const { server, log } = startServer();
 let failed = 0;
 try {
-  console.error(`starting next dev on :${PORT} (staging data, dev sign-in)…`);
+  console.error(`starting next dev on :${PORT} (production data, read only; dev sign-in)…`);
   await waitFor(`${BASE}/login`, 120_000);
   await warm(["/", "/holdings", "/money", "/strategy", "/track-record", "/activity", "/login"]);
   rmSync(OUT, { recursive: true, force: true });

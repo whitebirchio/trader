@@ -169,6 +169,10 @@ describe("trackRecordView", () => {
     // $200 of AAPL, now $180; the same $200 in VTI at $300, still $300.
     expect(t.theses).toEqual([expect.objectContaining({ ids: ["aapl-services"], ending: "open", pnl: "-20", vtiPnl: "0", excess: "-20", excessPct: "-10" })]);
     expect(t.overall).toMatchObject({ theses: 1, beatVtiPct: "0" });
+    // The forecast ledger for the Forecasts card: the thesis's forecast is open until its horizon.
+    expect(t.forecasts.overall).toMatchObject({ forecasts: 1, resolved: 0, tooFewToJudge: true });
+    expect(t.forecasts.open).toEqual([expect.objectContaining({ source: "thesis", id: "aapl-services", symbol: "AAPL", backfilled: false })]);
+    expect(t.forecasts.resolved).toEqual([]);
   });
 });
 
