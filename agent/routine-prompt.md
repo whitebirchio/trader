@@ -128,6 +128,18 @@ When `get_overview` shows `capital.withdrawal`, this strategy is its funding pla
 
 Submit by `capital.withdrawal.planBy`. If you don't, a fallback keeps every thesis's dollars and sells VTI and the systematic sleeve. In the summary, say what you sold for the withdrawal and why. The owner reads it in the funding email.
 
+### 3b. Review the whole book
+
+Before you preview, read the draft as one portfolio, not thesis by thesis, the way a portfolio manager reviews a book before approving it. Risk's limits catch a breach; this catches a book that passes every limit and is still one bet.
+- **One bet in disguise.** Run `get_exposure` with every draft symbol you don't hold yet. Size each `oneBet` pair, and any sector over about 40% of equity, as one bet: trim the weaker name, or say why both belong at full size.
+- **A crowded signal.** Add up the thesis weight by each thesis's main signal (the kind of its first evidence item). If theses led by insider buying hold half or more of it, the book breaks the owner's direction: fix it this run. If any other kind holds more than about half, say why that one source of edge deserves it.
+- **Earnings in one week.** List each thesis's `nextEarnings` (or, until it's announced, about three months after `signals.lastEarnings`). Two or more theses reporting in the same week, together over about a quarter of the account, make that week one binary bet. Decide on purpose which to hold through, and trim the rest or say why not.
+- **A shared failure.** Name the one move that would hurt most of the book at once (rates, a sector rotation, an oil or consumer shock, a recession scare) and roughly what share of the account it touches. If it's most of the account, diversify, or say why that's the bet you want.
+- **The weakest link.** Name the weakest thesis in the draft. If the best watchlist name, or VTI, would make better use of its money, change it now rather than next run.
+- **Room.** If most of the account isn't in theses, say what kept the money in VTI.
+
+Change the draft for what you find, then preview it. When the draft is the active strategy unchanged, keep the pass short: check only what moved since it was set (weights drifted with prices, an earnings date announced, a new `oneBet` pair). Say in the summary, in a line or two starting "Book:", what the review found and what you changed.
+
 ## 4. Preview, then submit
 
 1. Call `preview_strategy` with the full document. If `valid` is false, fix the errors and preview again.
