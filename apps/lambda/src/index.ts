@@ -1,7 +1,7 @@
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { SSMClient } from "@aws-sdk/client-ssm";
 import { Pool } from "@neondatabase/serverless";
-import { AlpacaBroker, AlphaVantageCalendar, AlphaVantageEarnings, type Db, SecFilings } from "@trader/core";
+import { AlpacaBroker, AlphaVantageCalendar, AlphaVantageEarnings, AnthropicRoutineFirer, type Db, SecFilings } from "@trader/core";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { createHandler } from "./handler.js";
 import { loadSecrets } from "./secrets.js";
@@ -32,6 +32,7 @@ export const handler = createHandler({
   filings: new SecFilings(),
   makeEarnings: (config) => (config.alphaVantageKey ? new AlphaVantageCalendar(config.alphaVantageKey) : undefined),
   makeEarningsHistory: (config) => (config.alphaVantageKey ? new AlphaVantageEarnings(config.alphaVantageKey) : undefined),
+  makeRoutineFirer: (config) => (config.routineFireTokens ? new AnthropicRoutineFirer(config.routineFireTokens) : undefined),
   now: () => new Date(),
   log: (level, message, detail) => console[level === "error" ? "error" : "log"](JSON.stringify({ level, message, ...detail })),
 });

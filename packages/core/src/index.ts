@@ -38,6 +38,8 @@ export * from "./portfolio/scorecard.js";
 export * from "./agent/tools.js";
 export * from "./agent/watchlist.js";
 export * from "./agent/lessons.js";
+export * from "./agent/routine-firer.js";
+export * from "./agent/routine-watch.js";
 export * from "./agent/earnings-calendar.js";
 export * from "./agent/earnings-history.js";
 export * from "./agent/estimates.js";

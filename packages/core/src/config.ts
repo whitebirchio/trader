@@ -8,6 +8,11 @@ export interface Config {
   alpaca: { keyId: string; secretKey: string };
   /** Alpha Vantage's key for the earnings calendar (#30). Optional: without it the earnings-calendar job skips. */
   alphaVantageKey: string | null;
+  /**
+   * Each research routine's API token, by trigger id (SPEC-agent § Missed-run
+   * recovery). Optional: without it check-routine alerts and doesn't retry.
+   */
+  routineFireTokens: Record<string, string> | null;
 }
 
 export type ConfigResult =
@@ -29,7 +34,7 @@ export const MCP_PARAMETERS = ["MCP_DATABASE_URL", "MCP_ALPACA_KEY_ID", "MCP_ALP
  * dashboard's: each decrypted SecureString is a KMS request, and reading the
  * whole path decrypted all of them on every tick.
  */
-export const ENGINE_PARAMETERS = ["DATABASE_URL", "ALPACA_KEY_ID", "ALPACA_SECRET_KEY", "ALPHAVANTAGE_API_KEY"] as const;
+export const ENGINE_PARAMETERS = ["DATABASE_URL", "ALPACA_KEY_ID", "ALPACA_SECRET_KEY", "ALPHAVANTAGE_API_KEY", "ROUTINE_FIRE_TOKENS"] as const;
 
 const VARS = {
   TRADING_ENV: z.enum(TRADING_ENVS),
@@ -39,8 +44,22 @@ const VARS = {
 } as const;
 
 /** Optional: missing is fine, but a value that's set must be valid (fails closed like the rest). */
+/** `{ "trig_…": "sk-ant-oat01-…" }` as JSON, one routine or more. */
+const routineFireTokens = z
+  .string()
+  .transform((v, ctx) => {
+    try {
+      return JSON.parse(v) as unknown;
+    } catch {
+      ctx.addIssue({ code: "custom", message: "not JSON" });
+      return z.NEVER;
+    }
+  })
+  .pipe(z.record(z.string().regex(/^trig_\w{10,64}$/), z.string().regex(/^sk-ant-oat01-[\w-]{10,256}$/)).refine((r) => Object.keys(r).length > 0));
+
 const OPTIONAL = {
   ALPHAVANTAGE_API_KEY: z.string().regex(/^[A-Za-z0-9]{8,64}$/),
+  ROUTINE_FIRE_TOKENS: routineFireTokens,
 } as const;
 
 type VarName = keyof typeof VARS | keyof typeof OPTIONAL;
@@ -79,6 +98,7 @@ export function parseConfig(env: Partial<Record<VarName, unknown>>): ConfigResul
         secretKey: VARS.ALPACA_SECRET_KEY.parse(env.ALPACA_SECRET_KEY),
       },
       alphaVantageKey: typeof env.ALPHAVANTAGE_API_KEY === "string" && env.ALPHAVANTAGE_API_KEY !== "" ? env.ALPHAVANTAGE_API_KEY : null,
+      routineFireTokens: typeof env.ROUTINE_FIRE_TOKENS === "string" && env.ROUTINE_FIRE_TOKENS !== "" ? OPTIONAL.ROUTINE_FIRE_TOKENS.parse(env.ROUTINE_FIRE_TOKENS) : null,
     },
   };
 }

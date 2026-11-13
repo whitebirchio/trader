@@ -30,7 +30,7 @@ Email you about what Trader does, without you having to look. Every meaningful a
 
 **Lessons (#28, 2026-11-12):** `lessons.recorded` goes in the digest's "Lessons" section: one line per post-mortem Claude wrote on a closed thesis, with how it ended and its excess over VTI, marked `[revised]` when it replaces an earlier one. No trading effect, so never urgent.
 
-**Missed research runs (2026-11-12):** `routine.missed` is urgent: a scheduled research run submitted no strategy within 45 minutes of its fire time on a trading day (SPEC-agent § The routine). The last strategy keeps executing; the email says which version, and that the usual cause is the account's weekly usage limit.
+**Missed research runs (2026-11-12):** `routine.missed` is urgent: a scheduled research run submitted no strategy within 45 minutes of its fire time on a trading day (SPEC-agent § The routine). The last strategy keeps executing; the email says which version, and that the usual cause is the account's weekly usage limit. *(2026-11-13, SPEC-agent § Missed-run recovery)* With routine tokens configured, `check-routine` first re-fires the run at +30 and +90 minutes: `routine.retry_result` goes to the digest ("Research run retried"), `routine.retry` (the claim before each call) is ignored, and `routine.missed` comes 45 minutes after the last try, or at once when a try is refused, saying what was tried.
 
 `order.intent` isn't emailed: `order.submitted` or `order.rejected` always follows it. When `portfolio` and `agent` add new kinds (e.g. `strategy.activated`), each one gets put in a column as part of its own module.
 

@@ -21,6 +21,7 @@
     "broker:configure": "tsx scripts/broker-configure.ts",
     "broker:smoke": "tsx scripts/broker-smoke.ts",
     "broker:sync": "tsx scripts/broker-sync.ts",
+    "routine:fire": "tsx scripts/routine-fire.ts",
     "risk:status": "tsx scripts/risk-status.ts",
     "risk:kill": "tsx scripts/risk-kill.ts",
     "risk:resume": "tsx scripts/risk-resume.ts",

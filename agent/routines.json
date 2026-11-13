@@ -1,5 +1,5 @@
 {
-  "$comment": "The research routines in claude.ai (SPEC-agent § The routine). This file is the record; claude.ai holds the live copy. To change a model or a time: edit here, merge, then ask Claude Code to apply agent/routines.json (it updates each trigger with RemoteTrigger). Cron is UTC (#14); packages/core's ROUTINE_RUNS_UTC must list every fire time, and a test checks it. Every routine sends agent/routine-stub.md, which reads agent/routine-prompt.md from main.",
+  "$comment": "The research routines in claude.ai (SPEC-agent § The routine). This file is the record; claude.ai holds the live copy. To change a model or a time: edit here, merge, then ask Claude Code to apply agent/routines.json (it updates each trigger with RemoteTrigger). Cron is UTC (#14); packages/core's ROUTINES (src/agent/routine-watch.ts) must list every routine's fire time, trigger and name (check-routine watches and retries by it), and a test checks it. Every routine sends agent/routine-stub.md, which reads agent/routine-prompt.md from main.",
   "routines": [
     {
       "name": "Trader research (8:00 ET)",

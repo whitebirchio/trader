@@ -71,6 +71,8 @@ The Lambdas read only `/trader/production/` (SecureStrings, default `aws/ssm` ke
 | `/trader/production/READONLY_DATABASE_URL` | `scripts/set-readonly-secret.sh` (creates or rotates `trader_readonly`; read from the laptop only, by the read-only status scripts, never by a Lambda) |
 | `/trader/<env>/ALPHAVANTAGE_API_KEY` *(optional, #30)* | `scripts/set-alphavantage-secret.sh <env>` (value in `.env` as `ALPHAVANTAGE_API_KEY`; one free key from alphavantage.co, 25 requests a day). Without it, the `earnings-calendar` job skips, and the tools say the calendar is missing. `npm run earnings:refresh -w @trader/core -- --env <env> --show AAPL` fetches it now. |
 
+| `/trader/production/ROUTINE_FIRE_TOKENS` *(optional, SPEC-agent § Missed-run recovery)* | `scripts/set-routine-tokens.sh` (one hidden prompt per routine in `agent/routines.json`). Generate each routine's token in its settings on claude.ai: **Trigger → + → API → Generate token**; it's shown once, and can only start that routine. Without the parameter, `check-routine` emails a missed run and doesn't retry. To rotate, **Regenerate** on claude.ai (the old token stops working) and run the script again. |
+
 The dashboard's role reads only its three parameters, by exact name (`ssm:GetParameters`), never the path, so it can't see the Alpaca keys.
 
 ## Database roles
@@ -188,6 +190,10 @@ Read-only dashboard at **https://trader.whitebirch.io** (SPEC-dashboard). It's a
 ### Bad migration or bad data on production
 
 Neon keeps point-in-time history (free plan: about 6 hours, so check the current limit). In the console, restore `production` to a timestamp before the bad deploy, then redeploy the last good commit by reverting on `main`. Write down what happened in an audit-worthy place (an issue).
+
+### A research run is missed (email: "Research run missed")
+
+With `ROUTINE_FIRE_TOKENS` set, `check-routine` has already retried the run at +30 and +90 minutes; the email says what happened to each try. Check status.claude.com (an outage) and the routine's runs at claude.ai/code (the weekly usage limit, a connector that failed to connect). Once the cause has cleared, start it again: `npm run routine:fire -w @trader/core -- --env production --routine 8:00` (or **Run now** on claude.ai). A refused retry (401/403) means the token was revoked or regenerated: make a new one and rerun `scripts/set-routine-tokens.sh`. The last strategy keeps executing meanwhile, and a missed run unwinds nothing.
 
 ### The engine stops (alarm: "not running")
 

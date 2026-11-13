@@ -21,8 +21,20 @@ describe("parseConfig", () => {
         databaseUrl: SECRET_URL,
         alpaca: { keyId: KEY_ID, secretKey: SECRET_KEY },
         alphaVantageKey: null,
+        routineFireTokens: null,
       },
     });
+  });
+
+  it("takes optional routine tokens as JSON, and fails closed on a malformed value without echoing it (missed-run recovery)", () => {
+    const tokens = { trig_019uVfvbsEyzRfobyggy8kzy: "sk-ant-oat01-abcdefghijklmnop" };
+    expect(parseConfig({ ...valid, ROUTINE_FIRE_TOKENS: JSON.stringify(tokens) })).toMatchObject({ ok: true, config: { routineFireTokens: tokens } });
+    expect(parseConfig({ ...valid, ROUTINE_FIRE_TOKENS: "" })).toMatchObject({ ok: true, config: { routineFireTokens: null } });
+    for (const bad of ["sk-ant-oat01-abcdefghijklmnop", "{}", JSON.stringify({ "8:00": "sk-ant-oat01-abcdefghijklmnop" }), JSON.stringify({ trig_019uVfvbsEyzRfobyggy8kzy: "not-a-token" })]) {
+      const r = parseConfig({ ...valid, ROUTINE_FIRE_TOKENS: bad });
+      expect(r).toEqual({ ok: false, missing: [], invalid: ["ROUTINE_FIRE_TOKENS"] });
+      expect(JSON.stringify(r)).not.toContain("sk-ant");
+    }
   });
 
   it("takes an optional Alpha Vantage key, and fails closed on a malformed one (#30)", () => {
