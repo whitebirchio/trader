@@ -9,6 +9,10 @@ export function thesis(overrides: Partial<Thesis> = {}): Thesis {
     evidence: [{ kind: "fundamental", summary: "Services gross margin above 70% for 8 quarters" }],
     stopLossPct: "15",
     bearCase: "Hardware is still most of the revenue, so a weak iPhone cycle could swamp services; but services keep growing through weak cycles.",
+    // The default evidence's kind; a test that swaps the evidence picks its own (or none).
+    ...(overrides.evidence ? {} : { leadSignal: "fundamental" as const }),
+    // Defaults to the review date when one is set; otherwise a far horizon.
+    forecast: { beatVtiPct: 55, expectedExcessPct: "4", ...(overrides.reviewBy ? {} : { horizon: "2030-06-28" }) },
     ...overrides,
   };
 }

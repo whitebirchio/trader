@@ -418,4 +418,11 @@ describe("submit_strategy", () => {
     // Held at the same weight, it goes through, and preview_strategy only warns.
     expect(await submitStrategyTool(deps, draft)).toEqual({ status: "activated", version: 2 });
   });
+
+  it("refuses a thesis without a lead signal or a forecast from Claude, but not from the owner (forecast ledger)", async () => {
+    const draft = strategy({ conviction: [thesis({ leadSignal: undefined, forecast: undefined })] });
+    expect(await previewStrategy(deps, draft)).toMatchObject({ valid: false, errors: [expect.stringContaining("needs a lead signal"), expect.stringContaining("needs a forecast")] });
+    expect(await submitStrategyTool(deps, draft)).toMatchObject({ status: "rejected" });
+    expect(await submitStrategy(deps.db, draft, "owner", NOW)).toEqual({ status: "activated", version: 1 });
+  });
 });

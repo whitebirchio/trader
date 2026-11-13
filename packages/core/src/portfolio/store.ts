@@ -5,7 +5,7 @@ import { strategies, thesisEvents } from "../db/schema.js";
 import { add } from "../money.js";
 import { marketDate } from "../time.js";
 import { EXIT_RULES, type ExitRules, type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
-import { CLOSING_KINDS, bearCaseErrors, reviewDateErrors } from "./theses.js";
+import { CLOSING_KINDS, bearCaseErrors, ledgerErrors, reviewDateErrors } from "./theses.js";
 
 export interface ActiveStrategy {
   version: number;
@@ -73,12 +73,23 @@ export async function submissionErrors(db: Db, s: Strategy, now: Date, rules: Ex
     ...(t.takeProfitPct !== undefined && !rules.takeProfit ? [`conviction[${i}].takeProfitPct: profit targets aren't switched on; leave it out`] : []),
   ]);
   const active = await activeStrategy(db, now);
-  return [...errors, ...reviewDateErrors(s, active.strategy, marketDate(now)), ...(opts.requireBearCase ? bearCaseErrors(s, active.strategy) : [])];
+  const today = marketDate(now);
+  return [
+    ...errors,
+    ...reviewDateErrors(s, active.strategy, today),
+    ...(opts.requireBearCase ? bearCaseErrors(s, active.strategy) : []),
+    ...(opts.requireLedger ? ledgerErrors(s, active.strategy, today) : []),
+  ];
 }
 
-/** requireBearCase: Claude's tools turn it on (#106); owner, fallback and replayed submissions leave it off. */
+/**
+ * Claude's tools turn these on; owner, fallback and replayed submissions leave
+ * them off. requireBearCase: #106. requireLedger: a lead signal and a forecast
+ * on every thesis (SPEC-portfolio § Forecast ledger).
+ */
 export interface SubmitOptions {
   requireBearCase?: boolean;
+  requireLedger?: boolean;
 }
 
 export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner" | "system", now: Date, opts: SubmitOptions = {}): Promise<SubmitStrategyResult> {

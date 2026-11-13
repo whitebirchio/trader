@@ -204,7 +204,7 @@ For each row, over its fills (`FILL`) and dividends (`DIV`) in the window:
 - Known approximations: VTI is bought at the close, not at the thesis fill's minute; Alpaca's sell-side regulatory fees aren't counted.
 
 ### Roll-ups
-- **Overall** and **by primary signal kind**, where the primary kind is the most frequent `evidence.kind` in the thesis's last listing (ties go to the earliest listed).
+- **Overall** and **by primary signal kind**, where the primary kind is the most frequent `evidence.kind` in the thesis's last listing (ties go to the earliest listed). *(2026-11-13, § Forecast ledger)* A declared `leadSignal` takes precedence; each row says whether its kind was `declared` or `inferred`.
 - Each roll-up has count, closed count, Σ bought, Σ pnl, Σ vtiPnl, excess (dollars and % of Σ bought), the share of rows that beat VTI, and median days held.
 
 ### Surfaces
@@ -212,3 +212,82 @@ For each row, over its fills (`FILL`) and dividends (`DIV`) in the window:
 - **Routine prompt:** read it in *Orient*, and weigh it when sizing in *Decide*. A few rows are noise; say so instead of over-fitting.
 - **Dashboard:** a *Track record* page.
 - **Operator:** `npm run scorecard:show -w @trader/core -- --env staging|production`.
+
+## Forecast ledger (2026-11-13)
+
+> **Status: Approved** (Scott, 2026-11-13: a forecast ledger beside P&L, and a declared lead signal; approved as written). Plan: [tasks/forecast-ledger-plan.md](tasks/forecast-ledger-plan.md). The higher position-cap tier in *Later* is not part of this build.
+
+**Why.** Every signal tested so far (insider buys, earnings reactions, momentum, quality and value; `docs/research/`) failed to beat VTI on its own, so Trader's bet is that Claude's judgment adds something on top. Nothing measures that. P&L can't do it fast enough: a 6-name book drifts from VTI by roughly 15–20% a year, so telling a real 5-point annual edge from luck takes decades of returns. Many small, checkable forecasts can show skill (or its absence) within months. Separately, the scorecard's signal kind is inferred (the most frequent `evidence.kind`, ties to the first listed): INTC and LSTR count as "fundamental" though both started from CEO buys, and every live thesis lists a fundamental item first. The routine has already drawn conclusions from that split.
+
+**Assumptions (correct any of these):**
+1. A forecast is about the **stock against VTI**, not the position: the price-only return of the symbol vs VTI (adjusted closes) from the close on the forecast date to the close on its horizon date. Selling early doesn't void it. Position P&L stays on the scorecard.
+2. Probabilities are **whole percents, 5–95**. Nothing is certain, and the bounds keep one confident miss from dominating.
+3. **Only the first forecast for each thesis id is scored** in v1. Later versions may restate it; restatements are shown, not scored (see Open questions).
+4. The **watchlist is the control group**: names researched and passed on get the same forecast, so calibration covers "no" decisions too, and bought vs passed can be compared at fixed horizons.
+5. **No new LLM calls and no paid data.** Closes come from Alpaca's daily bars, cached in `benchmark_closes` (already keyed by symbol), which the after-close sync extends to every symbol with an unresolved forecast.
+6. Everything is **computed on read**, like the scorecard, except the watchlist's forecast fields (stored with the note) and the closes cache.
+
+### Lead signal
+- New optional thesis field **`leadSignal`**: one of `EVIDENCE_KINDS`, the signal that surfaced the idea and carries the case, not the first or most frequent evidence item. Validation: it must match the `kind` of at least one evidence item.
+- Optional in the schema so stored versions stay valid. Claude's tools (`preview_strategy`, `submit_strategy`) refuse a submission where any thesis lacks one, the way `bearCaseErrors` refuses a missing bear case. The first run after deploy declares one on every live thesis.
+- **Scorecard roll-ups** use the last listing's `leadSignal`; a thesis listed without one falls back to today's inferred kind. Each row carries `kindSource: "declared" | "inferred"`.
+- The routine prompt defines it, and section 3b (#125) adds up weight by it.
+
+### Forecasts on theses
+- New optional thesis field **`forecast`**: `{ beatVtiPct: 5–95, expectedExcessPct: −50 to +200, horizon: YYYY-MM-DD }`. In words: "I give this a 60% chance of beating VTI by 2027-01-15, and expect about +8 points against it." `horizon` defaults to the thesis's `reviewBy` and may not be later than it.
+- Required by Claude's tools on a **new thesis**, and on every thesis in the first submission after deploy (a one-time backfill, labelled `backfilled` and scored separately, since the outcome is partly known).
+- The scored forecast is the first one stated for the id: its start is the `createdAt` of that version (the next close), its horizon as stated then.
+- **Resolved** once the horizon's close is recorded. Outcome: `beat` (stock return > VTI return over the window) and `excessPct`.
+
+### Forecasts on the watchlist
+- `update_watchlist`'s `watch` action gains the same three fields (horizon defaulting to the revisit date, at most 120 days out). Required on a new watch, optional on an update. Additive nullable columns on `watchlist_notes`: `beat_vti_pct`, `expected_excess_pct`, `horizon`.
+- Scored the same way, from the note's `at` to the horizon. A name later bought keeps its watchlist forecast (it was a real forecast at the time).
+
+### Bought vs passed (fixed yardsticks)
+- For every thesis (from its first listing) and every watchlist entry (from its first watch), the stock's excess over VTI at **20 and 60 trading days**, whatever was forecast. Mean, median and share beating VTI for each group, and the difference with its standard error.
+- This answers "does Claude pick better than the names it looks at and passes on?" without depending on how well it states probabilities.
+
+### Calibration report
+For resolved forecasts, overall and split by source (thesis, watchlist, backfilled) and by lead signal:
+- **Brier score** (mean of (p − outcome)²), and a **skill score** against always forecasting the base rate of 45% (about the share of tradable stocks beating VTI over 60 trading days in the backtests): `1 − Brier / Brier(45%)`. Above 0 means better than the base rate.
+- **Reliability by bucket** (5–34, 35–49, 50–64, 65–95): count, mean forecast, share that beat VTI.
+- **Expected vs realized excess**: mean error, and the correlation once 20 or more have resolved.
+- Below 30 resolved forecasts the report says "too few to judge" beside every figure, as the scorecard does for a handful of theses.
+
+### Surfaces
+- **`get_track_record`** gains `forecasts`: open forecasts with days to horizon, the calibration report, and bought vs passed.
+- **Routine prompt:** in *Orient*, read the calibration and say if it's poorly calibrated in one direction (e.g. 70% calls winning 40% of the time); in *Decide*, state each forecast honestly, starting from the 45% base rate, and treat 70%+ as a strong claim that needs strong evidence. A forecast is not a sizing rule in v1.
+- **Dashboard:** a *Forecasts* section on the Track record page (reliability table and bought vs passed).
+- **Weekly letter:** one line: forecasts resolved this week, the running skill score, and "too few to judge" while it is.
+- **Operator:** `scorecard:show` prints the same report.
+
+### Data model (additive)
+- No change to the strategy table: `leadSignal` and `forecast` live in the document (jsonb).
+- `watchlist_notes`: three nullable columns. `trader_mcp`'s INSERT grant already covers them.
+- `benchmark_closes`: no schema change; the after-close sync records closes for VTI plus each symbol with an unresolved forecast or yardstick (from its start date), within Alpaca's bar limits.
+
+### Testing
+- PGlite tests in `packages/core/test/`: schema validation (`leadSignal` matches an evidence kind, `forecast` bounds and horizon ≤ `reviewBy`); the tools refusing a missing lead signal or forecast; resolution from recorded closes (beat, missed, unresolved, a horizon on a holiday rolls to the next session); first-forecast-only scoring; the backfill label; watchlist forecasts; Brier and skill score against hand-computed values; buckets; bought vs passed; the closes sync adding forecast symbols.
+- `apps/mcp` tool pins updated. Dashboard view test.
+
+### Boundaries
+- **Always:** keep it read-side (no order-path change); label small samples; keep backfilled forecasts out of the headline score.
+- **Ask first:** the higher position-cap tier (below); any rule that sizes from a forecast.
+- **Never:** let a forecast move money in v1, or let Claude edit a stored forecast (a new version restates; the first stays scored).
+
+### Success criteria
+1. A submission without `leadSignal`, or a new thesis without `forecast`, is refused with an error naming the thesis; stored versions without them still load.
+2. The scorecard's by-kind roll-up uses declared lead signals, and says which rows are inferred.
+3. Each scored forecast resolves on its horizon's close, and its outcome matches a hand computation from the recorded closes.
+4. `get_track_record` returns the calibration report and bought vs passed, with "too few to judge" below 30 resolved.
+5. The first production run after deploy declares a lead signal on every live thesis and a forecast on each (backfilled), and puts forecasts on new watchlist names.
+6. The weekly letter and dashboard show the report.
+
+### Later: a higher position-cap tier (not in this build)
+Scott wants room to bet bigger than 20% on strong evidence while staying diversified. The proposal: the ledger earns it. A thesis may target above 20%, up to an owner-set cap, only when its forecast is in the top bucket **and** the ledger shows the top bucket is reliable (enough resolved, its hit rate at or above its forecasts, skill score above 0), with diversification rules beside it (e.g. a minimum number of theses, a ceiling on the two largest together). Every number is Scott's; it changes `risk` limits, so it gets its own spec, a replay and a paper rehearsal.
+
+### Open questions
+1. **Restatements:** score only the first forecast (assumed), or also each changed one as a separate, shorter forecast?
+2. **The base rate:** 45% from the backtests, or recompute it from the closes cache over the same horizons as it grows?
+3. **Watchlist horizons:** default to the revisit date (assumed), or a fixed 60 trading days to line up with theses?
+4. **Thresholds:** 30 resolved to judge, 20 for the excess correlation. Fine as rules of thumb?

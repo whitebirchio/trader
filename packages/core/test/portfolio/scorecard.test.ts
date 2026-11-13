@@ -229,6 +229,15 @@ describe("rollUp", () => {
     expect(byKind.map((k) => [k.kind, k.theses, k.bought])).toEqual([["fundamental", 1, "200"], ["insider", 2, "100"]]);
   });
 
+  it("rolls up by a declared lead signal over the evidence, and says which rows are inferred (forecast ledger)", () => {
+    // Inferred, the tie goes to the first-listed fundamental item; declared, it's insider-led.
+    const evidence = [{ kind: "fundamental" as const, summary: "Margins recovering" }, { kind: "insider" as const, summary: "CEO bought" }];
+    const led = thesis({ id: "msft-b", symbol: "MSFT", evidence, leadSignal: "insider" });
+    const [declared] = scoreTheses(thesisWindows([version(1, "2026-11-02T13:00:00Z", led)], [], [buy("MSFT", "1", "100", "2026-11-02T14:45:00Z")]), { activities: [], marks: {}, vtiCloses: closes, vtiMark: "275", asOf });
+    expect(declared).toMatchObject({ primaryKind: "insider", kindSource: "declared" });
+    expect(rows.find((r) => r.symbol === "MSFT")).toMatchObject({ primaryKind: "insider", kindSource: "inferred" });
+  });
+
   it("has nulls for an empty group", () => {
     expect(rollUp([])).toMatchObject({ theses: 0, bought: "0", excessPct: null, beatVtiPct: null, medianDaysHeld: null });
   });

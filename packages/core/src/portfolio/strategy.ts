@@ -55,6 +55,19 @@ const isoDate = z
     { message: "must be a real date" },
   );
 
+/** The bounds of a forecast (SPEC-portfolio § Forecast ledger); the watchlist uses the same. */
+export const FORECAST_LIMITS = { minBeatVtiPct: 5, maxBeatVtiPct: 95, minExcessPct: "-50", maxExcessPct: "200" } as const;
+
+export const forecast = z.object({
+  /** The chance, in whole percent, that the stock beats VTI over the window. */
+  beatVtiPct: intIn(FORECAST_LIMITS.minBeatVtiPct, FORECAST_LIMITS.maxBeatVtiPct),
+  /** The expected return against VTI over the window, in percentage points. */
+  expectedExcessPct: decimalIn(FORECAST_LIMITS.minExcessPct, FORECAST_LIMITS.maxExcessPct),
+  /** The window's last market date; defaults to the thesis's reviewBy. */
+  horizon: isoDate.optional(),
+});
+export type Forecast = z.infer<typeof forecast>;
+
 const thesis = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/, "must be a lowercase slug like aapl-services-2026q4"),
   symbol,
@@ -93,6 +106,20 @@ const thesis = z.object({
    * require one on a new thesis or a raised weight (bearCaseErrors).
    */
   bearCase: z.string().trim().min(40, "needs the argument and the answer to it").max(1200, "keep it to a short paragraph (1,200 characters)").optional(),
+  /**
+   * The signal that surfaced the idea and carries the case (SPEC-portfolio §
+   * Forecast ledger), not the first or most frequent evidence item: the
+   * scorecard rolls up by it. Optional so stored versions stay valid; Claude's
+   * tools require one (ledgerErrors).
+   */
+  leadSignal: z.enum(EVIDENCE_KINDS).optional(),
+  /**
+   * Claude's forecast for the stock against VTI (SPEC-portfolio § Forecast
+   * ledger): the chance it beats VTI from now to `horizon` (default: the
+   * review date), and by how much. Scored, not acted on. Optional so stored
+   * versions stay valid; Claude's tools require one (ledgerErrors).
+   */
+  forecast: forecast.optional(),
 });
 
 const systematic = z.object({
@@ -126,6 +153,14 @@ export const strategySchema = z
       if (seenSymbols.has(t.symbol)) issue(["conviction", i, "symbol"], `${t.symbol} has more than one thesis`);
       seenIds.add(t.id);
       seenSymbols.add(t.symbol);
+      if (t.leadSignal && !t.evidence.some((e) => e.kind === t.leadSignal)) {
+        issue(["conviction", i, "leadSignal"], `"${t.leadSignal}" must match the kind of at least one evidence item`);
+      }
+      if (t.forecast) {
+        const horizon = t.forecast.horizon ?? t.reviewBy;
+        if (!horizon) issue(["conviction", i, "forecast", "horizon"], "needs a horizon, or a reviewBy date to default to");
+        else if (t.reviewBy && horizon > t.reviewBy) issue(["conviction", i, "forecast", "horizon"], `${horizon} is after the review date (${t.reviewBy})`);
+      }
     });
 
     const universe = new Set(s.systematic.universe);
