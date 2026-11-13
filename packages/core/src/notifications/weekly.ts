@@ -4,6 +4,7 @@ import type { BrokerAdapter } from "../broker/port.js";
 import type { Db } from "../db/client.js";
 import { benchmarkCloses, strategies, thesisEvents } from "../db/schema.js";
 import { compareToBenchmark } from "../portfolio/benchmark.js";
+import { loadForecastReport } from "../portfolio/forecasts.js";
 import { loadScorecard } from "../portfolio/scorecard.js";
 import { activeStrategy } from "../portfolio/store.js";
 import type { DailyClose } from "../portfolio/systematic.js";
@@ -15,7 +16,7 @@ import type { WeeklyData } from "./compose.js";
 
 /**
  * The Friday letter's data (#38), from existing readers: equity snapshots and
- * VTI's recorded closes for the week, the scorecard, the week's strategy
+ * VTI's recorded closes for the week, the scorecard, the forecast ledger, the week's strategy
  * versions and thesis events, and the active strategy's review dates. A
  * version whose document (apart from its summary) matches the one before it
  * is a reaffirmation: counted, not listed.
@@ -49,6 +50,8 @@ export async function weeklyData(db: Db, broker: BrokerAdapter, today: string, a
   const sinceStart = compareToBenchmark(points, closes, marketDate);
 
   const card = await loadScorecard(db, at);
+  const ledger = await loadForecastReport(db, at);
+  const resolvedThisWeek = ledger.resolved.filter((r) => r.endDate >= weekOf && r.endDate <= today);
   // Each thesis id's plain summary in the latest version that lists it (#60).
   const plain = new Map<string, string>();
   for (const v of await db.select({ document: strategies.document }).from(strategies).orderBy(asc(strategies.version))) {
@@ -84,6 +87,15 @@ export async function weeklyData(db: Db, broker: BrokerAdapter, today: string, a
     trackRecord: {
       overall: { theses: card.overall.theses, scored: card.overall.scored, excess: card.overall.excess, excessPct: card.overall.excessPct, beatVtiPct: card.overall.beatVtiPct },
       byKind: card.byKind.map((k) => ({ kind: k.kind, theses: k.theses, excessPct: k.excessPct })),
+    },
+    forecasts: {
+      resolvedThisWeek: resolvedThisWeek.filter((r) => !r.backfilled).length,
+      beatThisWeek: resolvedThisWeek.filter((r) => !r.backfilled && r.beat).length,
+      backfilledThisWeek: resolvedThisWeek.filter((r) => r.backfilled).length,
+      resolved: ledger.overall.resolved,
+      skill: ledger.overall.skill,
+      tooFewToJudge: ledger.overall.tooFewToJudge,
+      baseRatePct: ledger.baseRatePct,
     },
     opened: card.theses
       .filter((r) => inWeek(r.openedAt))

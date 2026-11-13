@@ -139,7 +139,13 @@ describe("forecastReport", () => {
     expect(r.bySource.watchlist).toMatchObject({ resolved: 1, buckets: expect.arrayContaining([{ range: "5–34%", count: 1, meanForecastPct: 30, beatPct: 0 }]) });
     expect(r.bySource.backfilled).toMatchObject({ forecasts: 1, resolved: 0 });
     expect(r.byLeadSignal.map((k) => [k.leadSignal, k.forecasts])).toEqual([["fundamental", 2]]);
-    expect(r.open).toEqual([{ source: "thesis", id: "lkq-a", symbol: "MSFT", beatVtiPct: 90, horizon: "2026-12-30", daysToHorizon: 47 }]);
+    expect(r.open).toEqual([{ source: "thesis", id: "lkq-a", symbol: "MSFT", beatVtiPct: 90, horizon: "2026-12-30", daysToHorizon: 47, backfilled: true }]);
+    // All three resolve on 11/6's close: AAPL beat VTI, flat MSFT and falling GGG didn't.
+    expect(r.resolved.map((o) => [o.source, o.symbol, o.endDate, o.beat, o.backfilled])).toEqual([
+      ["thesis", "AAPL", "2026-11-06", true, false],
+      ["watchlist", "GGG", "2026-11-06", false, false],
+      ["thesis", "MSFT", "2026-11-06", false, false],
+    ]);
   });
 
   it("compares bought with passed at 20 trading days, once there are 20", () => {

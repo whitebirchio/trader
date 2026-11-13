@@ -3,7 +3,7 @@ import { recordEvent } from "../../src/audit.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import { recordCapitalFlows } from "../../src/capital/ledger.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, benchmarkCloses, brokerActivities, equitySnapshots, notifications, thesisEvents } from "../../src/db/schema.js";
+import { auditEvents, benchmarkCloses, brokerActivities, equitySnapshots, notifications, thesisCloses, thesisEvents } from "../../src/db/schema.js";
 import type { TradingEnv } from "../../src/env.js";
 import type { JobDeps } from "../../src/jobs.js";
 import { notifyDigest, notifyUrgent, notifyWeekly } from "../../src/notifications/jobs.js";
@@ -192,6 +192,8 @@ describe("notify-weekly", () => {
     expect(email.text).toContain("LKQ (lkq-a), overdue: past its review date (2026-11-04) without a later one");
     expect(email.text).toContain("AAPL (aapl-services): Thu Nov 12");
     expect(email.text).toContain("Normal: drawdown");
+    // AAPL's forecast runs to its review date, next week.
+    expect(email.text).toContain("Forecasts: none resolved this week; skill vs the 45% base rate: too few to judge (0 resolved)");
 
     clock = new Date(clock.getTime() + 15 * 60_000);
     expect(await notifyWeekly(ctx())).toEqual({ status: "skipped", reason: "this week's letter already queued" });
@@ -208,6 +210,21 @@ describe("notify-weekly", () => {
     expect(text).toContain("v1 (claude): Version 1: Change.");
     expect(text).not.toContain("v2 (claude)");
     expect(text).toContain("Reaffirmed unchanged 1 time");
+  });
+
+  it("counts the forecasts that resolved this week", async () => {
+    await week();
+    // A second thesis, stated Wednesday morning to beat VTI by Friday: MSFT +5% vs VTI +1%.
+    const msft = thesis({ id: "msft-week", symbol: "MSFT", forecast: { beatVtiPct: 60, expectedExcessPct: "3", horizon: "2026-11-06" } });
+    expect(await submitStrategy(db, strategy({ summary: "Version 2: Change.", conviction: [thesis({ reviewBy: "2026-11-12" }), msft] }), "claude", new Date("2026-11-04T13:30:00Z"))).toMatchObject({ status: "activated" });
+    await db.insert(thesisCloses).values([
+      { symbol: "MSFT", tradingDate: "2026-11-04", close: "200" },
+      { symbol: "MSFT", tradingDate: "2026-11-06", close: "210" },
+    ]);
+    await db.insert(benchmarkCloses).values({ symbol: "VTI", tradingDate: "2026-11-04", close: "303" });
+    clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
+    await notifyWeekly(ctx());
+    expect(mailer.sent[0]!.text).toContain("Forecasts: 1 resolved this week, 1 beat VTI; skill vs the 45% base rate: too few to judge (1 resolved)");
   });
 
   it("puts each thesis opened this week in plain terms", async () => {

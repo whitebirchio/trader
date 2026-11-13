@@ -45,6 +45,7 @@ It goes out **every trading day**, quiet days included (Scott, 2026-10-31), so i
 **The weekly letter** (#38, `tasks/weekly-letter-plan.md`) says whether the strategy is working. `notify-weekly` sends it on the week's last session (the next session is in a later week, from Alpaca's calendar, so holiday weeks still get one), an hour after the close and once that day's after-close equity snapshot exists. It covers:
 - the week's flow-adjusted return vs VTI's over the same days, and the same since the start
 - the scorecard's track record (overall and by kind), and each thesis opened or closed this week
+- *(2026-11-13, the forecast ledger)* one forecasts line: how many resolved this week and how many beat VTI (backfilled ones counted apart, not scored), and the running skill score against the 45% base rate, or "too few to judge" below 30 resolved
 - each strategy version that changed something, with the first line of its summary; resubmissions that only reaffirmed it are counted, not listed
 - automatic exits (stops, stale, overdue), review dates in the next 14 days, and the guardrail state
 

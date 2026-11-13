@@ -89,7 +89,10 @@ export interface ForecastReport {
   byLeadSignal: ({ leadSignal: string } & Calibration)[];
   /** Does Claude pick better than the names it looks at and passes on? Excess vs VTI after N trading days. */
   boughtVsPassed: { days: number; bought: YardstickGroup; passed: YardstickGroup; differencePct: number | null; stdErr: number | null }[];
-  open: { source: ForecastSource; id: string; symbol: string; beatVtiPct: number; horizon: string; daysToHorizon: number }[];
+  /** Not yet resolved, soonest horizon first. */
+  open: { source: ForecastSource; id: string; symbol: string; beatVtiPct: number; horizon: string; daysToHorizon: number; backfilled: boolean }[];
+  /** Resolved, latest first: `endDate` is the close it resolved on. */
+  resolved: { source: ForecastSource; id: string; symbol: string; beatVtiPct: number; endDate: string; beat: boolean; excessPct: string; backfilled: boolean }[];
   baseRatePct: number;
 }
 
@@ -316,8 +319,12 @@ export function forecastReport(input: ForecastInputs): ForecastReport {
     }),
     open: outcomes
       .filter((o) => !o.resolved)
-      .map((o) => ({ source: o.source, id: o.id, symbol: o.symbol, beatVtiPct: o.beatVtiPct, horizon: o.horizon, daysToHorizon: Math.round((Date.parse(`${o.horizon}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) }))
+      .map((o) => ({ source: o.source, id: o.id, symbol: o.symbol, beatVtiPct: o.beatVtiPct, horizon: o.horizon, daysToHorizon: Math.round((Date.parse(`${o.horizon}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000), backfilled: o.backfilled }))
       .sort((a, b) => a.horizon.localeCompare(b.horizon) || a.id.localeCompare(b.id)),
+    resolved: outcomes
+      .filter((o) => o.resolved)
+      .map((o) => ({ source: o.source, id: o.id, symbol: o.symbol, beatVtiPct: o.beatVtiPct, endDate: o.endDate!, beat: o.beat!, excessPct: o.excessPct!, backfilled: o.backfilled }))
+      .sort((a, b) => b.endDate.localeCompare(a.endDate) || a.id.localeCompare(b.id)),
     baseRatePct: FORECAST_BASE_RATE_PCT,
   };
 }

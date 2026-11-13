@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type DigestData, type NotifiableEvent, composeDigest, composeUrgent, escapeHtml } from "../../src/notifications/compose.js";
+import { type DigestData, type NotifiableEvent, composeDigest, composeUrgent, escapeHtml, forecastLine } from "../../src/notifications/compose.js";
 
 const at = new Date("2026-11-02T20:15:00Z");
 const ev = (kind: string, payload: Record<string, unknown>, subject: string | null = null): NotifiableEvent => ({ kind, subject, payload, at });
@@ -342,5 +342,23 @@ describe("capital emails", () => {
 
   it("leaves the money section out on a day without transfers", () => {
     expect(composeDigest(base, "production").text).not.toContain("Money in and out");
+  });
+});
+
+describe("forecastLine", () => {
+  const f = { resolvedThisWeek: 0, beatThisWeek: 0, backfilledThisWeek: 0, resolved: 0, skill: null, tooFewToJudge: true, baseRatePct: 45 };
+
+  it("says too few to judge until there are enough", () => {
+    expect(forecastLine(f)).toBe("Forecasts: none resolved this week; skill vs the 45% base rate: too few to judge (0 resolved)");
+    expect(forecastLine({ ...f, resolvedThisWeek: 2, beatThisWeek: 1, backfilledThisWeek: 3, resolved: 12, skill: 0.08 })).toBe(
+      "Forecasts: 2 resolved this week, 1 beat VTI (3 backfilled, not scored); skill vs the 45% base rate: too few to judge (12 resolved)",
+    );
+  });
+
+  it("gives the signed skill score once there are", () => {
+    expect(forecastLine({ ...f, resolvedThisWeek: 1, beatThisWeek: 1, resolved: 34, skill: 0.1234, tooFewToJudge: false })).toBe(
+      "Forecasts: 1 resolved this week, 1 beat VTI; skill vs the 45% base rate: +0.12 over 34 resolved",
+    );
+    expect(forecastLine({ ...f, resolved: 30, skill: -0.05, tooFewToJudge: false })).toContain("skill vs the 45% base rate: -0.05 over 30 resolved");
   });
 });
