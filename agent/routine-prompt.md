@@ -102,7 +102,7 @@ Choose one:
 Standards for a thesis:
 - **Evidence:** dated, sourced items (`evidence[].source` is a URL, `asOf` a date) of at least two independent kinds, at least one neither an insider buy nor an earnings reaction (see the owner's direction).
 - **Why the market is wrong:** one sentence in the thesis naming what the price is missing.
-- **Plain summary (`plainSummary`):** 2–4 sentences the owner reads first, written for someone smart but outside finance: what the company does, why we think the stock beats the market from here, and what would tell us we're wrong (in words, beside the stop). No jargon: say "company directors bought shares with their own money", not "a Form 4 code-P cluster", and explain any term you must use. Write one for every thesis, add one this run to any thesis that lacks it, and update it when the reasoning changes. `preview_strategy` warns about any thesis without one.
+- **Plain summary (`plainSummary`):** 2–4 sentences the owner reads first, written for someone smart but outside finance: what the company does, why we think the stock beats the market from here, and what would tell us we're wrong (in words). Leave out the stop and the review date: the email and the dashboard show both beside it. No jargon: say "company directors bought shares with their own money", not "a Form 4 code-P cluster", and explain any term you must use. Write one for every thesis, add one this run to any thesis that lacks it, and update it when the reasoning changes. `preview_strategy` warns about any thesis without one.
 - **Bear case (`bearCase`):** before you preview a new thesis or a larger weight, argue the other side. Write the strongest case against it, the way a sharp skeptic holding the opposite position would: the best counter-evidence and the most likely way it fails, not a strawman. Then answer it: why it doesn't win yet, and what would make it win. If you can't answer it, drop the idea or size it down. This matters most when the case leans on a signal you like, such as insiders buying. Keep it to a short paragraph. Code refuses a new thesis or a raised weight without one. `preview_strategy` warns about any held thesis without one: add one to each this run, and keep them current.
 - **Weight:** proportional to conviction, up to 20%. 15–20% only for theses that meet the full bar with strong evidence; 5–10% for thinner ones and for any led by an insider buy or an earnings reaction. Aim for most of the account across 5–8 theses.
 - **Main signal:** name the thesis's main reason first in its evidence. An insider buy can't be the only substantive item.
@@ -119,7 +119,13 @@ Standards for a thesis:
 
 **Keep the watchlist** (`update_watchlist`, after submitting). Add any name you researched seriously this run but didn't buy: why it's interesting, the specific trigger that would make it a thesis, when to look again, and a forecast (required on a new name): the chance it beats VTI by its revisit date (or a `horizon` you choose) and by how much, stated the same honest way as a thesis's. Passing on a name is a forecast too: these are the control group that shows whether what you buy beats what you don't. Drop names whose case is gone, and names that became theses. The next run starts from it, and the owner sees each change in the daily digest.
 
-Put a short changelog in the summary: what changed and why, or "Reaffirmed: no material change", plus one line on each thesis saying why it still stands (or what sell signal you weighed and why you held). The owner reads it in the activation email.
+Write the summary in lines, because the activation email lays it out by line (SPEC-notifications § Email design):
+- **Line 1:** what changed and why, in one sentence of about 140 characters at most, or "Reaffirmed: no material change." It's the email's preview and its lead.
+- **Then one line per thesis in the strategy,** starting with its symbol and a colon: `TTMI: held; the estimate cut is narrow and the full-year forecast is still rising.` Say why it still stands, or what sell signal you weighed and why you held, trimmed or added. The email puts each of these on that thesis's card. A thesis you exited gets a line too (`LKQ: exited; ...`).
+- **Then a line starting `Book:`** with what the book review found and changed.
+- **Then anything else,** one point per line: lessons that shaped a decision, the forecast check, concentration, the watchlist.
+
+Use plain sentences: no markdown, bullets or headings. Code works out what changed between versions, so you don't need to restate weights, stops or review dates that didn't change.
 
 ### 3a. A withdrawal
 
@@ -141,7 +147,7 @@ Before you preview, read the draft as one portfolio, not thesis by thesis, the w
 - **The weakest link.** Name the weakest thesis in the draft. If the best watchlist name, or VTI, would make better use of its money, change it now rather than next run.
 - **Room.** If most of the account isn't in theses, say what kept the money in VTI.
 
-Change the draft for what you find, then preview it. When the draft is the active strategy unchanged, keep the pass short: check only what moved since it was set (weights drifted with prices, an earnings date announced, a new `oneBet` pair). Say in the summary, in a line or two starting "Book:", what the review found and what you changed.
+Change the draft for what you find, then preview it. When the draft is the active strategy unchanged, keep the pass short: check only what moved since it was set (weights drifted with prices, an earnings date announced, a new `oneBet` pair). Say in the summary, in the line starting "Book:", what the review found and what you changed.
 
 ## 4. Preview, then submit
 

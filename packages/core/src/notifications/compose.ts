@@ -1,9 +1,14 @@
 import type { CapitalSummary } from "../capital/shadow.js";
 import type { TradingEnv } from "../env.js";
 import { compare, round, sub } from "../money.js";
-import { formatMarketTime } from "../time.js";
+import { formatMarketTime, shortDate } from "../time.js";
+import type { AuditKind } from "../audit.js";
+import { type Block, type EmailDoc, type Tone, escapeHtml, render } from "./layout.js";
 import type { OutgoingEmail } from "./port.js";
 import { SEVERITY } from "./routing.js";
+import { splitSummary, strategyEmail } from "./strategy-email.js";
+
+export { escapeHtml } from "./layout.js";
 
 /** The audit-event fields an email needs. */
 export interface NotifiableEvent {
@@ -13,21 +18,63 @@ export interface NotifiableEvent {
   at: Date;
 }
 
+/** A line of an email: a sentence, or a block (a list, cards) where a sentence won't do. */
+export type Line = string | Block;
+
 interface Described {
   headline: string;
-  lines: string[];
+  lines: Line[];
+  /** Gmail's inbox preview; the first sentence when absent. */
+  preheader?: string;
+  /** Before the time under the headline: "by Claude". */
+  byline?: string;
 }
+
+/**
+ * Each urgent kind's tone, shown as the dashboard's status icon beside its
+ * headline (SPEC-notifications § Email design). routing.test checks every
+ * urgent kind has one.
+ */
+export const TONES: Partial<Record<AuditKind, Tone>> = {
+  "risk.halted": "bad",
+  "risk.kill_switch_on": "bad",
+  "broker.config_unsafe": "bad",
+  "broker.account_changed": "bad",
+  "broker.reconcile_mismatch": "bad",
+  "order.external": "bad",
+  "order.unknown": "bad",
+  "capital.unplanned_outflow": "bad",
+  "capital.transfer_reversed": "bad",
+  "job.failed": "bad",
+  "thesis.stopped_out": "warn",
+  "thesis.took_profit": "warn",
+  "thesis.stale": "warn",
+  "thesis.review_overdue": "warn",
+  "strategy.rejected": "warn",
+  "routine.missed": "warn",
+  "risk.buys_paused": "warn",
+  "filing.sell_signal": "warn",
+  "capital.command_rejected": "warn",
+  "capital.transfer_canceled": "warn",
+  "capital.withdrawal_ready": "warn",
+  "risk.resumed": "good",
+  "broker.trading_allowed": "good",
+  "strategy.activated": "neutral",
+  "capital.withdrawal_requested": "neutral",
+  "capital.fund_now": "neutral",
+  "capital.withdrawal_cancelled": "neutral",
+  "capital.funding_planned": "neutral",
+};
+
+/** The dashboard, linked from emails (infra/lib/config.ts DASHBOARD_DOMAINS). Paper runs on a laptop and has none. */
+export const DASHBOARD_URL: Record<TradingEnv, string | null> = { production: "https://trader.whitebirch.io", staging: null };
 
 const str = (v: unknown): string => (v === undefined || v === null ? "" : String(v));
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(str) : v === undefined || v === null ? [] : [str(v)]);
-/** The activation email's plain-language lines (#60), one per thesis that has a plainSummary. */
-const plainLines = (v: unknown): string[] => {
-  const rows = (Array.isArray(v) ? v : []) as { symbol?: unknown; targetWeightPct?: unknown; text?: unknown }[];
-  return rows.length ? ["In plain terms:", ...rows.map((t) => `• ${str(t.symbol)} (${str(t.targetWeightPct)}%): ${str(t.text)}`)] : [];
-};
+const bullets = (items: string[]): Block[] => (items.length ? [{ type: "list", items }] : []);
 
-/** One sentence-level description per kind. Reasons already read as English (SPEC-risk). */
-export function describe(e: NotifiableEvent): Described {
+/** One sentence-level description per kind. Reasons already read as English (SPEC-risk). `dashboard` adds links where a kind has a page. */
+export function describe(e: NotifiableEvent, dashboard: string | null = null): Described {
   const p = e.payload;
   switch (e.kind) {
     case "risk.halted":
@@ -49,7 +96,7 @@ export function describe(e: NotifiableEvent): Described {
     case "broker.reconcile_mismatch":
       return {
         headline: "Broker safety check failed",
-        lines: [...list(p.reasons).map((r) => `• ${r}`), "Trading is blocked until this clears."],
+        lines: [...bullets(list(p.reasons)), "Trading is blocked until this clears."],
       };
     case "broker.trading_allowed":
       return { headline: "Broker safety check passing again", lines: [`Cleared: ${list(p.cleared).join("; ")}.`] };
@@ -70,20 +117,14 @@ export function describe(e: NotifiableEvent): Described {
         lines: [`Error: ${str(p.error)}`, ...(folded > 0 ? [`${folded} more failure(s) of this job since the last email.`] : [])],
       };
     }
-    case "strategy.activated":
-      return {
-        headline: `New strategy v${str(p.version)} by ${str(p.authoredBy)}`,
-        lines: [
-          str(p.summary),
-          ...plainLines(p.plain),
-          `${str(p.theses)} conviction ${Number(p.theses) === 1 ? "thesis" : "theses"} (${str(p.convictionPct)}% of the account); systematic: top ${str(p.topN)} of ${str(p.universeSize)} symbols.`,
-          "It takes effect at the next rebalance step.",
-        ],
-      };
+    case "strategy.activated": {
+      const s = strategyEmail(p, dashboard);
+      return { headline: s.headline, lines: s.blocks, preheader: s.preheader, ...(s.byline ? { byline: s.byline } : {}) };
+    }
     case "strategy.rejected":
       return {
         headline: `Strategy rejected (${str(p.authoredBy)}'s submission)`,
-        lines: [...list(p.errors).map((err) => `• ${err}`), `v${str(p.activeVersion)} stays active.`],
+        lines: [...bullets(list(p.errors)), `v${str(p.activeVersion)} stays active.`],
       };
     case "thesis.stopped_out":
       return { headline: `${p.trigger === "trailing_stopped" ? "Trailing stop" : "Stop-loss"}: selling ${str(e.subject)}`, lines: [`${str(p.reason)}.`, `Thesis ${str(p.thesisId)} is closed; re-entry needs a new thesis.`] };
@@ -192,18 +233,18 @@ export function describe(e: NotifiableEvent): Described {
   }
 }
 
-/** "$500", "-$1000": signed dollars from a decimal string. */
-/** An ISO instant from a payload, as people read it. */
 /** A refused fire as people read it: "401 authentication_error", "timeout". */
 function retryFailure(r: { httpStatus?: unknown; errorType?: unknown }): string {
   return [r.httpStatus, r.errorType].filter((x) => x !== null && x !== undefined && x !== "").map(String).join(" ") || "unknown error";
 }
 
+/** An ISO instant from a payload, as people read it. */
 function when(v: unknown): string {
   const d = typeof v === "string" ? new Date(v) : null;
   return d && !Number.isNaN(d.getTime()) ? formatMarketTime(d) : str(v);
 }
 
+/** "$500", "-$1000": signed dollars from a decimal string. */
 function money(v: unknown): string {
   const s = str(v);
   return s.startsWith("-") ? `-$${s.slice(1)}` : `$${s}`;
@@ -223,31 +264,51 @@ export function footer(env: TradingEnv, at: Date): { text: string; html: string 
   return { text: `\n\n${line}\n`, html: `<p style="color:#666">${escapeHtml(line)}</p>` };
 }
 
-export function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+const severity = (e: NotifiableEvent) => SEVERITY[e.kind as keyof typeof SEVERITY] ?? 99;
+const toBlocks = (lines: Line[]): Block[] => lines.map((l) => (typeof l === "string" ? { type: "paragraph", text: l } : l));
+const firstSentence = (lines: Line[]): string | undefined => lines.find((l): l is string => typeof l === "string" && l.length > 0);
+
+/** The dashboard page an email is about: the thesis, the strategy, the money page, or the overview. */
+function actionFor(e: NotifiableEvent, dashboard: string | null): EmailDoc["action"] {
+  if (!dashboard) return undefined;
+  const thesisId = typeof e.payload.thesisId === "string" ? e.payload.thesisId : null;
+  if (thesisId && (e.kind.startsWith("thesis.") || e.kind === "filing.sell_signal")) return { text: "Open the thesis", href: `${dashboard}/theses/${encodeURIComponent(thesisId)}` };
+  if (e.kind.startsWith("strategy.")) return { text: "Open the strategy", href: `${dashboard}/strategy` };
+  if (e.kind.startsWith("capital.")) return { text: "Open Money", href: `${dashboard}/money` };
+  if (e.kind.startsWith("routine.")) return { text: "Open activity", href: `${dashboard}/activity` };
+  return { text: "Open Trader", href: dashboard };
 }
 
 /** One email for every urgent event in a tick, most severe first. */
 export function composeUrgent(events: NotifiableEvent[], env: TradingEnv, at: Date = new Date()): OutgoingEmail {
-  const sorted = [...events].sort(
-    (a, b) => (SEVERITY[a.kind as keyof typeof SEVERITY] ?? 99) - (SEVERITY[b.kind as keyof typeof SEVERITY] ?? 99) || a.at.getTime() - b.at.getTime(),
-  );
-  const described = sorted.map((e) => ({ e, d: describe(e) }));
-  const first = described[0]?.d.headline ?? "Notification";
+  const sorted = [...events].sort((a, b) => severity(a) - severity(b) || a.at.getTime() - b.at.getTime());
+  const dashboard = DASHBOARD_URL[env];
+  const described = sorted.map((e) => ({ e, d: describe(e, dashboard), tone: TONES[e.kind as AuditKind] ?? "neutral" }));
+  const first = described[0];
   const more = described.length > 1 ? ` (+${described.length - 1} more)` : "";
-  const subject = `${prefix(env)}Trader: ${first}${more}`;
+  const subject = `${prefix(env)}Trader: ${first?.d.headline ?? "Notification"}${more}`;
+  const footerLine = `— Trader${env === "staging" ? " (staging)" : ""} · ${formatMarketTime(at)}`;
 
-  const text = described
-    .map(({ e, d }) => [`${d.headline} (${formatMarketTime(e.at)})`, ...d.lines.map((l) => `  ${l}`)].join("\n"))
-    .join("\n\n");
-  const html = described
-    .map(
-      ({ e, d }) =>
-        `<h3>${escapeHtml(d.headline)}</h3><p style="color:#666">${escapeHtml(formatMarketTime(e.at))}</p><ul>${d.lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`,
-    )
-    .join("");
-  const f = footer(env, at);
-  return { subject, text: `${text}${f.text}`, html: `${html}${f.html}` };
+  const doc: EmailDoc =
+    described.length === 1 && first
+      ? {
+          preheader: first.d.preheader ?? firstSentence(first.d.lines) ?? first.d.headline,
+          title: first.d.headline,
+          tone: first.tone,
+          subtitle: [first.d.byline, formatMarketTime(first.e.at)].filter(Boolean).join(" · "),
+          blocks: toBlocks(first.d.lines),
+          action: actionFor(first.e, dashboard),
+          footer: footerLine,
+        }
+      : {
+          preheader: described.map(({ d }) => d.headline).join(" · "),
+          title: `${described.length} updates`,
+          subtitle: "Most urgent first",
+          blocks: described.map(({ e, d, tone }) => ({ type: "section", title: d.headline, tone, subtitle: [d.byline, formatMarketTime(e.at)].filter(Boolean).join(" · "), blocks: toBlocks(d.lines) })),
+          action: first ? actionFor(first.e, dashboard) : undefined,
+          footer: footerLine,
+        };
+  return { subject, ...render(doc) };
 }
 
 export interface DigestData {
@@ -280,14 +341,6 @@ export function withdrawalLine(w: NonNullable<DigestData["withdrawal"]>): string
   const stage = w.status === "planning" && w.planBy ? `${WITHDRAWAL_STAGE.planning} (by ${when(w.planBy)})` : (WITHDRAWAL_STAGE[w.status] ?? w.status);
   const raise = compare(w.unfunded, "0") > 0 && w.status !== "ready" ? `; ${money(round(w.unfunded, 2, "up"))} still to raise` : "";
   return `Open withdrawal of ${what}: ${stage}${raise}. ${money(w.outstanding)} is held back from investing.`;
-}
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function shortDate(date: string): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  return `${WEEKDAYS[d.getUTCDay()]} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
 function signed(pct: string): string {
@@ -355,6 +408,14 @@ function filingLines(e: NotifiableEvent): string[] {
   return rows.map((f) => `${str(f.symbol)}${f.thesisId ? "" : " (watchlist)"}${f.sellSignal ? " [sell signal]" : ""}, ${shortDate(str(f.filedOn))}: ${str(f.summary)}`);
 }
 
+/** Research runs that only reaffirmed the strategy (their activation isn't urgent): one line each. */
+function researchLine(e: NotifiableEvent): string | null {
+  if (e.kind !== "strategy.activated") return null;
+  const lead = splitSummary(str(e.payload.summary), new Set()).lead;
+  const time = formatMarketTime(e.at).split(", ").at(-1);
+  return `v${str(e.payload.version)} (${time}), no changes${lead ? `: ${lead}` : ""}`;
+}
+
 function guardrailLine(e: NotifiableEvent): string | null {
   const p = e.payload;
   switch (e.kind) {
@@ -379,6 +440,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
   const watchlist = data.events.flatMap(watchlistLines);
   const filings = data.events.flatMap(filingLines);
   const lessons = data.events.flatMap(lessonLines);
+  const research = data.events.map(researchLine).filter((l): l is string => l !== null);
   const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
@@ -407,6 +469,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
     ...(capital.length ? ([["Money in and out", capital]] as [string, string[]][]) : []),
     ["Trades", trades.length ? trades : ["None today"]],
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
+    ...(research.length ? ([["Research runs", research]] as [string, string[]][]) : []),
     ...(filings.length ? ([["SEC filings", filings]] as [string, string[]][]) : []),
     ...(watchlist.length ? ([["Research watchlist", watchlist]] as [string, string[]][]) : []),
     ...(lessons.length ? ([["Lessons", lessons]] as [string, string[]][]) : []),

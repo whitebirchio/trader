@@ -13,7 +13,9 @@ describe("composeUrgent", () => {
     expect(email.subject).toBe("Trader: Trading HALTED");
     expect(email.text).toContain("Why: the account is down 20.08% from its peak (limit 20%).");
     expect(email.text).toContain("Nothing is bought or resized until you run risk:resume. A thesis that closes (its stop, its review date) or that Claude removes is still sold whole, and the cash waits.");
-    expect(email.html).toContain("<h3>Trading HALTED</h3>");
+    expect(email.text.startsWith("■ Trading HALTED\n")).toBe(true);
+    expect(email.html).toContain("Trading HALTED</h1>");
+    expect(email.html).toContain('href="https://trader.whitebirch.io/"');
   });
 
   it("groups a tick's events into one email, most severe first", () => {
@@ -28,7 +30,9 @@ describe("composeUrgent", () => {
     expect(email.subject).toBe("Trader: Kill switch ON (+2 more)");
     const order = ["Kill switch ON", "Broker safety check failed", "Buys paused for today"].map((h) => email.text.indexOf(h));
     expect(order).toEqual([...order].sort((a, b) => a - b));
-    expect(email.text).toContain("• margin multiplier 2 (must be 1)");
+    expect(email.text).toContain("\n- margin multiplier 2 (must be 1)");
+    expect(email.html).toContain("<li style=\"margin:0 0 4px;\">margin multiplier 2 (must be 1)</li>");
+    expect(email.text.startsWith("3 updates\n")).toBe(true);
   });
 
   it("describes an order placed outside Trader", () => {
@@ -118,32 +122,27 @@ describe("composeDigest trade lines", () => {
 describe("buys paused wording", () => {
   it("says 'down', with the time in New York", () => {
     const email = composeUrgent([{ kind: "risk.buys_paused", subject: null, payload: { dailyChangePct: "-5.3" }, at: new Date("2026-11-03T15:15:00Z") }], "production");
-    expect(email.text).toContain("Buys paused for today (Tue, Nov 3, 10:15 AM ET)");
+    expect(email.text).toContain("Buys paused for today\nTue, Nov 3, 10:15 AM ET");
     expect(email.text).toContain("The account is down 5.3% since yesterday's close.");
   });
 });
 
 describe("strategy and thesis emails", () => {
-  it("announces a new strategy", () => {
+  it("announces a new strategy recorded before 2026-11-15 in the new layout", () => {
     const email = composeUrgent(
       [ev("strategy.activated", { version: 3, authoredBy: "claude", summary: "Rotate into semis on capex guidance.", theses: 2, convictionPct: "35", topN: 4, universeSize: 40 }, "v3")],
       "production",
     );
     expect(email.subject).toBe("Trader: New strategy v3 by claude");
-    expect(email.text).toContain("2 conviction theses (35% of the account); systematic: top 4 of 40 symbols.");
+    expect(email.text).toContain("In theses: 35%\nSystematic: 65% (top 4 of 40)\nTheses: 2");
+    expect(email.text).toContain("Rotate into semis on capex guidance.");
     expect(email.text).not.toContain("In plain terms");
-  });
-
-  it("lists each thesis in plain terms when it has a plain summary", () => {
-    const plain = [{ symbol: "ROL", targetWeightPct: "5", text: "Rollins is the pest-control company behind Orkin." }];
-    const email = composeUrgent([ev("strategy.activated", { version: 4, authoredBy: "claude", summary: "Adds ROL.", theses: 1, convictionPct: "5", topN: 1, universeSize: 1, plain }, "v4")], "production");
-    expect(email.text).toContain("  In plain terms:\n  • ROL (5%): Rollins is the pest-control company behind Orkin.");
   });
 
   it("explains a rejection and what stays active", () => {
     const email = composeUrgent([ev("strategy.rejected", { authoredBy: "claude", errors: ["conviction[0].stopLossPct: must be at least 5 and at most 50"], activeVersion: 2 })], "production");
     expect(email.subject).toBe("Trader: Strategy rejected (claude's submission)");
-    expect(email.text).toContain("• conviction[0].stopLossPct: must be at least 5 and at most 50");
+    expect(email.text).toContain("\n- conviction[0].stopLossPct: must be at least 5 and at most 50");
     expect(email.text).toContain("v2 stays active.");
   });
 

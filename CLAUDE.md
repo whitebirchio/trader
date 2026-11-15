@@ -27,6 +27,7 @@ npm run broker:smoke -w @trader/core -- --env paper              # $5 VTI order 
 npm run rebalance:plan -w @trader/core -- --env production --sync  # dry-run today's rebalance through risk: records and orders nothing
 npm run risk:status -w @trader/core -- --env production         # read-only checks (also strategy:show, capital:status, scorecard:show): trader_readonly (SELECT only), no live key
 npm run notify:run -w @trader/core -- --env production           # queue urgent emails now
+npm run notify:preview -w @trader/core -- --sample all --html .cache/email-preview   # render every sample email to HTML and text (no database)
 npm run earnings:refresh -w @trader/core -- --env production --show AAPL   # fetch today's earnings calendar now (ALPHAVANTAGE_API_KEY in .env)
 npm run invoke -- --env production --jobs check-filings                     # check SEC filings on every thesis and watchlist name now (runs if the last check was 55+ min ago)
 npm run invoke -- --env production --jobs earnings-backfill                 # fetch the next few companies' earnings history now (within the daily Alpha Vantage budget)
