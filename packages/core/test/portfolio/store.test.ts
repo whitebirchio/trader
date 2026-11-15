@@ -55,6 +55,21 @@ describe("submitStrategy", () => {
     expect(event!.payload).toMatchObject({ plain: [{ symbol: "AAPL", targetWeightPct: "10", text: plainSummary }] });
   });
 
+  it("says what changed against the version it replaces, with a card per thesis (SPEC-notifications § Email design)", async () => {
+    await submitStrategy(db, strategy(), "claude", now);
+    await submitStrategy(db, strategy({ summary: "Reaffirmed" }), "claude", now);
+    await submitStrategy(db, strategy({ conviction: [thesis({ targetWeightPct: "12", reviewBy: "2026-12-01" })] }), "claude", now);
+    const [first, second, third] = await events("strategy.activated");
+    expect(first!.payload).toMatchObject({ previousVersion: 0, changed: true, changes: { added: [{ symbol: "AAPL", weightPct: "10" }] } });
+    expect(second!.payload).toMatchObject({ previousVersion: 1, changed: false, changes: { added: [], removed: [], resized: [], moved: [], edited: [] } });
+    expect(third!.payload).toMatchObject({
+      changed: true,
+      changes: { resized: [{ symbol: "AAPL", from: "10", to: "12" }] },
+      universe: ["VTI", "QQQ", "MSFT", "NVDA"],
+      cards: [{ thesisId: "aapl-services", symbol: "AAPL", weightPct: "12", stopLossPct: "15", reviewBy: "2026-12-01", leadSignal: "fundamental", beatVtiPct: 55, plainSummary: null }],
+    });
+  });
+
   it("rejects an invalid strategy, audits it, and leaves the active version alone", async () => {
     await submitStrategy(db, strategy(), "owner", now);
     const bad = strategy({ conviction: [thesis({ stopLossPct: "60" })] });

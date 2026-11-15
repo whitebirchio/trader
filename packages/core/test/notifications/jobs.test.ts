@@ -51,6 +51,14 @@ describe("notify-urgent", () => {
     expect(mailer.sent).toHaveLength(1);
   });
 
+  it("doesn't email a strategy version that changes nothing (it goes in the digest)", async () => {
+    await submitStrategy(db, strategy(), "claude", clock);
+    await submitStrategy(db, strategy({ summary: "Reaffirmed: no material change." }), "claude", clock);
+    expect(await notifyUrgent(ctx())).toMatchObject({ detail: { events: 1, sent: 1 } });
+    expect(mailer.sent[0]?.subject).toBe("Trader: Strategy v1: AAPL 10% added");
+    expect(await notifyUrgent(ctx())).toMatchObject({ detail: { events: 0, sent: 0 } });
+  });
+
   it("queues but doesn't send on staging", async () => {
     await recordEvent(db, { actor: "owner", kind: "risk.kill_switch_on", payload: { reason: "x" } });
     await notifyUrgent(ctx("staging"));
@@ -131,6 +139,17 @@ describe("notify-digest", () => {
     clock = new Date(CLOSE.getTime() + 30 * 60_000);
     await notifyDigest(ctx());
     expect(mailer.sent[0]?.text).toContain("Since Mon Nov 2: started with $1000, now $1000"); // no VTI closes in the fake
+  });
+
+  it("lists research runs that only reaffirmed the strategy", async () => {
+    await syncBroker(db, broker, "production", new Date("2026-11-02T15:00:00Z"));
+    const payload = { version: 20, authoredBy: "claude", summary: "Reaffirmed: no material change since v19.\nTTMI: held.", changed: false, changes: {} };
+    await db.insert(auditEvents).values({ actor: "claude", kind: "strategy.activated", subject: "v20", at: new Date("2026-11-02T13:05:00Z"), payload });
+    await db.insert(auditEvents).values({ actor: "claude", kind: "strategy.activated", subject: "v21", at: new Date("2026-11-02T17:05:00Z"), payload: { ...payload, version: 21, changed: true } });
+    clock = new Date(CLOSE.getTime() + 30 * 60_000);
+    expect(await notifyDigest(ctx())).toMatchObject({ detail: { events: 1 } });
+    expect(mailer.sent[0]?.text).toContain("Research runs\n  v20 (8:05 AM ET), no changes: Reaffirmed: no material change since v19.");
+    expect(mailer.sent[0]?.text).not.toContain("v21 (");
   });
 
   it("sends on a quiet day too", async () => {

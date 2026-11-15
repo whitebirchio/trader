@@ -5,6 +5,7 @@ import { strategies, thesisEvents } from "../db/schema.js";
 import { add } from "../money.js";
 import { marketDate } from "../time.js";
 import { EXIT_RULES, type ExitRules, type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
+import { sameExceptSummary, strategyChanges } from "./strategy-diff.js";
 import { CLOSING_KINDS, bearCaseErrors, ledgerErrors, reviewDateErrors } from "./theses.js";
 
 export interface ActiveStrategy {
@@ -92,6 +93,39 @@ export interface SubmitOptions {
   requireLedger?: boolean;
 }
 
+/**
+ * The `strategy.activated` payload: the version's headline figures, and for
+ * the strategy email (SPEC-notifications § Email design) what changed against
+ * the version it replaces and a card per thesis. Pure, so notify:preview's
+ * samples build theirs the same way.
+ */
+export function activationPayload(s: Strategy, version: number, actor: "claude" | "owner" | "system", previous: { version: number; strategy: Strategy }): Record<string, unknown> {
+  return {
+    version,
+    authoredBy: actor,
+    summary: s.summary,
+    theses: s.conviction.length,
+    convictionPct: s.conviction.reduce((sum, t) => add(sum, t.targetWeightPct), "0"),
+    plain: s.conviction.filter((t) => t.plainSummary).map((t) => ({ symbol: t.symbol, targetWeightPct: t.targetWeightPct, text: t.plainSummary })),
+    topN: s.systematic.topN,
+    universeSize: s.systematic.universe.length,
+    universe: s.systematic.universe.slice(0, 10),
+    previousVersion: previous.version,
+    changed: !sameExceptSummary(s, previous.strategy),
+    changes: strategyChanges(previous.strategy, s),
+    cards: s.conviction.map((t) => ({
+      thesisId: t.id,
+      symbol: t.symbol,
+      weightPct: t.targetWeightPct,
+      stopLossPct: t.stopLossPct,
+      reviewBy: t.reviewBy ?? null,
+      leadSignal: t.leadSignal ?? null,
+      beatVtiPct: t.forecast?.beatVtiPct ?? null,
+      plainSummary: t.plainSummary ?? null,
+    })),
+  };
+}
+
 export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "owner" | "system", now: Date, opts: SubmitOptions = {}): Promise<SubmitStrategyResult> {
   const parsed = validateStrategy(doc);
   const errors = parsed.ok ? await submissionErrors(db, parsed.strategy, now, EXIT_RULES, opts) : parsed.errors;
@@ -102,25 +136,12 @@ export async function submitStrategy(db: Db, doc: unknown, actor: "claude" | "ow
   }
 
   const s = parsed.strategy;
+  const previous = await activeStrategy(db, now);
   const [row] = await db
     .insert(strategies)
     .values({ authoredBy: actor, summary: s.summary, document: s as unknown as Record<string, unknown>, createdAt: now })
     .returning({ version: strategies.version });
   if (!row) throw new Error("strategies insert returned no row");
-  await recordEvent(db, {
-    actor,
-    kind: "strategy.activated",
-    subject: `v${row.version}`,
-    payload: {
-      version: row.version,
-      authoredBy: actor,
-      summary: s.summary,
-      theses: s.conviction.length,
-      convictionPct: s.conviction.reduce((sum, t) => add(sum, t.targetWeightPct), "0"),
-      plain: s.conviction.filter((t) => t.plainSummary).map((t) => ({ symbol: t.symbol, targetWeightPct: t.targetWeightPct, text: t.plainSummary })),
-      topN: s.systematic.topN,
-      universeSize: s.systematic.universe.length,
-    },
-  });
+  await recordEvent(db, { actor, kind: "strategy.activated", subject: `v${row.version}`, payload: activationPayload(s, row.version, actor, previous) });
   return { status: "activated", version: row.version };
 }

@@ -4,25 +4,49 @@
  * week's letter for --date (default today; it must have its after-close snapshot).
  *
  *   npm run notify:preview -w @trader/core -- --env production|paper [--digest | --weekly [--date YYYY-MM-DD]]
- *   npm run notify:preview -w @trader/core -- --sample withdrawal   (sample emails; no database)
+ *   npm run notify:preview -w @trader/core -- --sample withdrawal|<name>|all   (sample emails; no database)
+ *
+ * --html <dir> also writes each email as <dir>/<name>.html and .txt, to open
+ * in a browser (SPEC-notifications § Email design). Samples are in
+ * src/notifications/samples.ts.
  */
+import { mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { and, gte, inArray } from "drizzle-orm";
 import { auditEvents } from "../src/db/schema.js";
 import { composeDigest, composeUrgent, composeWeekly } from "../src/notifications/compose.js";
+import type { OutgoingEmail } from "../src/notifications/port.js";
+import { SAMPLES } from "../src/notifications/samples.js";
 import { weeklyData } from "../src/notifications/weekly.js";
 import { coveredEventIds } from "../src/notifications/outbox.js";
-import { DIGEST_KINDS, URGENT_KINDS } from "../src/notifications/routing.js";
+import { kindsFor, routeEvent } from "../src/notifications/routing.js";
 import { loadSnapshot } from "../src/risk/gate.js";
 import { LIMITS } from "../src/risk/limits.js";
 import { marketDate } from "../src/time.js";
 import { withOps } from "./ops.js";
 
-const { values } = parseArgs({ options: { env: { type: "string" }, digest: { type: "boolean" }, weekly: { type: "boolean" }, date: { type: "string" }, sample: { type: "string" } } });
+const { values } = parseArgs({ options: { env: { type: "string" }, digest: { type: "boolean" }, weekly: { type: "boolean" }, date: { type: "string" }, sample: { type: "string" }, html: { type: "string" } } });
+
+/** Print an email, and with --html write it to files. */
+function show(name: string, email: OutgoingEmail) {
+  console.log(`SUBJECT: ${email.subject}\n\n${email.text}\n${"-".repeat(72)}\n`);
+  if (!values.html) return;
+  const dir = resolve(values.html);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(`${dir}/${name}.html`, email.html);
+  writeFileSync(`${dir}/${name}.txt`, `SUBJECT: ${email.subject}\n\n${email.text}`);
+  console.log(`wrote ${dir}/${name}.html (${(Buffer.byteLength(email.html) / 1024).toFixed(1)} KB)\n`);
+}
 
 if (values.sample) {
-  if (values.sample !== "withdrawal") throw new Error("--sample withdrawal is the only sample");
-  for (const email of withdrawalSamples()) console.log(`SUBJECT: ${email.subject}\n\n${email.text}\n\n${"-".repeat(72)}\n`);
+  const now = new Date();
+  const names = values.sample === "all" ? [...Object.keys(SAMPLES), "withdrawal"] : [values.sample];
+  for (const name of names) {
+    if (name === "withdrawal") withdrawalSamples().forEach((email, i) => show(`withdrawal-${i + 1}`, email));
+    else if (SAMPLES[name]) show(name, composeUrgent(SAMPLES[name](), "production", now));
+    else throw new Error(`unknown sample "${name}"; try: all, withdrawal, ${Object.keys(SAMPLES).join(", ")}`);
+  }
   process.exit(0);
 }
 
@@ -31,12 +55,13 @@ await withOps(values.env, async ({ env, db, broker }) => {
   if (values.weekly) {
     const data = await weeklyData(db, broker, values.date ?? marketDate(now), now);
     if ("skip" in data) return console.log(`No letter: ${data.skip}.`);
-    const email = composeWeekly(data, env, now);
-    return console.log(`SUBJECT: ${email.subject}\n\n${email.text}`);
+    return show(`weekly-${data.weekOf}`, composeWeekly(data, env, now));
   }
   const since = new Date(now.getTime() - 7 * 86_400_000);
-  const kinds = values.digest ? DIGEST_KINDS : URGENT_KINDS;
-  const events = await db.select().from(auditEvents).where(and(inArray(auditEvents.kind, kinds), gte(auditEvents.at, since))).orderBy(auditEvents.at);
+  const route = values.digest ? "digest" : "urgent";
+  const events = (await db.select().from(auditEvents).where(and(inArray(auditEvents.kind, kindsFor(route)), gte(auditEvents.at, since))).orderBy(auditEvents.at)).filter(
+    (e) => routeEvent(e.kind, e.payload) === route,
+  );
   const toN = (e: (typeof events)[number]) => ({ kind: e.kind, subject: e.subject, payload: e.payload, at: e.at });
 
   if (values.digest) {
@@ -55,15 +80,13 @@ await withOps(values.env, async ({ env, db, broker }) => {
       },
       env,
     );
-    console.log(`SUBJECT: ${email.subject}\n\n${email.text}`);
-    return;
+    return show(`digest-${today}`, email);
   }
 
   const covered = await coveredEventIds(db, "urgent", events.map((e) => e.id));
   const pending = events.filter((e) => !covered.has(e.id));
   if (pending.length === 0) return console.log(`No un-emailed urgent events on ${env}.`);
-  const email = composeUrgent(pending.map(toN), env);
-  console.log(`SUBJECT: ${email.subject}\n\n${email.text}`);
+  show("urgent", composeUrgent(pending.map(toN), env));
 });
 
 /** A withdrawal's emails, end to end, with made-up numbers: the wording without a real request. */

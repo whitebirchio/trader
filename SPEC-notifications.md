@@ -6,6 +6,8 @@
 
 > **Status: Approved** (Scott, 2026-10-31). Module 4 of 7 in [CAPABILITY-MAP.md](CAPABILITY-MAP.md). Depends on `foundation` (the audit log). Built before `portfolio` so you hear about halts and trades from the first live order (SPEC-risk resolved question 2).
 
+> **Email design (2026-11-15, approved):** a redesign of how every email looks and reads is proposed in [§ Email design](#email-design-2026-11-15). Assumption 2 below ("plain, readable email") still holds: no images, no tracking.
+
 ## Objective
 
 Email you about what Trader does, without you having to look. Every meaningful autonomous action is already an audit event (ADR-008). This module turns those events into email:
@@ -137,3 +139,177 @@ apps/engine/src/mailer.ts → CloudflareMailer over env.EMAIL
 1. **Forwarding today is a catch-all:** every @whitebirch.io address goes to your Gmail. It's recreated as an Email Routing catch-all rule in setup step 4.
 2. **Staging is silent apart from test sends** (assumption 1).
 3. **A digest every trading day,** quiet days included.
+
+## Email design (2026-11-15)
+
+> **Status: Approved** (Scott, 2026-11-15), with the open questions resolved below. Prompted by the v21 "New strategy" email (2026-11-13): one 1,000-character bullet, then double bullets. Plan: [tasks/email-design-plan.md](tasks/email-design-plan.md).
+
+### Objective
+
+You read every Trader email in Gmail, on desktop and on your phone. Each one should answer **what happened, does it need me, and what changed** on the first phone screen, with the detail below it for when you want it.
+
+Today every email is a heading plus a `<ul>` with one `<li>` per line that `describe()` returns. The v21 email shows what goes wrong:
+
+1. **Double bullets.** `plainLines()` starts each line with `• `, and the HTML wraps each line in an `<li>` too. The broker safety check and strategy-rejected emails do the same (`• ${reason}`).
+2. **A wall of text.** Claude's summary arrives as one paragraph that re-judges every thesis inline, and then the plain summaries cover the same theses again.
+3. **No hierarchy.** "In plain terms:" is itself a bullet, every line looks the same, and each thesis's weight, stop and review date are buried in prose.
+4. **An unchanged version reads as news.** The subject was "New strategy v21" for a resubmission that changed nothing. Since #129 every research run submits, so this happens about twice a day.
+5. **Lines that no longer say anything.** "systematic: top 1 of 1 symbols" means nothing now that the sleeve only holds VTI (ADR-013). The timestamp appears twice.
+6. **A wasted inbox preview.** Gmail shows "New strategy v21 by claude Fri, Nov 13, 12:31 PM ET" under the subject, not the gist.
+
+### What changes
+
+**1. One layout for every email** (`notifications/layout.ts`, pure). Compose functions stop building strings. They return a document: a title, an optional subtitle, a preheader, a tone, and blocks. One renderer turns that into both the HTML and the text part, so the two can't drift apart, and no content string carries its own bullet.
+
+| Block | HTML | Text |
+|---|---|---|
+| `heading` | section heading, small caps, muted | blank line, then the heading |
+| `paragraph` (`lead` for emphasis) | body text (larger when `lead`) | the paragraph |
+| `list` | `<ul>`, items as given | `- item` |
+| `stats` | 2–4 label/value tiles in one row, wrapping on a phone | `Label: value` per line |
+| `table` | header row and right-aligned numbers | aligned columns |
+| `card` | title, badge (e.g. `8%`), optional tag (`New`, `9% → 7%`), body, muted meta line | title line, indented body and meta |
+| `callout` | a tinted box with a left bar in the tone's colour | `! ` before the text |
+| `note` | small, muted text | the text |
+
+HTML rules: inline styles only (Gmail drops most `<style>`), one centered column at most 600px wide, the system font stack at 15px with 1.5 line height, no images, web fonts, tracking pixels, or links beyond those already in the content (sec.gov filings, claude.ai) and the dashboard (resolved question 6). A hidden preheader sets Gmail's inbox preview. Colours and status icons follow the dashboard (resolved question 3). It has to stay legible when Gmail's dark mode inverts it, so no text is set on a coloured background except in callouts. Every string from outside the code (Claude's summaries, broker reasons, filing summaries) is escaped.
+
+**Tones.** Each urgent kind has one (`TONES` in `compose.ts`; a routing test fails if an urgent kind has none):
+- **red,** trading stopped or money moved unexpectedly: `risk.halted`, `risk.kill_switch_on`, the broker safety checks, `order.external`, `order.unknown`, `capital.unplanned_outflow`, `capital.transfer_reversed`, `job.failed`
+- **amber,** an automatic sale or something to look at: stop-loss, profit target, stale, review overdue, `strategy.rejected`, `routine.missed`, `risk.buys_paused`, `filing.sell_signal`, `capital.command_rejected`, `capital.transfer_canceled`, and `capital.withdrawal_ready` (your turn)
+- **green,** a recovery: `risk.resumed`, `broker.trading_allowed`
+- **neutral,** for your information: `strategy.activated` and the other capital requests
+
+An email with several events takes the tone of its most severe one, and each event gets its own section.
+
+**2. The strategy email.** This is the main change.
+
+*Subject.* It says whether anything changed, from a diff that code computes against the previous version:
+- `Trader: Strategy v22: NVDA 8% added, LKQ exited, BA 9% → 7%` (up to three changes, then `+2 more`)
+- `Trader: Strategy v22: stops or review dates moved` (when only those changed)
+- `Trader: Strategy v21 reaffirmed, no changes`
+
+*Preheader.* The first line of Claude's summary.
+
+*Body, in order:*
+1. **Title**: the subject's headline ("Strategy v22: …"), with the subtitle "by Claude · Fri, Nov 13, 12:31 PM ET".
+2. **What changed:** a list from the diff: theses added (weight), exited, resized (old → new weight), and stop, review-date and forecast changes, one line each. When nothing changed: one line, "No changes: same 5 theses, weights, stops and review dates."
+3. **Stats:** `Theses 33%` · `VTI 67%` · `5 theses`. The systematic sleeve gets its own tile only when it holds more than VTI.
+4. **Claude's take:** the summary's first line as a lead paragraph, then its `Book:` line.
+5. **One card per thesis,** largest weight first: the symbol, the weight as a badge, a tag (`New`, `9% → 7%`), the plain summary as the body, then **This run:** with Claude's line for that thesis, and a meta line: "Sells 25% below cost · Review by Mon Dec 14 · Led by insider buying · 60% to beat VTI".
+6. **Claude's notes:** whatever is left of the summary, one paragraph per line, in muted text.
+
+*Payload (additive).* `submitStrategy` already has the previous version in hand, so it adds to the `strategy.activated` payload:
+- `changed`: whether the document, apart from its summary, differs from the previous version (the weekly letter's rule, moved into one shared function)
+- `changes`: `added`, `removed`, `resized` and `moved` (stop, review date, forecast), with symbols and weights
+- `cards`: for each thesis, its symbol, id, weight, stop, review date, lead signal, chance to beat VTI and plain summary
+
+Every existing field stays (the agent tools and `routine-watch` read them). An older event without the new fields renders as it does today, in the new layout.
+
+*Reaffirmations* (open question 1): whether an unchanged version keeps an urgent email of its own.
+
+**3. Claude writes the summary in lines** (`agent/routine-prompt.md`, ships on merge). The prompt already asks for "one line on each thesis". It will now spell out the format:
+- **Line 1:** what changed and why, in one sentence of about 140 characters at most, or "Reaffirmed: no material change."
+- **Then one line per held thesis,** starting with its symbol and a colon (`TTMI: held; the estimate cut is narrow and the full year is still rising`). The email moves each of these onto its thesis's card.
+- **Then a line starting `Book:`,** then anything else, one point per line.
+
+A line that doesn't match a thesis stays in Claude's notes, and a summary in one paragraph still renders. The plain summary drops its "we sell if it closes X% below… we re-check by…" sentence, since the card shows both. It keeps "what would tell us we're wrong". The dashboard already shows summaries with line breaks (`whitespace-pre-line`), and the weekly letter already takes the first line as the headline.
+
+**4. Other urgent emails.** The wording stays. Each event becomes a section with its headline and its lines as paragraphs. Lists are used only for real lists, such as broker reasons and rejection errors, with the `• ` prefixes removed. The preheader is the first event's first line, and the duplicate timestamp goes.
+
+**5. The daily digest.** The subject stays.
+- **Stats:** Equity · Today · Since the start vs VTI · Drawdown. When the guardrails aren't normal, a red callout goes above everything else.
+- **Positions:** a table of symbol, shares, value and % of the account, largest first.
+- **Trades:** a table of side, symbol, shares and price. Other trade lines (partial fills, cancels, buys funded) follow as a list.
+- **Every other section** appears only when it has something. One muted line names the empty ones: "No trades or guardrail decisions today."
+
+**6. The weekly letter.** The subject stays.
+- **Stats:** This week vs VTI · Since the start vs VTI · Equity.
+- **Track record:** a table by signal kind, then the forecast line.
+- **Theses opened** as cards with their plain summaries; **theses closed** as a table (symbol, how it ended, days held, vs VTI). Reviews, exits and strategy changes stay as lists.
+
+**7. Previewing.** You shouldn't have to wait for a real event to see an email.
+- `notify:preview --sample strategy|reaffirm|urgent|digest|weekly|all --html <dir>` writes each sample's HTML and text from fixtures, with no database. The v21 email is one fixture.
+- `--html <dir>` also works on the real previews (`--env production`, `--digest`, `--weekly`).
+- `notify:test --env production --sample all` queues the samples as test emails, so they land in Gmail on the next tick.
+
+### Out of scope
+
+Which events are emailed, and when (open question 1 aside); the outbox, routing and SES delivery; images and charts; email to anyone but you; a templating dependency (MJML, react-email). The layout is about 200 lines of TypeScript, and a dependency would buy little for one reader on one client.
+
+### Commands
+
+```sh
+npx vitest run notifications layout                                   # (in packages/core)
+npm run notify:preview -w @trader/core -- --sample all --html .cache/email-preview
+npm run notify:preview -w @trader/core -- --env production --digest --html .cache/email-preview
+npm run notify:test -w @trader/core -- --env production --sample all  # the samples to your Gmail on the next tick
+npm run typecheck && npm test
+```
+
+### Project structure
+
+```
+packages/core/src/notifications/
+  layout.ts     → (new) the block types, tones, and render(doc) → { html, text }
+  compose.ts    → describe() and composeUrgent/Digest/Weekly return documents; the strategy email's sections
+  strategy-email.ts → (new) the strategy email: diff to subject, summary lines to cards
+  samples.ts    → (new) sample emails for notify:preview, notify:test and the tests: v21 as recorded, v21 in the line format, a made-up v22, a messy tick
+packages/core/src/portfolio/
+  strategy-diff.ts → (new) sameExceptSummary(a, b) and strategyChanges(prev, next); weekly.ts uses sameExceptSummary too
+  store.ts      → activationPayload(): the payload, with changed, changes and cards (pure, so samples build theirs the same way)
+packages/core/scripts/notify-preview.ts, notify-test.ts → --sample, --html
+agent/routine-prompt.md → the summary format and the shorter plain summary
+```
+
+### Code style
+
+A compose function returns data, and the renderer owns the markup:
+
+```ts
+return {
+  title: `Strategy v${p.version}`,
+  subtitle: `by ${by} · ${when(e.at)}`,
+  preheader: lead,
+  tone: "neutral",
+  blocks: [
+    { type: "heading", text: "What changed" },
+    changes.length ? { type: "list", items: changes } : { type: "paragraph", text: noChanges },
+    { type: "stats", items: [{ label: "Theses", value: `${p.convictionPct}%` }, { label: "VTI", value: `${vti}%` }] },
+    ...cards.map((c) => ({ type: "card", title: c.symbol, badge: `${c.weightPct}%`, tag: c.tag, body: c.plain, meta: c.meta })),
+  ],
+};
+```
+
+### Testing strategy
+
+- **Layout** (pure): every block escapes its text; the text part holds every string the HTML does; no list item or paragraph starts with a bullet character (this test would have caught the double bullets); every sample stays under 60KB; no flex or grid; every urgent kind has a tone.
+- **Strategy diff** (pure): added, removed, resized, stop or review moved, forecast changed, unchanged, and the first version against version 0.
+- **Strategy email:** each subject variant; the reaffirmed body; summary lines matched to cards, unmatched lines kept as notes, a one-paragraph summary; an old payload with no `cards` or `changes`; the v21 fixture end to end.
+- **submitStrategy** (PGlite): the payload carries `changed`, `changes` and `cards`; resubmitting unchanged gives `changed: false`.
+- **Existing compose tests:** the wording assertions keep passing against the text part, with only the `• ` expectations changing.
+- **By eye:** each sample's HTML in the browser pane at 375px and 1000px wide, then in Gmail on desktop and the iOS app (light and dark) through `notify:test --sample all`.
+
+### Boundaries
+
+- **Always:** inline styles only; escape every string; the text part says everything the HTML does; keep the existing wording unless this section changes it.
+- **Ask first:** changing which events are urgent (open question 1); adding a dependency; sending the samples to Gmail (`notify:test --env production`, which writes to the production outbox).
+- **Never:** images, remote content or tracking; secrets or account numbers; changes to the outbox, routing or delivery beyond what this section says.
+
+### Success criteria
+
+1. No email has a double bullet. The layout test enforces it.
+2. On a 375px-wide screen, the v21 fixture shows the title, "No changes", the stats and Claude's first line before the first thesis card, within about 600px of height.
+3. Each thesis's weight, stop and review date can be read without reading any prose.
+4. The subject says whether the strategy changed, and Gmail's inbox preview shows Claude's first line.
+5. The samples look right in Gmail on desktop and the iOS app, in light and dark mode. You confirm this from the `notify:test` samples.
+6. The gate is green, and which emails are sent, and when, is unchanged unless open question 1 changes it.
+
+### Resolved questions (Scott, 2026-11-15)
+
+1. **Reaffirmations go to the digest.** A version that changes nothing (`changed: false`) gets no urgent email of its own. The daily digest lists it under "Research runs" ("8:05 AM · v20 reaffirmed: no material change"). A version that changes something still emails at once, and a missed run still emails (`routine.missed`). Routing picks this by payload: `routeEvent(kind, payload)` in `routing.ts`, with `strategy.activated` the only kind whose route depends on its payload. An older event without `changed` stays urgent.
+2. **Per-thesis lines are `SYMBOL:` lines in the summary.** No schema change.
+3. **The look follows the dashboard,** not a new palette: the page in `#f6f6f4`, content in bordered `#fcfcfb` cards with 12px corners, text `#0b0b0b`, muted `#6b6a66`, borders `#e3e2de`, bordered muted badges, tabular figures, and status shown as an icon plus a label, never colour alone (● good `#0c8a0c`, ▲ warn `#b77400`, ■ bad `#c43535`), with ▲/▼ beside signed figures. Clients that honour `prefers-color-scheme` (Apple Mail) get the dashboard's dark palette. Gmail inverts on its own. So the tones above become **bad, warn, good and neutral**, each shown as its icon beside the headline, not as a coloured bar.
+4. **Three PRs,** in the order proposed. The one change: the summary-format prompt edit ships with PR 1, not PR 3, because the strategy email reads best with it, and a prompt edit ships on merge.
+5. **Dependencies are allowed.** Scott offered them; none earned their place. React Email's render is async (every compose call site would change, and React would enter core), MJML is heavy with known esbuild bundling problems, and juice only inlines CSS, which the renderer writes directly. The layout stays about 200 lines with no dependency. Revisit if a second mail client matters.
+6. **Links to the dashboard** (added in planning): each thesis card links to its page (`/theses/<id>`), and each email ends with a link to the relevant page (`/strategy`, `/activity`, or the overview). These go to the owner's own site (`trader.whitebirch.io`), with no tracking, and are left out on the paper env.

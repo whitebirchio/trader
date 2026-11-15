@@ -67,6 +67,27 @@ export function routeFor(kind: string): Route {
   return (ROUTES as Record<string, Route>)[kind] ?? "urgent"; // an unknown kind is loud, not lost
 }
 
+/**
+ * Kinds whose route depends on the event itself (SPEC-notifications § Email
+ * design). A strategy version that changes nothing but its summary goes to the
+ * digest's "Research runs"; one that changes something emails at once. An
+ * older activation without `changed` stays urgent.
+ */
+const BY_PAYLOAD: Partial<Record<AuditKind, (payload: Record<string, unknown>) => Route>> = {
+  "strategy.activated": (p) => (p.changed === false ? "digest" : "urgent"),
+};
+
+/** Where one event is emailed: its kind's route, unless the kind routes by payload. */
+export function routeEvent(kind: string, payload: Record<string, unknown>): Route {
+  return BY_PAYLOAD[kind as AuditKind]?.(payload) ?? routeFor(kind);
+}
+
+/** The kinds that can take a route, for the notify jobs' queries; each row is then filtered with routeEvent. */
+export function kindsFor(route: "urgent" | "digest"): AuditKind[] {
+  const statics = route === "urgent" ? URGENT_KINDS : DIGEST_KINDS;
+  return [...new Set([...statics, ...(Object.keys(BY_PAYLOAD) as AuditKind[])])];
+}
+
 export const URGENT_KINDS = (Object.keys(ROUTES) as AuditKind[]).filter((k) => ROUTES[k] === "urgent");
 export const DIGEST_KINDS = (Object.keys(ROUTES) as AuditKind[]).filter((k) => ROUTES[k] === "digest");
 

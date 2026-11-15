@@ -74,3 +74,12 @@ export function isLastSessionOfWeek(today: string, sessions: string[]): boolean 
   const next = sessions.find((d) => d > today);
   return !next || weekMonday(next) !== weekMonday(today);
 }
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Mon Nov 2" from a market date (YYYY-MM-DD), as emails write it. */
+export function shortDate(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  return `${WEEKDAYS[d.getUTCDay()]} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}

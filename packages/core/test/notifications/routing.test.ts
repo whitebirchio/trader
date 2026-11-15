@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AUDIT_KINDS } from "../../src/audit.js";
-import { DIGEST_KINDS, URGENT_KINDS, routeFor } from "../../src/notifications/routing.js";
+import { TONES } from "../../src/notifications/compose.js";
+import { DIGEST_KINDS, URGENT_KINDS, kindsFor, routeEvent, routeFor } from "../../src/notifications/routing.js";
 
 describe("routing (SPEC-notifications)", () => {
   it("routes every audit kind to exactly one class", () => {
@@ -25,5 +26,18 @@ describe("routing (SPEC-notifications)", () => {
   it("doesn't email order intents, and treats an unknown kind as urgent rather than dropping it", () => {
     expect(routeFor("order.intent")).toBe("ignore");
     expect(routeFor("something.new")).toBe("urgent");
+  });
+
+  it("sends a strategy version that changes nothing to the digest, and one that changes something at once", () => {
+    expect(routeEvent("strategy.activated", { changed: false })).toBe("digest");
+    expect(routeEvent("strategy.activated", { changed: true })).toBe("urgent");
+    expect(routeEvent("strategy.activated", {})).toBe("urgent"); // recorded before 2026-11-15
+    expect(routeEvent("order.filled", { changed: false })).toBe("digest");
+    expect(kindsFor("digest")).toContain("strategy.activated");
+    expect(kindsFor("urgent")).toContain("strategy.activated");
+  });
+
+  it("gives every urgent kind a tone", () => {
+    for (const kind of URGENT_KINDS) expect(TONES[kind], kind).toBeDefined();
   });
 });

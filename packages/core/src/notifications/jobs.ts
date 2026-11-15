@@ -12,7 +12,7 @@ import { isLastSessionOfWeek, marketDate, weekMonday } from "../time.js";
 import { type NotifiableEvent, composeDigest, composeUrgent, composeWeekly } from "./compose.js";
 import { weeklyData } from "./weekly.js";
 import { coveredEventIds, deliver, enqueue, foldEvents } from "./outbox.js";
-import { DIGEST_KINDS, URGENT_KINDS } from "./routing.js";
+import { kindsFor, routeEvent } from "./routing.js";
 
 /** Urgent events older than this are never emailed (e.g. history from before this module). */
 const URGENT_LOOKBACK_MS = 7 * 24 * 60 * 60_000;
@@ -59,8 +59,9 @@ export async function queueUrgent(db: Db, env: TradingEnv, at: Date): Promise<Qu
   const recent = await db
     .select()
     .from(auditEvents)
-    .where(and(inArray(auditEvents.kind, URGENT_KINDS), gte(auditEvents.at, new Date(at.getTime() - URGENT_LOOKBACK_MS))))
-    .orderBy(auditEvents.at);
+    .where(and(inArray(auditEvents.kind, kindsFor("urgent")), gte(auditEvents.at, new Date(at.getTime() - URGENT_LOOKBACK_MS))))
+    .orderBy(auditEvents.at)
+    .then((rows) => rows.filter((e) => routeEvent(e.kind, e.payload) === "urgent"));
   const covered = await coveredEventIds(db, "urgent", recent.map((e) => e.id));
   const pending = recent.filter((e) => !covered.has(e.id));
 
@@ -149,9 +150,9 @@ export const notifyDigest: JobFn = async ({ db, env, broker, mailer, now }) => {
     await db
       .select()
       .from(auditEvents)
-      .where(and(inArray(auditEvents.kind, DIGEST_KINDS), gte(auditEvents.at, new Date(at.getTime() - 2 * 86_400_000))))
+      .where(and(inArray(auditEvents.kind, kindsFor("digest")), gte(auditEvents.at, new Date(at.getTime() - 2 * 86_400_000))))
       .orderBy(auditEvents.at)
-  ).filter((e) => marketDate(e.at) === today);
+  ).filter((e) => marketDate(e.at) === today && routeEvent(e.kind, e.payload) === "digest");
 
   const email = composeDigest(
     {

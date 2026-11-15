@@ -6,6 +6,7 @@ import { benchmarkCloses, strategies, thesisEvents } from "../db/schema.js";
 import { compareToBenchmark } from "../portfolio/benchmark.js";
 import { loadForecastReport } from "../portfolio/forecasts.js";
 import { loadScorecard } from "../portfolio/scorecard.js";
+import { sameExceptSummary } from "../portfolio/strategy-diff.js";
 import { activeStrategy } from "../portfolio/store.js";
 import type { DailyClose } from "../portfolio/systematic.js";
 import { buildIndex } from "../risk/equity-index.js";
@@ -25,8 +26,6 @@ import type { WeeklyData } from "./compose.js";
 
 const DAY_MS = 86_400_000;
 const REVIEW_HORIZON_DAYS = 14;
-
-const withoutSummary = (document: Record<string, unknown>) => JSON.stringify({ ...document, summary: undefined });
 
 /** The first line of a strategy summary (where Claude says what changed and why), trimmed. */
 export function headline(summary: string, max = 240): string {
@@ -72,7 +71,7 @@ export async function weeklyData(db: Db, broker: BrokerAdapter, today: string, a
     : [];
   const changed = weekVersions.filter((v, i) => {
     const previous = i === 0 ? before : weekVersions[i - 1];
-    return !previous || withoutSummary(v.document) !== withoutSummary(previous.document);
+    return !previous || !sameExceptSummary(v.document, previous.document);
   });
   const active = await activeStrategy(db, at);
   const horizon = new Date(Date.parse(`${today}T00:00:00Z`) + REVIEW_HORIZON_DAYS * DAY_MS).toISOString().slice(0, 10);
