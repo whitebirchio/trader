@@ -22,6 +22,16 @@ on:
   # Manual re-run of the current branch's pipeline without a new commit.
   workflow_dispatch:
 
+# On main, one pipeline at a time, and only the newest push waits. A run joins
+# the queue when its push lands, so a newer push displaces an older waiting run,
+# whose commit the newer one contains. The deploy job's own group alone queued
+# deploys in the order builds *finished*: on 2026-11-13 #126's slower build
+# displaced #127's waiting deploy, and main's newest commit shipped only after a
+# manual re-run. Other branches get a group per run, so nothing queues there.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && 'ci-main' || format('ci-{0}', github.run_id) }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
