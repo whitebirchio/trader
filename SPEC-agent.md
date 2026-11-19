@@ -135,7 +135,7 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
 
 ## Event-triggered runs (2026-11-13, #36)
 
-> **Status: Draft** (for Scott's review). Builds on missed-run recovery (the `RoutineFirer` and the routine tokens).
+> **Status: Approved; PR 1 built** (Scott, 2026-11-18: approved as written). PR 1 watches and records trips (`events.tripped`); PR 2 fires runs. Plan: [tasks/event-runs-plan.md](tasks/event-runs-plan.md). Builds on missed-run recovery (the `RoutineFirer` and the routine tokens).
 
 **Why.** Claude judges the book at 8:00 and 12:00 ET only. A stop is judged on the daily close (last close ≤ average cost × (1 − stop%)) and sold from 9:45 the next morning, so a holding that slides toward its stop at 2pm is decided by the rule, not by Claude: nothing re-reads the thesis before the close settles it. The same goes for a sharp move on news, or an insider selling outside a 10b5-1 plan, which `check-filings` already emails as urgent ("nothing sold: Claude weighs it next run"), and the next run can be 18 hours away. Scott's direction is that Claude re-judges on signals and sells on them, and that review dates are backstops. #36 was blocked because the engine couldn't start a run. #127 gave it that.
 
@@ -146,7 +146,7 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
    - **Near its stop:** the latest synced price (`positions.current_price`, every 15 minutes) is within **3%** of the stop price, i.e. ≤ stop price × 1.03. The stop price is average cost × (1 − `stopLossPct`/100), as the stop rule computes it. With a 10% stop, it trips about 7.3% below cost. A trailing stop, when turned on, counts the same way.
    - **A big move:** the latest price is **8% or more above or below** the previous session's close (`thesis_closes`). A jump up can matter as much as a drop: a takeover bid, or news that has done the thesis's work.
    - **A sell-signal filing:** a `filing.sell_signal` event (an officer or director leaving, or an insider selling outside a 10b5-1 plan) on a held name. Insider buys and other filings stay in the digest, as now.
-2. **Window:** fires only on a trading day, from **9:45 ET** (the first rebalance step) to **75 minutes before the close** (14:45 on a normal day, 11:45 on a 1pm half-day). A run of about 10 minutes then submits in time for a rebalance step before 15:30. Not within **45 minutes after** a scheduled run's fire time, or **30 minutes before** the next one: that run reads the same holdings and filings.
+2. **Window:** fires only on a trading day, from **9:45 ET** (the first rebalance step) to **75 minutes before the close** (14:45 on a normal day, 11:45 on a 1pm half-day). A run of about 10 minutes then submits in time for a rebalance step before 15:30. Not within **45 minutes after** a scheduled run's fire time, or **30 minutes before** the next one: that run reads the same holdings and filings. *(Plan, 2026-11-18: a trip counts as covered once any Claude submission lands after it, so a scheduled run that finished before the trip doesn't cover it. The 45 minutes becomes "while a scheduled run is in progress": fired up to 45 minutes ago with no submission yet.)*
 3. **Caps:**
    - **two event runs a day;**
    - **at least 60 minutes between them;**
@@ -187,7 +187,7 @@ A submission belongs to the latest scheduled fire time before it, so an event ru
   - `findTriggers(input) → Tripped[]`: pure, from the active strategy, open lots, positions, the previous closes and the day's sell-signal filings;
   - `checkEvents(db, broker, now, firer?)`: reads, records `events.tripped`, applies the window and caps, then claims and fires.
 
-  `EVENT_RUNS = { nearStopPct: 3, movePct: 8, maxPerDay: 2, minGapMinutes: 60, firstEt: "09:45", lastBeforeCloseMinutes: 75, afterSlotMinutes: 45, beforeSlotMinutes: 30 }`.
+  `EVENT_RUNS = { nearStopPct: 3, movePct: 8, maxPerDay: 2, minGapMinutes: 60, firstEt: "09:45", lastBeforeCloseMinutes: 75, inProgressMinutes: 45, beforeSlotMinutes: 30 }` (the % figures as decimal strings).
 - **`check-events`** joins `TICK_JOBS` after `sync-broker` and `check-filings`, so it reads fresh prices and filings. It reuses `JobDeps.routineFirer`.
 - **The fire text** is one paragraph, built in core: "Event run: TTMI is $41.20, 2.1% above its 10% stop ($40.35); BA fell 8.4% from yesterday's close ($212.10 → $194.30). Judge these first (agent/routine-prompt.md § Event runs)."
 - **Prompt:** an *Event runs* section in `agent/routine-prompt.md`, as in assumption 5. It ships on merge, like every prompt change (#118).
@@ -235,12 +235,12 @@ A submission belongs to the latest scheduled fire time before it, so an event ru
    - `routine:fire --dry-run` with an event text prints the request;
    - the first real event run's session shows the text, and its summary leads with the decision.
 
-### Open questions
-1. **Thresholds:** 3% from the stop, and an 8% move?
-2. **The cap:** two event runs a day, 60 minutes apart? Each is an Opus run on your usage.
-3. **Model:** fire the 8:00 routine (Opus, recommended), or the 12:00 one (Sonnet, cheaper)?
-4. **Big moves upward:** trip on +8% as well as −8% (assumed), or only drops?
-5. **The run's scope:** a focused run on the tripped names (assumed, cheaper), or a full research run that starts with them?
+### Resolved questions (Scott, 2026-11-18: approved as written)
+1. **Thresholds:** within 3% of the stop, and an 8% move from the previous close.
+2. **The cap:** two event runs a day, at least 60 minutes apart.
+3. **Model:** the 8:00 routine (Opus).
+4. **Big moves:** both ways, +8% as well as −8%.
+5. **The run's scope:** a focused run on the tripped names, not a full research run.
 
 ## Architecture
 

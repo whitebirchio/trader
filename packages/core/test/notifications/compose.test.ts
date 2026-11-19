@@ -93,6 +93,12 @@ describe("composeDigest", () => {
     expect(email.text).toContain("Guardrails: Normal: drawdown 0% from peak");
   });
 
+  it("lists the event triggers a held thesis tripped (SPEC-agent § Event-triggered runs)", () => {
+    const trip = { ...ev("events.tripped", { detail: "TTMI at $66.10 is 1.25% above its 15% stop ($65.28)" }, "2026-11-02#TTMI#near_stop"), at: new Date("2026-11-02T18:40:00Z") };
+    const email = composeDigest({ ...base, events: [trip] }, "production");
+    expect(email.text).toContain("Watch: event triggers\n  TTMI at $66.10 is 1.25% above its 15% stop ($65.28) (1:40 PM ET)");
+  });
+
   it("still sends on a quiet day", () => {
     const email = composeDigest({ ...base, dailyChangePct: "-0.31", positions: [] }, "production");
     expect(email.subject).toBe("Trader daily: -0.31%, 0 trades (Mon Nov 2)");

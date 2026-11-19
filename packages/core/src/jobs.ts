@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { type EarningsCalendarPort, refreshEarningsCalendar } from "./agent/earnings-calendar.js";
 import { type EarningsHistoryPort, backfillEarningsHistory, backfillProgress, describeProgress } from "./agent/earnings-history.js";
 import { type EstimatesPort, refreshEstimates } from "./agent/estimates.js";
+import { checkEvents } from "./agent/events.js";
 import { checkFilings, filingTargets } from "./agent/filings.js";
 import type { RoutineFirer } from "./agent/routine-firer.js";
 import { checkRoutineRuns } from "./agent/routine-watch.js";
@@ -192,6 +193,13 @@ const checkFilingsJob: JobFn = async ({ db, filings, now }) => {
   return { status: "succeeded", detail: { ...(await checkFilings(db, filings, targets, now())) } };
 };
 
+/** A held thesis near its stop, moving 8%+, or with a sell-signal filing (agent/events.ts). After sync-broker and check-filings, so it reads fresh prices and filings. */
+const checkEventsJob: JobFn = async ({ db, broker, now }) => {
+  const result = await checkEvents(db, broker, now());
+  if (result.status === "skipped") return result;
+  return { status: "succeeded", detail: { watched: result.watched, tripped: result.tripped.map((t) => `${t.symbol} ${t.trigger}`) } };
+};
+
 /** A research run that submitted nothing within its grace period (agent/routine-watch.ts). Before notify-urgent, so the email goes the same tick. */
 const checkRoutineJob: JobFn = async ({ db, broker, now, routineFirer }) => {
   const result = await checkRoutineRuns(db, broker, now(), routineFirer);
@@ -210,6 +218,7 @@ export const JOBS = {
   "notify-weekly": notifyWeekly,
   "earnings-calendar": earningsCalendarJob,
   "check-filings": checkFilingsJob,
+  "check-events": checkEventsJob,
   "check-routine": checkRoutineJob,
   "earnings-estimates": earningsEstimatesJob,
   "earnings-backfill": earningsBackfillJob,
@@ -287,7 +296,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-estimates", "earnings-backfill", "check-routine", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-estimates", "earnings-backfill", "check-events", "check-routine", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);

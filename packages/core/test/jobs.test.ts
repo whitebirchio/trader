@@ -133,6 +133,10 @@ describe("TICK_JOBS", () => {
     expect(TICK_JOBS.every(isJobName)).toBe(true);
     expect(TICK_JOBS[0]).toBe("heartbeat");
     expect(TICK_JOBS.slice(-3)).toEqual(["notify-urgent", "notify-digest", "notify-weekly"]);
+    // check-events reads the prices and filings the tick just synced, and runs before the emails.
+    const at = (job: string) => TICK_JOBS.indexOf(job as (typeof TICK_JOBS)[number]);
+    expect(at("check-events")).toBeGreaterThan(Math.max(at("sync-broker"), at("check-filings")));
+    expect(at("check-events")).toBeLessThan(at("notify-urgent"));
     expect(isJobName("rm -rf")).toBe(false);
   });
 });
