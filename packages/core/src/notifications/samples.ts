@@ -1,12 +1,15 @@
 import { activationPayload } from "../portfolio/store.js";
 import type { Strategy } from "../portfolio/strategy.js";
-import type { NotifiableEvent } from "./compose.js";
+import type { TradingEnv } from "../env.js";
+import { type DigestData, type NotifiableEvent, type WeeklyData, composeDigest, composeUrgent, composeWeekly } from "./compose.js";
+import type { OutgoingEmail } from "./port.js";
 
 /**
  * Sample emails for `notify:preview --sample` and `notify:test --sample`, and
  * the compose tests: the v21 activation as it was recorded on 2026-11-13, the
  * same version written in today's summary format, a made-up version that
- * changes things, and a messy tick. No database. Not imported by the Lambda.
+ * changes things, a messy tick, a busy and a quiet daily digest, and a weekly
+ * letter. Figures are made up. No database. Not imported by the Lambda.
  */
 
 type Thesis = Strategy["conviction"][number];
@@ -142,4 +145,87 @@ export const SAMPLES: Record<string, () => NotifiableEvent[]> = {
   "strategy-v21-old-summary": () => [v21Reaffirmed(false)],
   "strategy-v22-changed": () => [v22Changed()],
   "messy-tick": messyTick,
+};
+
+const ev = (kind: string, subject: string | null, iso: string, payload: Record<string, unknown>): NotifiableEvent => ({ kind, subject, at: at(iso), payload });
+
+/** A busy day: two fills, a clipped buy, a reaffirmation, an event trip and its run, a filing, a watchlist change and a post-mortem. */
+export function busyDigest(): DigestData {
+  const trips = [{ detail: "TTMI fell 9.1% from the previous close ($72.40 → $65.80)" }];
+  return {
+    date: "2026-11-16",
+    equity: "1012.48",
+    cash: "3.12",
+    dailyChangePct: "-1.38",
+    drawdownPct: "2.1",
+    positions: [
+      { symbol: "VTI", qty: "2.0412", marketValue: "662.10" },
+      { symbol: "TTMI", qty: "1.2", marketValue: "78.96" },
+      { symbol: "LSTR", qty: "0.6", marketValue: "80.70" },
+      { symbol: "INTC", qty: "1.1", marketValue: "50.82" },
+      { symbol: "AN", qty: "0.25", marketValue: "51.30" },
+      { symbol: "BA", qty: "0.35", marketValue: "71.05" },
+    ],
+    events: [
+      ev("order.filled", "BA", "2026-11-16T15:01:00Z", { side: "sell", filledQty: "0.1", filledAvgPrice: "203.10" }),
+      ev("order.filled", "VTI", "2026-11-16T15:16:00Z", { side: "buy", filledQty: "0.0612", filledAvgPrice: "324.40" }),
+      ev("risk.order_clipped", "TTMI", "2026-11-16T15:16:00Z", { side: "buy", requested: "30", approved: "20", reasons: ["Reduced to keep TTMI within 10% of equity."] }),
+      ev("strategy.activated", "v23", "2026-11-16T13:05:00Z", { version: 23, summary: "Reaffirmed: no material change since v22." }),
+      ev("events.tripped", "2026-11-16#TTMI#move", "2026-11-16T18:40:00Z", { detail: trips[0]!.detail }),
+      ev("routine.event_run_result", "2026-11-16#1", "2026-11-16T18:40:00Z", { at: "2026-11-16T18:40:00.000Z", trips, result: { status: "fired", sessionUrl: null } }),
+      ev("filings.noticed", null, "2026-11-16T14:15:00Z", { filings: [{ symbol: "LSTR", thesisId: "lstr-ceo-buy-2026q4", filedOn: "2026-11-16", summary: "Form 4: the CEO bought 1,500 shares." }, { symbol: "UPBD", filedOn: "2026-11-16", summary: "8-K: results of operations." }] }),
+      ev("watchlist.updated", null, "2026-11-16T13:05:00Z", { watched: [{ symbol: "UPBD", trigger: "Q4 guidance confirms the lease-to-own recovery", revisitBy: "2026-12-15", new: true }], dropped: [] }),
+      ev("lessons.recorded", null, "2026-11-16T13:05:00Z", { lessons: [{ symbol: "LKQ", ending: "removed", excessPct: "-2.41", lesson: "A director cluster alone wasn't a business case." }] }),
+    ],
+    state: { killSwitch: false, halted: false, haltReason: null },
+    benchmark: { since: "2026-10-30", portfolioPct: "1.24", benchmarkPct: "0.8" },
+    capital: { since: "2026-10-30", startValue: "1000", addedSince: "0", value: "1012.48", sameFlowsInVti: "1008.00" },
+  };
+}
+
+/** A quiet day: no trades, nothing tripped, the guardrails normal. */
+export function quietDigest(): DigestData {
+  const d = busyDigest();
+  return { ...d, dailyChangePct: "0.31", events: [], capital: null };
+}
+
+/** A halted day: the callout leads. */
+export function haltedDigest(): DigestData {
+  return { ...quietDigest(), dailyChangePct: "-4.2", drawdownPct: "20.08", state: { killSwitch: false, halted: true, haltReason: "the account is down 20.08% from its peak (limit 20%)" } };
+}
+
+/** A week with a change, a thesis opened, one closed, an exit and reviews coming up. */
+export function sampleWeekly(): WeeklyData {
+  return {
+    weekOf: "2026-11-16",
+    through: "2026-11-20",
+    equity: "1012.48",
+    week: { portfolioPct: "0.62", benchmarkPct: "-0.4" },
+    sinceStart: { since: "2026-10-30", portfolioPct: "1.24", benchmarkPct: "0.8" },
+    trackRecord: {
+      overall: { theses: 9, scored: 9, excess: "3.10", excessPct: "0.26", beatVtiPct: "44" },
+      byKind: [
+        { kind: "insider", theses: 7, excessPct: "0.81" },
+        { kind: "fundamental", theses: 1, excessPct: "-1.9" },
+        { kind: "13f", theses: 1, excessPct: null },
+      ],
+    },
+    forecasts: { resolvedThisWeek: 0, beatThisWeek: 0, backfilledThisWeek: 0, resolved: 0, skill: null, tooFewToJudge: true, baseRatePct: 45 },
+    opened: [{ symbol: "SMPL", thesisId: "sample-new-2026q4", primaryKind: "fundamental", plainSummary: "SAMPLE: a made-up thesis that shows how a new position looks in the letter." }],
+    closed: [{ symbol: "BA", thesisId: "ba-director-buys-2026q4", ending: "removed", excessPct: "-3.02", daysHeld: 18 }],
+    strategies: [{ version: 22, authoredBy: "claude", headline: "SAMPLE: exited BA on the second insider sale, added SMPL." }],
+    reaffirmed: 7,
+    exits: [],
+    reviews: [{ symbol: "TTMI", thesisId: "ttmi-insider-2026q4", reviewBy: "2026-12-14" }],
+    state: { killSwitch: false, halted: false, haltReason: null, drawdownPct: "2.1" },
+  };
+}
+
+/** Every sample email by name, urgent, digest and weekly, as it would be sent on `env`. */
+export const EMAIL_SAMPLES: Record<string, (env: TradingEnv, now: Date) => OutgoingEmail> = {
+  ...Object.fromEntries(Object.entries(SAMPLES).map(([name, events]) => [name, (env: TradingEnv, now: Date) => composeUrgent(events(), env, now)])),
+  "digest-busy": (env, now) => composeDigest(busyDigest(), env, now),
+  "digest-quiet": (env, now) => composeDigest(quietDigest(), env, now),
+  "digest-halted": (env, now) => composeDigest(haltedDigest(), env, now),
+  weekly: (env, now) => composeWeekly(sampleWeekly(), env, now),
 };

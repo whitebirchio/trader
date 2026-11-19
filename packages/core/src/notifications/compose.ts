@@ -1,12 +1,12 @@
 import type { CapitalSummary } from "../capital/shadow.js";
 import type { TradingEnv } from "../env.js";
-import { compare, round, sub } from "../money.js";
+import { compare, div, mul, round, sub, toBig } from "../money.js";
 import { formatMarketTime, shortDate } from "../time.js";
 import type { AuditKind } from "../audit.js";
-import { type Block, type EmailDoc, type Tone, escapeHtml, render } from "./layout.js";
+import { type Block, type EmailDoc, type Tone, render } from "./layout.js";
 import type { OutgoingEmail } from "./port.js";
 import { SEVERITY } from "./routing.js";
-import { splitSummary, strategyEmail } from "./strategy-email.js";
+import { LEAD_SIGNAL, splitSummary, strategyEmail } from "./strategy-email.js";
 
 export { escapeHtml } from "./layout.js";
 
@@ -261,9 +261,8 @@ function prefix(env: TradingEnv): string {
  * cross-check against arrival time. Only staging names its environment;
  * production is the default (Scott, 2026-11-01).
  */
-export function footer(env: TradingEnv, at: Date): { text: string; html: string } {
-  const line = `— Trader${env === "staging" ? " (staging)" : ""} · ${formatMarketTime(at)}`;
-  return { text: `\n\n${line}\n`, html: `<p style="color:#666">${escapeHtml(line)}</p>` };
+export function footerLine(env: TradingEnv, at: Date): string {
+  return `— Trader${env === "staging" ? " (staging)" : ""} · ${formatMarketTime(at)}`;
 }
 
 const severity = (e: NotifiableEvent) => SEVERITY[e.kind as keyof typeof SEVERITY] ?? 99;
@@ -289,7 +288,6 @@ export function composeUrgent(events: NotifiableEvent[], env: TradingEnv, at: Da
   const first = described[0];
   const more = described.length > 1 ? ` (+${described.length - 1} more)` : "";
   const subject = `${prefix(env)}Trader: ${first?.d.headline ?? "Notification"}${more}`;
-  const footerLine = `— Trader${env === "staging" ? " (staging)" : ""} · ${formatMarketTime(at)}`;
 
   const doc: EmailDoc =
     described.length === 1 && first
@@ -300,7 +298,7 @@ export function composeUrgent(events: NotifiableEvent[], env: TradingEnv, at: Da
           subtitle: [first.d.byline, formatMarketTime(first.e.at)].filter(Boolean).join(" · "),
           blocks: toBlocks(first.d.lines),
           action: actionFor(first.e, dashboard),
-          footer: footerLine,
+          footer: footerLine(env, at),
         }
       : {
           preheader: described.map(({ d }) => d.headline).join(" · "),
@@ -308,7 +306,7 @@ export function composeUrgent(events: NotifiableEvent[], env: TradingEnv, at: Da
           subtitle: "Most urgent first",
           blocks: described.map(({ e, d, tone }) => ({ type: "section", title: d.headline, tone, subtitle: [d.byline, formatMarketTime(e.at)].filter(Boolean).join(" · "), blocks: toBlocks(d.lines) })),
           action: first ? actionFor(first.e, dashboard) : undefined,
-          footer: footerLine,
+          footer: footerLine(env, at),
         };
   return { subject, ...render(doc) };
 }
@@ -449,65 +447,118 @@ function guardrailLine(e: NotifiableEvent): string | null {
   }
 }
 
+/** The guardrails when they aren't normal, as the callout that leads the digest and the letter; null when they are. */
+function guardrailAlert(state: { killSwitch: boolean; halted: boolean; haltReason: string | null }): string | null {
+  if (state.killSwitch) return "Kill switch ON: all trading is blocked until you turn it off.";
+  if (state.halted) return `Trading HALTED: ${state.haltReason ?? "drawdown limit"}. Nothing is bought until you run risk:resume.`;
+  return null;
+}
+
+const alertBlock = (text: string): Block => ({ type: "callout", tone: "bad", text });
+
+/** "No trades, guardrail decisions or event triggers today." for the sections with nothing in them; null when none are empty. */
+function noneLine(empty: string[], when: string): Block | null {
+  if (!empty.length) return null;
+  const names = empty.length === 1 ? empty[0] : `${empty.slice(0, -1).join(", ")} or ${empty.at(-1)}`;
+  return { type: "paragraph", text: `No ${names} ${when}.`, size: "small", muted: true };
+}
+
+/** A heading and a list, or nothing when there are no items. */
+const listSection = (heading: string, items: string[]): Block[] => (items.length ? [{ type: "heading", text: heading }, { type: "list", items }] : []);
+
+/** The digest's figures arrive at full precision (the snapshot, Alpaca's fractional shares); people read cents, 2-place percentages and 4-place shares. */
+const pct2 = (v: string) => round(v, 2, "half-even");
+const cents = (v: string) => `$${toBig(round(v, 2, "half-even")).toFixed(2)}`;
+const shares = (v: string) => round(v, 4, "half-even");
+
 /** The once-per-trading-day summary. Sent on quiet days too: its arrival means "alive". */
 export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new Date()): OutgoingEmail {
-  const fills = data.events.filter((e) => e.kind === "order.filled").length;
-  const subject = `${prefix(env)}Trader daily: ${signed(data.dailyChangePct)}%, ${fills} ${fills === 1 ? "trade" : "trades"} (${shortDate(data.date)})`;
+  const filled = data.events.filter((e) => e.kind === "order.filled");
+  const today = signed(pct2(data.dailyChangePct));
+  const subject = `${prefix(env)}Trader daily: ${today}%, ${filled.length} ${filled.length === 1 ? "trade" : "trades"} (${shortDate(data.date)})`;
 
-  const trades = data.events.map(tradeLine).filter((l): l is string => l !== null);
+  const otherTrades = data.events.filter((e) => e.kind !== "order.filled").map(tradeLine).filter((l): l is string => l !== null);
   const guardrails = data.events.map(guardrailLine).filter((l): l is string => l !== null);
-  const watchlist = data.events.flatMap(watchlistLines);
-  const filings = data.events.flatMap(filingLines);
-  const lessons = data.events.flatMap(lessonLines);
   const research = data.events.map(researchLine).filter((l): l is string => l !== null);
   const trips = data.events.map(tripLine).filter((l): l is string => l !== null);
   const eventRuns = data.events.map(eventRunLine).filter((l): l is string => l !== null);
   const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
-  const status = data.state.killSwitch
-    ? "KILL SWITCH ON: all trading blocked"
-    : data.state.halted
-      ? `HALTED: ${data.state.haltReason ?? "drawdown limit"}`
-      : `Normal: drawdown ${data.drawdownPct}% from peak`;
+  const alert = guardrailAlert(data.state);
+  const positions = [...data.positions].sort((a, b) => compare(b.marketValue, a.marketValue));
+  const share = (value: string) => (compare(data.equity, "0") > 0 ? `${toBig(div(mul(value, "100"), data.equity, 1, "half-even")).toFixed(1)}%` : "–");
 
-  const sections: [string, string[]][] = [
-    [
-      "Account",
-      [
-        `Equity $${data.equity} (${signed(data.dailyChangePct)}% today, flow-adjusted)`,
+  const blocks: Block[] = [
+    ...(alert ? [alertBlock(alert)] : []),
+    {
+      type: "stats",
+      items: [
+        { label: "Equity", value: cents(data.equity), detail: `Cash ${cents(data.cash)}` },
+        { label: "Today", value: `${today}%`, detail: "flow-adjusted", signed: true },
         ...(data.benchmark
-          ? [`Since ${shortDate(data.benchmark.since)}: ${signed(data.benchmark.portfolioPct)}% vs VTI ${signed(data.benchmark.benchmarkPct)}%`]
+          ? [{ label: `Since ${shortDate(data.benchmark.since)}`, value: `${signed(pct2(data.benchmark.portfolioPct))}%`, detail: `VTI ${signed(pct2(data.benchmark.benchmarkPct))}%`, signed: true }]
           : []),
-        ...(data.capital?.since && data.capital.startValue && data.capital.value
-          ? [
-              `Since ${shortDate(data.capital.since)}: started with $${data.capital.startValue}${compare(data.capital.addedSince, "0") !== 0 ? `, net transfers $${data.capital.addedSince}` : ""}, now $${data.capital.value}${data.capital.sameFlowsInVti ? `; the same money in VTI: $${data.capital.sameFlowsInVti}` : ""}`,
-            ]
-          : []),
-        `Cash $${data.cash}`,
-        `Guardrails: ${status}`,
+        { label: "Drawdown", value: `${pct2(data.drawdownPct)}%`, detail: "from peak" },
       ],
-    ],
-    ["Positions", data.positions.length ? data.positions.map((p) => `${p.symbol}: ${p.qty} sh, $${p.marketValue}`) : ["None (all cash)"]],
-    ...(capital.length ? ([["Money in and out", capital]] as [string, string[]][]) : []),
-    ["Trades", trades.length ? trades : ["None today"]],
-    ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
-    ...(research.length ? ([["Research runs", research]] as [string, string[]][]) : []),
-    ...(trips.length ? ([["Watch: event triggers", trips]] as [string, string[]][]) : []),
-    ...(eventRuns.length ? ([["Event runs", eventRuns]] as [string, string[]][]) : []),
-    ...(filings.length ? ([["SEC filings", filings]] as [string, string[]][]) : []),
-    ...(watchlist.length ? ([["Research watchlist", watchlist]] as [string, string[]][]) : []),
-    ...(lessons.length ? ([["Lessons", lessons]] as [string, string[]][]) : []),
+    },
+    ...(data.capital?.since && data.capital.startValue && data.capital.value
+      ? ([
+          {
+            type: "paragraph",
+            size: "small",
+            muted: true,
+            text: `Since ${shortDate(data.capital.since)}: started with $${data.capital.startValue}${compare(data.capital.addedSince, "0") !== 0 ? `, net transfers $${data.capital.addedSince}` : ""}, now $${data.capital.value}${data.capital.sameFlowsInVti ? `; the same money in VTI: $${data.capital.sameFlowsInVti}` : ""}`,
+          },
+        ] satisfies Block[])
+      : []),
+    { type: "heading", text: "Positions" },
+    positions.length
+      ? {
+          type: "table",
+          columns: [{ label: "Symbol" }, { label: "Shares", align: "right" }, { label: "Value", align: "right" }, { label: "Of account", align: "right" }],
+          rows: positions.map((p) => [p.symbol, shares(p.qty), cents(p.marketValue), share(p.marketValue)]),
+        }
+      : { type: "paragraph", text: "None: all cash." },
+    ...(filled.length || otherTrades.length
+      ? ([
+          { type: "heading", text: "Trades" },
+          ...(filled.length
+            ? ([
+                {
+                  type: "table",
+                  columns: [{ label: "" }, { label: "Symbol" }, { label: "Shares", align: "right" }, { label: "Price", align: "right" }],
+                  rows: filled.map((e) => [e.payload.side === "sell" ? "Sold" : "Bought", str(e.subject), shares(str(e.payload.filledQty)), cents(str(e.payload.filledAvgPrice))]),
+                },
+              ] satisfies Block[])
+            : []),
+          ...bullets(otherTrades),
+        ] satisfies Block[])
+      : []),
+    ...listSection("Money in and out", capital),
+    ...listSection("Guardrail decisions", guardrails),
+    ...listSection("Watch: event triggers", trips),
+    ...listSection("Event runs", eventRuns),
+    ...listSection("Research runs", research),
+    ...listSection("SEC filings", data.events.flatMap(filingLines)),
+    ...listSection("Research watchlist", data.events.flatMap(watchlistLines)),
+    ...listSection("Lessons", data.events.flatMap(lessonLines)),
   ];
+  const none = noneLine(
+    [...(filled.length || otherTrades.length ? [] : ["trades"]), ...(guardrails.length ? [] : ["guardrail decisions"]), ...(trips.length ? [] : ["event triggers"])],
+    "today",
+  );
+  if (none) blocks.push(none);
 
-  const text = sections.map(([h, lines]) => [h, ...lines.map((l) => `  ${l}`)].join("\n")).join("\n\n");
-  const html = sections.map(([h, lines]) => `<h3>${escapeHtml(h)}</h3><ul>${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`).join("");
-  const f = footer(env, at);
-  return {
-    subject,
-    text: `Trader daily summary for ${shortDate(data.date)}
-
-${text}${f.text}`,
-    html: `<h2>Trader daily summary for ${escapeHtml(shortDate(data.date))}</h2>${html}${f.html}`,
+  const busy = [filled.length ? `${filled.length} ${filled.length === 1 ? "trade" : "trades"}` : null, trips.length ? `${trips.length} event ${trips.length === 1 ? "trigger" : "triggers"}` : null].filter(Boolean);
+  const doc: EmailDoc = {
+    preheader: alert ?? `Equity ${cents(data.equity)}, ${today}% today${busy.length ? `; ${busy.join(", ")}` : "; a quiet day"}.`,
+    title: `Daily summary for ${shortDate(data.date)}`,
+    ...(alert ? { tone: "bad" as const } : {}),
+    subtitle: "After the close",
+    blocks,
+    ...(DASHBOARD_URL[env] ? { action: { text: "Open Trader", href: DASHBOARD_URL[env]! } } : {}),
+    footer: footerLine(env, at),
   };
+  return { subject, ...render(doc) };
 }
 
 /** What the Friday letter reports (#38): built by notifications/weekly.ts from existing readers. */
@@ -554,63 +605,101 @@ export function forecastLine(f: WeeklyData["forecasts"]): string {
 export function composeWeekly(data: WeeklyData, env: TradingEnv, at: Date = new Date()): OutgoingEmail {
   const vs = data.week ? `${signed(data.week.portfolioPct)}% vs VTI ${signed(data.week.benchmarkPct)}%` : "no full week yet";
   const subject = `${prefix(env)}Trader weekly: ${vs} (week of ${shortDate(data.weekOf)})`;
-  const status = data.state.killSwitch
-    ? "KILL SWITCH ON: all trading blocked"
-    : data.state.halted
-      ? `HALTED: ${data.state.haltReason ?? "drawdown limit"}`
-      : `Normal: drawdown ${data.state.drawdownPct}% from peak`;
+  const alert = guardrailAlert(data.state);
+  const dashboard = DASHBOARD_URL[env];
   const t = data.trackRecord.overall;
   const pct = (v: string | null) => (v === null ? "–" : `${signed(v)}%`);
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-  const sections: [string, string[]][] = [
-    [
-      "Performance",
-      [
-        `This week (through ${shortDate(data.through)}): ${vs}, flow-adjusted`,
-        ...(data.sinceStart ? [`Since ${shortDate(data.sinceStart.since)}: ${signed(data.sinceStart.portfolioPct)}% vs VTI ${signed(data.sinceStart.benchmarkPct)}%`] : []),
-        `Equity $${data.equity}`,
+  const blocks: Block[] = [
+    ...(alert ? [alertBlock(alert)] : []),
+    {
+      type: "stats",
+      items: [
+        data.week
+          ? { label: "This week", value: `${signed(data.week.portfolioPct)}%`, detail: `VTI ${signed(data.week.benchmarkPct)}%`, signed: true }
+          : { label: "This week", value: "–", detail: "no full week yet" },
+        ...(data.sinceStart
+          ? [{ label: `Since ${shortDate(data.sinceStart.since)}`, value: `${signed(data.sinceStart.portfolioPct)}%`, detail: `VTI ${signed(data.sinceStart.benchmarkPct)}%`, signed: true }]
+          : []),
+        { label: "Equity", value: `$${data.equity}` },
       ],
-    ],
-    [
-      "Track record (each thesis vs the same dollars in VTI)",
-      [
-        ...(t.theses === 0
-          ? ["No theses yet"]
-          : [
-              `${t.theses} theses (${t.scored} scored): ${money(t.excess)} vs VTI (${pct(t.excessPct)}); ${t.beatVtiPct === null ? "–" : `${t.beatVtiPct}%`} beat VTI`,
-              ...data.trackRecord.byKind.map((k) => `${k.kind}: ${k.theses} ${k.theses === 1 ? "thesis" : "theses"}, ${pct(k.excessPct)} vs VTI`),
-            ]),
-        forecastLine(data.forecasts),
-      ],
-    ],
-    [
-      "This week's strategy changes",
-      [
-        ...(data.strategies.length ? data.strategies.map((s) => `v${s.version} (${s.authoredBy}): ${s.headline}`) : [data.reaffirmed ? "None" : "None: the strategy wasn't resubmitted this week"]),
-        ...(data.reaffirmed ? [`Reaffirmed unchanged ${data.reaffirmed} ${data.reaffirmed === 1 ? "time" : "times"}`] : []),
-      ],
-    ],
-    [
-      "Theses opened",
-      data.opened.length
-        ? data.opened.flatMap((o) => [`${o.symbol} (${o.thesisId}${o.primaryKind ? `, ${o.primaryKind}` : ""})`, ...(o.plainSummary ? [`  ${o.plainSummary}`] : [])])
-        : ["None"],
-    ],
-    [
-      "Theses closed",
-      data.closed.length ? data.closed.map((c) => `${c.symbol} (${c.thesisId}): ${c.ending} after ${c.daysHeld} days, ${pct(c.excessPct)} vs VTI`) : ["None"],
-    ],
-    ...(data.exits.length ? ([["Automatic exits", data.exits.map((e) => `${e.symbol} (${e.thesisId}), ${e.kind}: ${e.reason}`)]] as [string, string[]][]) : []),
-    ["Review dates in the next 14 days", data.reviews.length ? data.reviews.map((r) => `${r.symbol} (${r.thesisId}): ${shortDate(r.reviewBy)}`) : ["None"]],
-    ["Guardrails", [status]],
+    },
+    { type: "paragraph", size: "small", muted: true, text: "Flow-adjusted: deposits and withdrawals don't count as returns." },
+
+    { type: "heading", text: "Track record" },
+    ...(t.theses === 0
+      ? ([{ type: "paragraph", text: "No theses yet." }] satisfies Block[])
+      : ([
+          {
+            type: "paragraph",
+            text: `${plural(t.theses, "thesis", "theses")} (${t.scored} scored): ${money(t.excess)} vs the same dollars in VTI (${pct(t.excessPct)}); ${t.beatVtiPct === null ? "–" : `${t.beatVtiPct}%`} beat VTI.`,
+          },
+          ...(data.trackRecord.byKind.length
+            ? ([
+                {
+                  type: "table",
+                  columns: [{ label: "Lead signal" }, { label: "Theses", align: "right" }, { label: "vs VTI", align: "right", signed: true }],
+                  rows: data.trackRecord.byKind.map((k) => [k.kind, String(k.theses), pct(k.excessPct)]),
+                },
+              ] satisfies Block[])
+            : []),
+        ] satisfies Block[])),
+    { type: "paragraph", text: forecastLine(data.forecasts) },
+
+    { type: "heading", text: "Strategy changes" },
+    data.strategies.length
+      ? { type: "list", items: data.strategies.map((s) => `v${s.version} (${s.authoredBy}): ${s.headline}`) }
+      : { type: "paragraph", text: data.reaffirmed ? "None." : "None: the strategy wasn't resubmitted this week." },
+    ...(data.reaffirmed ? ([{ type: "paragraph", size: "small", muted: true, text: `Reaffirmed unchanged ${plural(data.reaffirmed, "time", "times")}.` }] satisfies Block[]) : []),
+
+    ...(data.opened.length
+      ? ([
+          { type: "heading", text: "Theses opened" },
+          ...data.opened.map(
+            (o): Block => ({
+              type: "card",
+              title: o.symbol,
+              ...(dashboard ? { href: `${dashboard}/theses/${encodeURIComponent(o.thesisId)}` } : {}),
+              blocks: o.plainSummary ? [{ type: "paragraph", text: o.plainSummary }] : [],
+              meta: [o.thesisId, ...(o.primaryKind ? [LEAD_SIGNAL[o.primaryKind] ?? `Led by ${o.primaryKind}`] : [])].join(" · "),
+            }),
+          ),
+        ] satisfies Block[])
+      : []),
+    ...(data.closed.length
+      ? ([
+          { type: "heading", text: "Theses closed" },
+          {
+            type: "table",
+            columns: [{ label: "Symbol" }, { label: "How it ended" }, { label: "Days", align: "right" }, { label: "vs VTI", align: "right", signed: true }],
+            rows: data.closed.map((c) => [c.symbol, c.ending, String(c.daysHeld), pct(c.excessPct)]),
+          },
+        ] satisfies Block[])
+      : []),
+    ...listSection("Automatic exits", data.exits.map((e) => `${e.symbol} (${e.thesisId}), ${e.kind}: ${e.reason}`)),
+    ...listSection("Review dates in the next 14 days", data.reviews.map((r) => `${r.symbol} (${r.thesisId}): ${shortDate(r.reviewBy)}`)),
   ];
+  const quiet = [
+    !data.opened.length && !data.closed.length ? "No theses opened or closed this week." : !data.opened.length ? "No theses opened this week." : !data.closed.length ? "No theses closed this week." : null,
+    data.reviews.length ? null : "No review dates in the next 14 days.",
+  ].filter((l): l is string => l !== null);
+  if (quiet.length) blocks.push({ type: "paragraph", size: "small", muted: true, text: quiet.join(" ") });
+  if (!alert) blocks.push({ type: "paragraph", size: "small", muted: true, text: `Guardrails normal: drawdown ${data.state.drawdownPct}% from peak.` });
 
-  const text = sections.map(([h, lines]) => [h, ...lines.map((l) => `  ${l}`)].join("\n")).join("\n\n");
-  const html = sections.map(([h, lines]) => `<h3>${escapeHtml(h)}</h3><ul>${lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`).join("");
-  const f = footer(env, at);
-  return {
-    subject,
-    text: `Trader weekly letter, week of ${shortDate(data.weekOf)}\n\n${text}${f.text}`,
-    html: `<h2>Trader weekly letter, week of ${escapeHtml(shortDate(data.weekOf))}</h2>${html}${f.html}`,
+  const week = [
+    data.strategies.length ? plural(data.strategies.length, "strategy change", "strategy changes") : null,
+    data.opened.length ? `${data.opened.length} opened` : null,
+    data.closed.length ? `${data.closed.length} closed` : null,
+  ].filter(Boolean);
+  const doc: EmailDoc = {
+    preheader: alert ?? `This week ${vs}${week.length ? `; ${week.join(", ")}` : ""}.`,
+    title: `Weekly letter, week of ${shortDate(data.weekOf)}`,
+    ...(alert ? { tone: "bad" as const } : {}),
+    subtitle: `Through ${shortDate(data.through)}`,
+    blocks,
+    ...(dashboard ? { action: { text: "Open the track record", href: `${dashboard}/track-record` } } : {}),
+    footer: footerLine(env, at),
   };
+  return { subject, ...render(doc) };
 }

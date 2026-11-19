@@ -19,8 +19,8 @@ export type Block =
   | { type: "heading"; text: string }
   | { type: "paragraph"; text: string; label?: string; size?: "lead" | "body" | "small"; muted?: boolean }
   | { type: "list"; items: string[] }
-  | { type: "stats"; items: { label: string; value: string; detail?: string }[] }
-  | { type: "table"; columns: { label: string; align?: "left" | "right" }[]; rows: string[][] }
+  | { type: "stats"; items: { label: string; value: string; detail?: string; signed?: boolean }[] }
+  | { type: "table"; columns: { label: string; align?: "left" | "right"; signed?: boolean }[]; rows: string[][] }
   | { type: "card"; title: string; href?: string; badges?: string[]; tag?: string; blocks: Block[]; meta?: string }
   | { type: "callout"; tone: Tone; text: string }
   | { type: "section"; title: string; tone?: Tone; subtitle?: string; blocks: Block[] };
@@ -56,6 +56,16 @@ export const TONE_ICON: Record<Tone, string> = { bad: "■", warn: "▲", good: 
 
 const FONT = "ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
+/**
+ * A signed figure's arrow (the dashboard's `Signed`): ▲ for "+…", ▼ for "-…",
+ * none for zero or "–". Set by `signed` on a stat or a table column.
+ */
+export function signOf(value: string): 1 | -1 | 0 {
+  return value.startsWith("+") ? 1 : value.startsWith("-") || value.startsWith("−") ? -1 : 0;
+}
+
+const arrow = (s: 1 | -1) => (s > 0 ? "▲" : "▼");
+
 export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 }
@@ -87,6 +97,19 @@ function icon(tone: Tone | undefined): string {
   return `<span class="${toneClass(tone)}" style="color:${toneColor(tone)};" aria-hidden="true">${TONE_ICON[tone]}</span>&nbsp;`;
 }
 
+/** A value, with its coloured arrow when it's a signed figure; the figure itself stays in text ink. */
+function figureHtml(value: string, signed: boolean | undefined): string {
+  const s = signed ? signOf(value) : 0;
+  if (!s) return escapeHtml(value);
+  const tone = s > 0 ? "good" : "bad";
+  return `<span class="t-${tone}" style="color:${PALETTE[tone]};" aria-hidden="true">${arrow(s)}</span>&nbsp;${escapeHtml(value)}`;
+}
+
+const figureText = (value: string, signed: boolean | undefined) => {
+  const s = signed ? signOf(value) : 0;
+  return s ? `${arrow(s)} ${value}` : value;
+};
+
 function paragraphHtml(b: Extract<Block, { type: "paragraph" }>): string {
   const size = b.size === "lead" ? "font-size:17px;line-height:1.45;font-weight:500;" : b.size === "small" ? "font-size:13px;line-height:1.5;" : "font-size:15px;line-height:1.55;";
   const color = b.muted ? S.muted : S.text;
@@ -96,8 +119,9 @@ function paragraphHtml(b: Extract<Block, { type: "paragraph" }>): string {
 }
 
 function statsHtml(items: Extract<Block, { type: "stats" }>["items"]): string {
-  // Three tiles to a row at most, so they fit a phone without media queries; four become two rows of two.
-  const perRow = items.length === 4 ? 2 : 3;
+  // Three short values to a row at most, so they fit a phone without media queries. Four, or any value
+  // longer than "+1.2%" or "$500" (a signed figure's arrow, an equity), go two to a row.
+  const perRow = items.length === 4 || items.some((s) => s.value.length + (s.signed && signOf(s.value) ? 2 : 0) > 6) ? 2 : 3;
   const rows: (typeof items)[] = [];
   for (let i = 0; i < items.length; i += perRow) rows.push(items.slice(i, i + perRow));
   const width = `${Math.floor(100 / Math.min(perRow, items.length))}%`;
@@ -107,9 +131,9 @@ function statsHtml(items: Extract<Block, { type: "stats" }>["items"]): string {
         `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:0;margin:0 0 8px;"><tr>${row
           .map(
             (s, i) =>
-              `<td width="${width}" valign="top" style="padding:0 ${i < row.length - 1 ? "8px" : "0"} 0 0;"><div class="t-inner" style="background:${PALETTE.page};border:1px solid ${PALETTE.border};border-radius:10px;padding:10px 12px;"><div class="t-muted" style="font-size:12px;line-height:1.3;font-weight:500;${S.muted}">${escapeHtml(s.label)}</div><div class="t-text" style="font-size:20px;line-height:1.3;font-weight:600;${S.text}">${escapeHtml(s.value)}</div>${s.detail ? `<div class="t-muted" style="font-size:12px;line-height:1.3;${S.muted}">${escapeHtml(s.detail)}</div>` : ""}</div></td>`,
+              `<td width="${width}" valign="top" style="padding:0 ${i < Math.min(perRow, items.length) - 1 ? "8px" : "0"} 0 0;"><div class="t-inner" style="background:${PALETTE.page};border:1px solid ${PALETTE.border};border-radius:10px;padding:10px 12px;"><div class="t-muted" style="font-size:12px;line-height:1.3;font-weight:500;${S.muted}">${escapeHtml(s.label)}</div><div class="t-text" style="font-size:20px;line-height:1.3;font-weight:600;${S.text}">${figureHtml(s.value, s.signed)}</div>${s.detail ? `<div class="t-muted" style="font-size:12px;line-height:1.3;${S.muted}">${escapeHtml(s.detail)}</div>` : ""}</div></td>`,
           )
-          .join("")}</tr></table>`,
+          .join("")}${row.length < perRow && rows.length > 1 ? `<td width="${width}"></td>`.repeat(perRow - row.length) : ""}</tr></table>`,
     )
     .join("");
 }
@@ -118,7 +142,7 @@ function tableHtml(b: Extract<Block, { type: "table" }>): string {
   const cell = (align: string | undefined, header: boolean) =>
     `padding:6px ${header ? "8px" : "8px"} 6px 0;text-align:${align ?? "left"};border-bottom:1px solid ${PALETTE.border};${header ? `font-size:12px;font-weight:500;${S.muted}` : `font-size:14px;${S.text}`}`;
   const head = b.columns.map((c) => `<th class="t-muted t-border" style="${cell(c.align, true)}">${escapeHtml(c.label)}</th>`).join("");
-  const body = b.rows.map((r) => `<tr>${r.map((v, i) => `<td class="t-text t-border" style="${cell(b.columns[i]?.align, false)}">${escapeHtml(v)}</td>`).join("")}</tr>`).join("");
+  const body = b.rows.map((r) => `<tr>${r.map((v, i) => `<td class="t-text t-border" style="${cell(b.columns[i]?.align, false)}">${figureHtml(v, b.columns[i]?.signed)}</td>`).join("")}</tr>`).join("");
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 12px;font-variant-numeric:tabular-nums;"><tr>${head}</tr>${body}</table>`;
 }
 
@@ -209,9 +233,9 @@ function blockText(b: Block, indent = ""): string {
     case "list":
       return ind(b.items.map((i) => `- ${i}`).join("\n"));
     case "stats":
-      return ind(b.items.map((s) => `${s.label}: ${s.value}${s.detail ? ` (${s.detail})` : ""}`).join("\n"));
+      return ind(b.items.map((s) => `${s.label}: ${figureText(s.value, s.signed)}${s.detail ? ` (${s.detail})` : ""}`).join("\n"));
     case "table": {
-      const all = [b.columns.map((c) => c.label), ...b.rows];
+      const all = [b.columns.map((c) => c.label), ...b.rows.map((r) => r.map((v, i) => figureText(v, b.columns[i]?.signed)))];
       const widths = b.columns.map((_, i) => Math.max(...all.map((r) => (r[i] ?? "").length)));
       const line = (r: string[]) =>
         r

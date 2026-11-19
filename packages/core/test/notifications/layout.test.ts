@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { composeUrgent } from "../../src/notifications/compose.js";
 import { type Block, type EmailDoc, render } from "../../src/notifications/layout.js";
-import { SAMPLES } from "../../src/notifications/samples.js";
+import { EMAIL_SAMPLES } from "../../src/notifications/samples.js";
 
 const doc = (blocks: Block[], extra: Partial<EmailDoc> = {}): EmailDoc => ({ preheader: "Preview line", title: "Title", blocks, footer: "— Trader", ...extra });
 
@@ -71,9 +70,35 @@ describe("render (SPEC-notifications § Email design)", () => {
     expect(html).toMatch(/■<\/span>&nbsp;Trading HALTED<\/h1>/);
   });
 
+  it("marks signed figures with the dashboard's arrows, in colour and in the text part", () => {
+    const { html, text } = render(
+      doc([
+        { type: "stats", items: [{ label: "Today", value: "+0.42%", signed: true }, { label: "Since", value: "-1.3%", signed: true }, { label: "Flat", value: "0%", signed: true }] },
+        { type: "table", columns: [{ label: "Kind" }, { label: "vs VTI", align: "right", signed: true }], rows: [["insider", "+0.81%"], ["13f", "–"]] },
+      ]),
+    );
+    expect(text).toContain("Today: ▲ +0.42%\nSince: ▼ -1.3%\nFlat: 0%");
+    expect(text).toContain("insider  ▲ +0.81%\n13f             –");
+    expect(html).toMatch(/color:#0c8a0c;" aria-hidden="true">▲<\/span>&nbsp;\+0\.42%/);
+    expect(html).toMatch(/color:#c43535;" aria-hidden="true">▼<\/span>&nbsp;-1\.3%/);
+    expect(html).not.toContain(">▲</span>&nbsp;0%");
+    // Unsigned figures keep their text as it is.
+    expect(render(doc([{ type: "stats", items: [{ label: "Equity", value: "+5" }] }])).text).toContain("Equity: +5");
+  });
+
+  it("puts three short stats to a row, and long ones two to a row, padding the last", () => {
+    const tiles = (values: string[], signed = false) => {
+      const { html } = render(doc([{ type: "stats", items: values.map((value, i) => ({ label: `S${i}`, value, signed })) }]));
+      return [...html.matchAll(/margin:0 0 8px;"><tr>(.*?)<\/tr>/g)].map((m) => (m[1]!.match(/<td /g) ?? []).length);
+    };
+    expect(tiles(["33%", "67%", "5"])).toEqual([3]);
+    expect(tiles(["$1012.48", "+0.62%", "+1.2%"], true)).toEqual([2, 2]);
+    expect(tiles(["1", "2", "3", "4"])).toEqual([2, 2]);
+  });
+
   it("never starts a list item or paragraph with its own bullet (the v21 double bullets)", () => {
-    for (const [name, sample] of Object.entries(SAMPLES)) {
-      const { html, text } = composeUrgent(sample(), "production");
+    for (const [name, sample] of Object.entries(EMAIL_SAMPLES)) {
+      const { html, text } = sample("production", new Date());
       expect(html, name).not.toMatch(/<li[^>]*>\s*[•\-*]/);
       expect(html, name).not.toMatch(/<p[^>]*>\s*•/);
       expect(text, name).not.toMatch(/^\s*- [•\-*] /m);
@@ -82,11 +107,10 @@ describe("render (SPEC-notifications § Email design)", () => {
   });
 
   it("stays far below Gmail's 102KB clipping limit", () => {
-    for (const [name, sample] of Object.entries(SAMPLES)) expect(Buffer.byteLength(composeUrgent(sample(), "production").html), name).toBeLessThan(60_000);
+    for (const [name, sample] of Object.entries(EMAIL_SAMPLES)) expect(Buffer.byteLength(sample("production", new Date()).html), name).toBeLessThan(60_000);
   });
 
   it("uses tables, not flex or grid, for anything side by side", () => {
-    const { html } = composeUrgent(SAMPLES["strategy-v21-reaffirmed"]!(), "production");
-    expect(html).not.toMatch(/display:\s*(flex|grid)/);
+    for (const [name, sample] of Object.entries(EMAIL_SAMPLES)) expect(sample("production", new Date()).html, name).not.toMatch(/display:\s*(flex|grid)/);
   });
 });

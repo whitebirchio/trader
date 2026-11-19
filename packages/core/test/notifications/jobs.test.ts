@@ -132,7 +132,7 @@ describe("notify-digest", () => {
     clock = new Date(CLOSE.getTime() + 30 * 60_000);
     expect(await notifyDigest(ctx())).toMatchObject({ status: "succeeded", detail: { date: "2026-11-02", events: 1, sent: 1 } });
     expect(mailer.sent[0]?.subject).toBe("Trader daily: 0%, 1 trade (Mon Nov 2)");
-    expect(mailer.sent[0]?.text).toContain("Bought 0.016339869 VTI @ $306.01");
+    expect(mailer.sent[0]?.text).toMatch(/\nBought  VTI\s+0\.0163\s+\$306\.01\n/);
 
     clock = new Date(clock.getTime() + 15 * 60_000);
     expect(await notifyDigest(ctx())).toEqual({ status: "skipped", reason: "digest already queued today" });
@@ -158,7 +158,7 @@ describe("notify-digest", () => {
     await db.insert(auditEvents).values({ actor: "claude", kind: "strategy.activated", subject: "v21", at: new Date("2026-11-02T17:05:00Z"), payload: { ...payload, version: 21, changed: true } });
     clock = new Date(CLOSE.getTime() + 30 * 60_000);
     expect(await notifyDigest(ctx())).toMatchObject({ detail: { events: 1 } });
-    expect(mailer.sent[0]?.text).toContain("Research runs\n  v20 (8:05 AM ET), no changes: Reaffirmed: no material change since v19.");
+    expect(mailer.sent[0]?.text).toContain("RESEARCH RUNS\n\n- v20 (8:05 AM ET), no changes: Reaffirmed: no material change since v19.");
     expect(mailer.sent[0]?.text).not.toContain("v21 (");
   });
 
@@ -220,7 +220,7 @@ describe("notify-weekly", () => {
     expect(email.text).toContain("v1 (claude): Version 1: Change. Adds AAPL on services growth.");
     expect(email.text).toContain("LKQ (lkq-a), overdue: past its review date (2026-11-04) without a later one");
     expect(email.text).toContain("AAPL (aapl-services): Thu Nov 12");
-    expect(email.text).toContain("Normal: drawdown");
+    expect(email.text).toContain("Guardrails normal: drawdown");
     // AAPL's forecast runs to its review date, next week.
     expect(email.text).toContain("Forecasts: none resolved this week; skill vs the 45% base rate: too few to judge (0 resolved)");
 
@@ -261,7 +261,7 @@ describe("notify-weekly", () => {
     await db.insert(brokerActivities).values({ id: "fill-aapl", type: "FILL", at: new Date("2026-11-04T15:00:00Z"), symbol: "AAPL", side: "buy", qty: "1", price: "200", raw: {} });
     clock = new Date(FRI_CLOSE.getTime() + 61 * 60_000);
     await notifyWeekly(ctx());
-    expect(mailer.sent[0]!.text).toContain("  AAPL (aapl-services, fundamental)\n    Apple sells iPhones and the services people pay for on them.");
+    expect(mailer.sent[0]!.text).toContain("THESES OPENED\n\nAAPL\n  Apple sells iPhones and the services people pay for on them.\n  aapl-services · Led by fundamentals\n  https://trader.whitebirch.io/theses/aapl-services");
   });
 
   it("is written but not sent on staging", async () => {

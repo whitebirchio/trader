@@ -4,7 +4,7 @@
  * week's letter for --date (default today; it must have its after-close snapshot).
  *
  *   npm run notify:preview -w @trader/core -- --env production|paper [--digest | --weekly [--date YYYY-MM-DD]]
- *   npm run notify:preview -w @trader/core -- --sample withdrawal|<name>|all   (sample emails; no database)
+ *   npm run notify:preview -w @trader/core -- --sample withdrawal|digest-busy|weekly|<name>|all   (sample emails; no database)
  *
  * --html <dir> also writes each email as <dir>/<name>.html and .txt, to open
  * in a browser (SPEC-notifications § Email design). Samples are in
@@ -17,7 +17,7 @@ import { and, gte, inArray } from "drizzle-orm";
 import { auditEvents } from "../src/db/schema.js";
 import { composeDigest, composeUrgent, composeWeekly } from "../src/notifications/compose.js";
 import type { OutgoingEmail } from "../src/notifications/port.js";
-import { SAMPLES } from "../src/notifications/samples.js";
+import { EMAIL_SAMPLES } from "../src/notifications/samples.js";
 import { weeklyData } from "../src/notifications/weekly.js";
 import { coveredEventIds } from "../src/notifications/outbox.js";
 import { kindsFor, routeEvent } from "../src/notifications/routing.js";
@@ -41,11 +41,11 @@ function show(name: string, email: OutgoingEmail) {
 
 if (values.sample) {
   const now = new Date();
-  const names = values.sample === "all" ? [...Object.keys(SAMPLES), "withdrawal"] : [values.sample];
+  const names = values.sample === "all" ? [...Object.keys(EMAIL_SAMPLES), "withdrawal"] : [values.sample];
   for (const name of names) {
     if (name === "withdrawal") withdrawalSamples().forEach((email, i) => show(`withdrawal-${i + 1}`, email));
-    else if (SAMPLES[name]) show(name, composeUrgent(SAMPLES[name](), "production", now));
-    else throw new Error(`unknown sample "${name}"; try: all, withdrawal, ${Object.keys(SAMPLES).join(", ")}`);
+    else if (EMAIL_SAMPLES[name]) show(name, EMAIL_SAMPLES[name]("production", now));
+    else throw new Error(`unknown sample "${name}"; try: all, withdrawal, ${Object.keys(EMAIL_SAMPLES).join(", ")}`);
   }
   process.exit(0);
 }
