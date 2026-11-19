@@ -133,6 +133,115 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
 3. **A successful retry** goes in the digest, not an urgent email.
 4. **`routine:fire`**, a laptop command to fire a routine by hand (with `--dry-run`), is in scope: the live check, and manual recovery.
 
+## Event-triggered runs (2026-11-13, #36)
+
+> **Status: Draft** (for Scott's review). Builds on missed-run recovery (the `RoutineFirer` and the routine tokens).
+
+**Why.** Claude judges the book at 8:00 and 12:00 ET only. A stop is judged on the daily close (last close ≤ average cost × (1 − stop%)) and sold from 9:45 the next morning, so a holding that slides toward its stop at 2pm is decided by the rule, not by Claude: nothing re-reads the thesis before the close settles it. The same goes for a sharp move on news, or an insider selling outside a 10b5-1 plan, which `check-filings` already emails as urgent ("nothing sold: Claude weighs it next run"), and the next run can be 18 hours away. Scott's direction is that Claude re-judges on signals and sells on them, and that review dates are backstops. #36 was blocked because the engine couldn't start a run. #127 gave it that.
+
+**What.** A tick job, `check-events`, watches each held thesis during the session. When one trips a trigger, it fires a research run with the reason in the fire's text. The run judges that holding first, and Claude decides: exit, trim, or hold and say why. Each run then submits as any run does. The runs are capped per day, claimed before firing, and listed in the digest.
+
+**Assumptions (correct any of these):**
+1. **Three triggers, all on held theses (not the VTI sleeve, not watchlist names):**
+   - **Near its stop:** the latest synced price (`positions.current_price`, every 15 minutes) is within **3%** of the stop price, i.e. ≤ stop price × 1.03. The stop price is average cost × (1 − `stopLossPct`/100), as the stop rule computes it. With a 10% stop, it trips about 7.3% below cost. A trailing stop, when turned on, counts the same way.
+   - **A big move:** the latest price is **8% or more above or below** the previous session's close (`thesis_closes`). A jump up can matter as much as a drop: a takeover bid, or news that has done the thesis's work.
+   - **A sell-signal filing:** a `filing.sell_signal` event (an officer or director leaving, or an insider selling outside a 10b5-1 plan) on a held name. Insider buys and other filings stay in the digest, as now.
+2. **Window:** fires only on a trading day, from **9:45 ET** (the first rebalance step) to **75 minutes before the close** (14:45 on a normal day, 11:45 on a 1pm half-day). A run of about 10 minutes then submits in time for a rebalance step before 15:30. Not within **45 minutes after** a scheduled run's fire time, or **30 minutes before** the next one: that run reads the same holdings and filings.
+3. **Caps:**
+   - **two event runs a day;**
+   - **at least 60 minutes between them;**
+   - **each (symbol, trigger) at most once a day.**
+
+   Several holdings tripping on one tick go into one run. These numbers are code (`EVENT_RUNS` in core, like `LIMITS`), and changing them is Scott's call.
+4. **Which routine:** the event fires the **8:00 routine (Opus)**. A sell decision on a holding under stress is where the stronger model earns its cost, and the caps bound that cost to two Opus runs a day. It needs no new routine and no new token.
+5. **A focused run, not a full one.** The prompt gains an *Event runs* section for runs whose text starts "Event run:":
+   - orient as usual;
+   - research the named holdings first (news, filings, what moved them);
+   - decide each one: exit, trim, or hold with a sentence on why the thesis still stands;
+   - reread the whole book only for what the event changes (a shared failure: are other names exposed to the same thing?);
+   - preview, submit, and put the decision in the summary's first line.
+
+   No new-idea search. **Never widen a stop because the price is near it;** a stop is changed only for a reason that would stand on a calm day.
+6. **Not when nothing can trade:**
+   - Skipped under the **kill switch**.
+   - Allowed under the **drawdown halt**, because closing a thesis still sells.
+   - A name **bought today** doesn't trip near-stop or big-move triggers: it can't be sold until tomorrow (no day trades), and tomorrow's runs see it.
+7. **The fire's `text` reaches the session** with the routine's saved prompt (the routines API's run-specific context). Checked in the live check below. If it doesn't, the run finds the event through `get_activity` instead (see *Recording it*).
+8. **No new secret:** `ROUTINE_FIRE_TOKENS` already holds the 8:00 routine's token. Without it, `check-events` still records what tripped (`events.tripped`) and fires nothing.
+
+### Recording it (audit; ADR-008)
+- **`events.tripped`** (digest): each (symbol, trigger) the first time it trips that day, with the price, the stop or previous close, and the distance. It's recorded whether or not a run can be fired (the window, a cap or no token), so the next scheduled run and the owner see it. Subject `<date>#<symbol>#<trigger>`, which makes it once a day.
+- **`routine.event_run`**, before the fire, is the claim: subject `<date>#<n>` (n = 1, 2: the daily cap is the subject space). Payload: the trigger id, the tripped items and the fire text.
+- **`routine.event_run_result`**, after the fire: same subject, the `FireResult`, never the token.
+- **Routing:**
+  - All three go to the **digest**.
+  - A refused fire (401, 403, 429 or no token) goes to the digest as a result and doesn't email. The scheduled runs carry on, and `check-routine` already emails when a token is rejected on a missed slot.
+  - The `filing.sell_signal` email stays urgent and gains a line: "An event run was started at 10:15 ET".
+- **The digest's run line:** "Event run at 13:40 ET: TTMI 2.1% above its stop. v24: exited TTMI (thesis broken by …)", from the event and the next version's summary headline.
+
+### Interaction with `check-routine`
+A submission belongs to the latest scheduled fire time before it, so an event run's submission counts for that slot. If a scheduled run has already failed and its retries are still pending, an event run that submits stands in for it. That's acceptable: the book was re-judged. If anything, it's slightly better, because no extra retry fires. `check-routine` doesn't change.
+
+### Shape (hexagonal, ADR-002)
+- Core, `src/agent/events.ts`:
+  - `findTriggers(input) → Tripped[]`: pure, from the active strategy, open lots, positions, the previous closes and the day's sell-signal filings;
+  - `checkEvents(db, broker, now, firer?)`: reads, records `events.tripped`, applies the window and caps, then claims and fires.
+
+  `EVENT_RUNS = { nearStopPct: 3, movePct: 8, maxPerDay: 2, minGapMinutes: 60, firstEt: "09:45", lastBeforeCloseMinutes: 75, afterSlotMinutes: 45, beforeSlotMinutes: 30 }`.
+- **`check-events`** joins `TICK_JOBS` after `sync-broker` and `check-filings`, so it reads fresh prices and filings. It reuses `JobDeps.routineFirer`.
+- **The fire text** is one paragraph, built in core: "Event run: TTMI is $41.20, 2.1% above its 10% stop ($40.35); BA fell 8.4% from yesterday's close ($212.10 → $194.30). Judge these first (agent/routine-prompt.md § Event runs)."
+- **Prompt:** an *Event runs* section in `agent/routine-prompt.md`, as in assumption 5. It ships on merge, like every prompt change (#118).
+- **Operator:** `npm run events:status -w @trader/core -- --env production` (read-only, `trader_readonly`). It prints each held thesis's distance to its stop and its move from the previous close against the triggers, and today's event runs: the live check, since a slide can't be staged.
+
+### Not in scope
+- Watchlist names: a big move on a name Claude passed on (a possible entry) waits for the next scheduled run.
+- Earnings-day runs: earnings dates are known in advance, so the scheduled runs already plan around them.
+- A third routine or a different model for event runs. A cheaper Sonnet event routine is a later option if usage bites.
+- Any order path: the run changes the strategy, and execution and risk are unchanged (ADR-003, ADR-011).
+
+### Testing
+- **`findTriggers`, a pure-function test for each case:**
+  - near stop at exactly 3%, and just outside it;
+  - an 8% move each way, and 7.9%;
+  - a sell-signal filing on a held name and on a watchlist name (only the held one trips);
+  - a name bought today;
+  - VTI never trips.
+- **`checkEvents`, on PGlite with a fake firer:**
+  - fires once per tick with every tripped holding;
+  - records the claim before the fire;
+  - a redelivered tick doesn't fire twice;
+  - the daily cap and the 60-minute gap;
+  - each (symbol, trigger) trips once a day;
+  - the window: before 9:45, after close − 75 min, a half-day, and near a scheduled slot;
+  - a holiday;
+  - the kill switch skips, and the halt doesn't;
+  - without a firer it records `events.tripped` only;
+  - a refused fire is recorded and not retried.
+- Compose and routing tests for the new kinds and the digest line. `TICK_JOBS` order pinned. The `events:status` script prints from a seeded database.
+
+### Boundaries
+- **Always:** claim before firing; at most `EVENT_RUNS.maxPerDay` a day; keep the token out of logs, events and emails; only the 8:00 routine is fired.
+- **Ask first:** changing any `EVENT_RUNS` number; adding triggers (watchlist names, earnings); firing outside the window; a second event routine.
+- **Never:** let an event change a stop, a weight or an order directly (only Claude's submission does); fire on a day the kill switch is on.
+
+### Success criteria
+1. A held thesis within 3% of its stop, or 8% from yesterday's close, or with a sell-signal filing, during the window, starts one Opus run whose text names it, recorded before the fire.
+2. The run judges the named holdings first, submits, and puts its decision in the summary's first line.
+3. Never more than two event runs a day, 60 minutes apart, and none outside the window or under the kill switch.
+4. The digest lists each trip and each event run with what it decided. A sell-signal email says whether a run was started.
+5. With no token, nothing fires, and `events.tripped` still records what happened.
+6. **Live check:**
+   - `events:status` prints each holding's distances on a trading day;
+   - `routine:fire --dry-run` with an event text prints the request;
+   - the first real event run's session shows the text, and its summary leads with the decision.
+
+### Open questions
+1. **Thresholds:** 3% from the stop, and an 8% move?
+2. **The cap:** two event runs a day, 60 minutes apart? Each is an Opus run on your usage.
+3. **Model:** fire the 8:00 routine (Opus, recommended), or the 12:00 one (Sonnet, cheaper)?
+4. **Big moves upward:** trip on +8% as well as −8% (assumed), or only drops?
+5. **The run's scope:** a focused run on the tripped names (assumed, cheaper), or a full research run that starts with them?
+
 ## Architecture
 
 ```
