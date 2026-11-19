@@ -12,7 +12,7 @@ import {
   parseForm144,
   parseForm4,
 } from "../../src/agent/filings.js";
-import type { FilingsFeedPort, IndexedFiling } from "../../src/agent/sec.js";
+import { type FilingsFeedPort, type IndexedFiling, SecRefusedError } from "../../src/agent/sec.js";
 import { updateWatchlist } from "../../src/agent/watchlist.js";
 import type { Db } from "../../src/db/client.js";
 import { auditEvents, jobRuns, secFilings } from "../../src/db/schema.js";
@@ -222,6 +222,21 @@ describe("checkFilings", () => {
     const f = feed({ BA: new Error("HTTP 503"), LKQ: [indexed({ accession: "k5", form: "10-Q", daysAgo: 1 })] });
     expect(await checkFilings(db, f, [{ symbol: "BA", thesisId: "ba-1" }, { symbol: "LKQ", thesisId: "lkq-1" }], NOW)).toMatchObject({ checked: 1, stored: 1, failed: [{ symbol: "BA", error: "HTTP 503" }] });
     await expect(checkFilings(db, feed({ BA: new Error("HTTP 503") }), [{ symbol: "BA", thesisId: "ba-1" }], NOW)).rejects.toThrow("SEC EDGAR couldn't be read for any of 1 names: HTTP 503");
+  });
+
+  it("stops at the first refusal (403/429) and leaves the rest for the next hourly check", async () => {
+    const refused = new SecRefusedError("https://www.sec.gov/files/company_tickers.json", 403);
+    const targets = [{ symbol: "BA", thesisId: "ba-1" }, { symbol: "LKQ", thesisId: "lkq-1" }, { symbol: "TTMI", thesisId: "ttmi-1" }];
+    // Refused on the first name: nothing checked, one request, and the job fails saying so.
+    let asked = 0;
+    const counting: FilingsFeedPort = { recentFilings: async () => (asked++, Promise.reject(refused)), document: async () => "" };
+    await expect(checkFilings(db, counting, targets, NOW)).rejects.toThrow(
+      "SEC EDGAR refused the first request, so none of 3 names were checked; the next hourly check tries again: https://www.sec.gov/files/company_tickers.json: HTTP 403",
+    );
+    expect(asked).toBe(1);
+    // Refused part-way: what was checked stands, the rest are skipped, and nothing throws.
+    const f = feed({ BA: [], LKQ: new SecRefusedError("https://data.sec.gov/submissions/CIK0001065696.json", 429) });
+    expect(await checkFilings(db, f, targets, NOW)).toMatchObject({ checked: 1, failed: [{ symbol: "LKQ", error: "https://data.sec.gov/submissions/CIK0001065696.json: HTTP 429" }], skipped: ["TTMI"] });
   });
 
   it("stops starting names when the time budget runs out, and prunes rows past keepDays", async () => {
