@@ -4,13 +4,15 @@ import { BENCHMARK } from "../broker/benchmark-closes.js";
 import type { BrokerAdapter } from "../broker/port.js";
 import { recordEvent } from "../audit.js";
 import type { Db } from "../db/client.js";
-import { auditEvents, positions, thesisCloses } from "../db/schema.js";
+import { auditEvents, positions, riskState, thesisCloses } from "../db/schema.js";
 import { compare, div, mul, round, sub, toBig } from "../money.js";
 import { activeStrategy } from "../portfolio/store.js";
 import type { Thesis } from "../portfolio/strategy.js";
 import { averageCost, stopLossPrice } from "../portfolio/theses.js";
 import { roundTripBlocks } from "../risk/gate.js";
-import { marketDate, marketTimeToUtc } from "../time.js";
+import { formatMarketTime, marketDate, marketTimeToUtc } from "../time.js";
+import type { FireResult, RoutineFirer } from "./routine-firer.js";
+import { ROUTINES } from "./routine-watch.js";
 
 /**
  * Event-triggered runs (SPEC-agent § Event-triggered runs, #36): notice when a
@@ -18,9 +20,11 @@ import { marketDate, marketTimeToUtc } from "../time.js";
  * the close and sold the next morning, so a holding sliding toward its stop
  * at 2pm is otherwise settled by the rule, not by Claude.
  *
- * This first part only watches: `check-events` records each trip as
- * `events.tripped` (in the digest) and fires nothing. Firing comes second
- * (tasks/event-runs-plan.md), once the trips show how often each would fire.
+ * `check-events` records each trip as `events.tripped` (in the digest).
+ * With a routine firer, it then starts a focused research run on the 8:00
+ * routine (Opus) for the trips still pending, inside a window and under
+ * daily caps (EVENT_RUNS). A trip is pending until a Claude submission lands
+ * after it, or an event run has named it.
  */
 
 /**
@@ -78,6 +82,7 @@ export interface TriggerInput {
   boughtToday: Set<string>;
 }
 
+const MIN = 60_000;
 const pctFrom = (price: string, from: string) => round(mul(sub(div(price, from, 12, "half-even"), "1"), "100"), 2, "half-even");
 const dollars = (v: string) => `$${toBig(round(v, 2, "half-even")).toFixed(2)}`;
 const abs = (v: string) => (v.startsWith("-") ? v.slice(1) : v);
@@ -141,7 +146,18 @@ export function watchStatus(input: TriggerInput): WatchRow[] {
 /** `<date>#<symbol>#<trigger>`: once per trigger per symbol per day. */
 export const tripSubject = (date: string, t: Pick<Tripped, "symbol" | "trigger">) => `${date}#${t.symbol}#${t.trigger}`;
 
-export type CheckEventsResult = { status: "checked"; watched: number; tripped: Tripped[] } | { status: "skipped"; reason: string };
+/** What firing did this tick: started (or tried to start) a run, held pending trips back, or had none. */
+export type EventRunOutcome = { status: FireResult["status"]; run: number; trips: string[] } | { status: "waiting"; pending: number; reason: string } | { status: "none" };
+
+export type CheckEventsResult = { status: "checked"; watched: number; tripped: Tripped[]; eventRun?: EventRunOutcome } | { status: "skipped"; reason: string };
+
+/** The routine an event fires: the 8:00 one, on Opus (SPEC-agent § Event-triggered runs). */
+export const EVENT_ROUTINE = ROUTINES[0];
+
+/** The fire's text: what tripped, and where the prompt says what to do. The routine's prompt keys on "Event run:". */
+export function eventRunText(details: string[]): string {
+  return `Event run: ${details.join("; ")}. Judge these holdings first (agent/routine-prompt.md § Event runs).`;
+}
 
 /** Everything findTriggers reads, plus the active version and today's recorded trips: shared by checkEvents and `events:status`. */
 export async function loadTriggerInput(db: Db, now: Date): Promise<{ input: TriggerInput; version: number; recorded: Set<string> }> {
@@ -194,20 +210,89 @@ export async function loadTriggerInput(db: Db, now: Date): Promise<{ input: Trig
  * yet. The kill switch doesn't stop it: the owner and the next run should
  * still see what happened.
  */
-export async function checkEvents(db: Db, broker: BrokerAdapter, now: Date): Promise<CheckEventsResult> {
+export async function checkEvents(db: Db, broker: BrokerAdapter, now: Date, firer?: RoutineFirer): Promise<CheckEventsResult> {
   const today = marketDate(now);
   // A cheap gate first; the calendar (holidays, half days) is asked only when something trips.
   if (now < marketTimeToUtc(today, "09:30") || now > marketTimeToUtc(today, "16:00")) return { status: "skipped", reason: "outside the session" };
   const { input, version, recorded } = await loadTriggerInput(db, now);
   if (input.theses.length === 0) return { status: "skipped", reason: "no theses" };
   const fresh = findTriggers(input).filter((t) => !recorded.has(tripSubject(today, t)));
+  let calendar: Promise<{ open: Date; close: Date } | null> | undefined;
+  const sessionToday = () => (calendar ??= broker.getCalendar(today, today).then((days) => days.find((d) => d.date === today) ?? null));
   if (fresh.length) {
-    const session = (await broker.getCalendar(today, today)).find((d) => d.date === today);
+    const session = await sessionToday();
     if (!session) return { status: "skipped", reason: `${today} isn't a trading day` };
     if (now < session.open || now > session.close) return { status: "skipped", reason: "outside the session" };
     for (const t of fresh) {
       await recordEvent(db, { actor: "system", kind: "events.tripped", subject: tripSubject(today, t), payload: { ...t, at: now.toISOString(), strategyVersion: version } });
     }
   }
-  return { status: "checked", watched: input.averageCost.size, tripped: fresh };
+  const checked = { status: "checked" as const, watched: input.averageCost.size, tripped: fresh };
+  // `eventRun` only with a firer, so the result without one is PR 1's.
+  return firer ? { ...checked, eventRun: await fireForPending(db, now, firer, sessionToday) } : checked;
+}
+
+/**
+ * Start one event run for today's pending trips, if the window and caps
+ * allow (SPEC-agent § Event-triggered runs). The claim (`routine.event_run`)
+ * is recorded before the call, as the fire endpoint has no idempotency key;
+ * the outcome follows as `routine.event_run_result`. A refused fire isn't
+ * retried: its trips stay named, and the next scheduled run sees them.
+ */
+async function fireForPending(db: Db, now: Date, firer: RoutineFirer, sessionToday: () => Promise<{ open: Date; close: Date } | null>): Promise<EventRunOutcome> {
+  const today = marketDate(now);
+  const [trips, runs, submissions, [state]] = await Promise.all([
+    db
+      .select({ subject: auditEvents.subject, payload: auditEvents.payload, at: auditEvents.at })
+      .from(auditEvents)
+      .where(and(eq(auditEvents.kind, "events.tripped"), like(auditEvents.subject, `${today}#%`))),
+    db
+      .select({ payload: auditEvents.payload })
+      .from(auditEvents)
+      .where(and(eq(auditEvents.kind, "routine.event_run"), like(auditEvents.subject, `${today}#%`))),
+    db
+      .select({ at: auditEvents.at })
+      .from(auditEvents)
+      .where(and(eq(auditEvents.actor, "claude"), inArray(auditEvents.kind, ["strategy.activated", "strategy.rejected"]), gte(auditEvents.at, marketTimeToUtc(today, "00:00")))),
+    db.select({ killSwitch: riskState.killSwitch }).from(riskState).limit(1),
+  ]);
+  // Event times are in their payloads: audit rows take the database's clock.
+  const atOf = (row: { payload: unknown; at?: Date }) => {
+    const at = (row.payload as { at?: unknown }).at;
+    return typeof at === "string" ? new Date(at) : (row.at ?? now);
+  };
+  const named = new Set(runs.flatMap((r) => ((r.payload as { trips?: { subject?: unknown }[] }).trips ?? []).map((t) => String(t.subject))));
+  const pending = trips.filter((t) => !named.has(t.subject ?? "") && !submissions.some((s) => s.at > atOf(t))).sort((a, b) => atOf(a).getTime() - atOf(b).getTime());
+  if (pending.length === 0) return { status: "none" };
+  const wait = (reason: string): EventRunOutcome => ({ status: "waiting", pending: pending.length, reason });
+
+  if (state?.killSwitch) return wait("the kill switch is on");
+  const session = await sessionToday();
+  if (!session) return wait(`${today} isn't a trading day`);
+  const first = marketTimeToUtc(today, EVENT_RUNS.firstEt);
+  const last = new Date(session.close.getTime() - EVENT_RUNS.lastBeforeCloseMinutes * MIN);
+  if (now < first) return wait(`event runs start at ${formatMarketTime(first)}`);
+  if (now > last) return wait(`no event run after ${formatMarketTime(last)}, ${EVENT_RUNS.lastBeforeCloseMinutes} minutes before the close`);
+  for (const r of ROUTINES) {
+    const slot = new Date(`${today}T${r.fireUtc}:00Z`);
+    const until = slot.getTime() - now.getTime();
+    if (until > 0 && until <= EVENT_RUNS.beforeSlotMinutes * MIN) return wait(`${r.name} is due at ${formatMarketTime(slot)} and will cover it`);
+    if (until <= 0 && -until < EVENT_RUNS.inProgressMinutes * MIN && !submissions.some((s) => s.at >= slot)) return wait(`${r.name} is in progress`);
+  }
+  if (runs.length >= EVENT_RUNS.maxPerDay) return wait(`${EVENT_RUNS.maxPerDay} event runs already today`);
+  const lastRun = runs.map(atOf).sort((a, b) => b.getTime() - a.getTime())[0];
+  if (lastRun && now.getTime() - lastRun.getTime() < EVENT_RUNS.minGapMinutes * MIN) return wait(`the last event run was at ${formatMarketTime(lastRun)}, under ${EVENT_RUNS.minGapMinutes} minutes ago`);
+
+  const run = runs.length + 1;
+  const subject = `${today}#${run}`;
+  const listed = pending.map((t) => {
+    const p = t.payload as { symbol?: unknown; trigger?: unknown; detail?: unknown };
+    return { subject: t.subject ?? "", symbol: String(p.symbol ?? ""), trigger: String(p.trigger ?? ""), detail: String(p.detail ?? "") };
+  });
+  const text = eventRunText(listed.map((t) => t.detail));
+  const base = { run, at: now.toISOString(), triggerId: EVENT_ROUTINE.triggerId, routine: EVENT_ROUTINE.name, trips: listed, text };
+  await recordEvent(db, { actor: "system", kind: "routine.event_run", subject, payload: base });
+  const result = await firer.fire(EVENT_ROUTINE.triggerId, text);
+  await recordEvent(db, { actor: "system", kind: "routine.event_run_result", subject, payload: { ...base, result } });
+  return { status: result.status, run, trips: listed.map((t) => t.subject) };
 }

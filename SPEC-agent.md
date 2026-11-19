@@ -135,7 +135,7 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
 
 ## Event-triggered runs (2026-11-13, #36)
 
-> **Status: Approved; PR 1 built** (Scott, 2026-11-18: approved as written). PR 1 watches and records trips (`events.tripped`); PR 2 fires runs. Plan: [tasks/event-runs-plan.md](tasks/event-runs-plan.md). Builds on missed-run recovery (the `RoutineFirer` and the routine tokens).
+> **Status: Built** (Scott, 2026-11-18: approved as written). PR 1 (#133) watches and records trips (`events.tripped`); PR 2 fires runs and adds the prompt's § 6, Event runs. Plan: [tasks/event-runs-plan.md](tasks/event-runs-plan.md). Builds on missed-run recovery (the `RoutineFirer` and the routine tokens).
 
 **Why.** Claude judges the book at 8:00 and 12:00 ET only. A stop is judged on the daily close (last close ≤ average cost × (1 − stop%)) and sold from 9:45 the next morning, so a holding that slides toward its stop at 2pm is decided by the rule, not by Claude: nothing re-reads the thesis before the close settles it. The same goes for a sharp move on news, or an insider selling outside a 10b5-1 plan, which `check-filings` already emails as urgent ("nothing sold: Claude weighs it next run"), and the next run can be 18 hours away. Scott's direction is that Claude re-judges on signals and sells on them, and that review dates are backstops. #36 was blocked because the engine couldn't start a run. #127 gave it that.
 
@@ -177,7 +177,7 @@ A **Claude Code scheduled routine** in your claude.ai account, with the Trader p
   - All three go to the **digest**.
   - A refused fire (401, 403, 429 or no token) goes to the digest as a result and doesn't email. The scheduled runs carry on, and `check-routine` already emails when a token is rejected on a missed slot.
   - The `filing.sell_signal` email stays urgent and gains a line: "An event run was started at 10:15 ET".
-- **The digest's run line:** "Event run at 13:40 ET: TTMI 2.1% above its stop. v24: exited TTMI (thesis broken by …)", from the event and the next version's summary headline.
+- **The digest's run line:** "Event run at 13:40 ET: TTMI 2.1% above its stop. v24: exited TTMI (thesis broken by …)", from the event and the next version's summary headline. *(Built: the line says what tripped and whether the run started; what it decided is in its own strategy email, or the digest's "Research runs" line when nothing changed, led by "Event run: …".)*
 
 ### Interaction with `check-routine`
 A submission belongs to the latest scheduled fire time before it, so an event run's submission counts for that slot. If a scheduled run has already failed and its retries are still pending, an event run that submits stands in for it. That's acceptable: the book was re-judged. If anything, it's slightly better, because no extra retry fires. `check-routine` doesn't change.

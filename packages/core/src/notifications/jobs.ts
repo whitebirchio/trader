@@ -69,8 +69,10 @@ export async function queueUrgent(db: Db, env: TradingEnv, at: Date): Promise<Qu
   const sendIds: string[] = [];
   const fold: string[] = [];
 
+  const runAt = await eventRunsForSellSignals(db, pending);
   for (const e of pending.filter((x) => x.kind !== "job.failed")) {
-    send.push(toNotifiable(e));
+    const started = e.kind === "filing.sell_signal" ? runAt.get(`${marketDate(e.at)}#${e.subject}`) : undefined;
+    send.push(toNotifiable(e, started ? { eventRunAt: started } : {}));
     sendIds.push(e.id);
   }
 
@@ -100,6 +102,29 @@ export async function queueUrgent(db: Db, env: TradingEnv, at: Date): Promise<Qu
   }
   await foldEvents(db, "urgent", fold, at);
   return { events: send.length, folded: fold.length, queued };
+}
+
+/**
+ * When an event run was started for a sell-signal filing (SPEC-agent §
+ * Event-triggered runs), keyed `<date>#<symbol>`: check-events runs before
+ * notify-urgent in the tick, so a run claimed for the filing is already
+ * recorded when its email is composed.
+ */
+async function eventRunsForSellSignals(db: Db, pending: EventRow[]): Promise<Map<string, string>> {
+  const filings = pending.filter((e) => e.kind === "filing.sell_signal");
+  if (filings.length === 0) return new Map();
+  const since = new Date(Math.min(...filings.map((e) => e.at.getTime())) - 24 * 60 * 60_000);
+  const runs = await db
+    .select({ subject: auditEvents.subject, payload: auditEvents.payload })
+    .from(auditEvents)
+    .where(and(eq(auditEvents.kind, "routine.event_run"), gte(auditEvents.at, since)));
+  const out = new Map<string, string>();
+  for (const r of runs) {
+    const p = r.payload as { at?: unknown; trips?: { symbol?: unknown; trigger?: unknown }[] };
+    const date = (r.subject ?? "").split("#")[0];
+    for (const t of p.trips ?? []) if (t.trigger === "sell_filing" && typeof p.at === "string") out.set(`${date}#${String(t.symbol)}`, p.at);
+  }
+  return out;
 }
 
 async function lastFailureEmailAt(db: Db, job: string): Promise<Date | null> {

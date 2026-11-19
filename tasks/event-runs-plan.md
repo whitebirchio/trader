@@ -1,6 +1,6 @@
 # Plan: event-triggered runs (#36)
 
-> **Status: In progress** (PR 1 built; plan approved by Scott 2026-11-18; spec approved by Scott 2026-11-18: SPEC-agent § Event-triggered runs, approved as written). Two PRs, in order.
+> **Status: Built** (PR 1 #133, PR 2 built; plan approved by Scott 2026-11-18; spec approved by Scott 2026-11-18: SPEC-agent § Event-triggered runs, approved as written). Two PRs, in order.
 
 ## Why
 Claude judges the book at 8:00 and 12:00 ET only. A stop is judged on the close and sold the next morning, so a holding sliding toward its stop in the afternoon is settled by the rule, not by Claude. The engine can now start a run (#127), so it can wake Claude when a holding needs judging.
@@ -43,7 +43,7 @@ Claude judges the book at 8:00 and 12:00 ET only. A stop is judged on the close 
 - [x] **E5. Docs:** SPEC-agent status (PR 1 built), SPEC-notifications (the new kind), the plan ticked.
 
 ## PR 2: firing and the prompt
-- [ ] **E6. Firing in `checkEvents(db, broker, now, firer?)`.**
+- [x] **E6. Firing in `checkEvents(db, broker, now, firer?)`.**
   - **Pending trips:** today's `events.tripped` not covered by a later submission and not named in an earlier `routine.event_run`.
   - **Fire only if all of these hold:**
     - inside 9:45 to close − 75 minutes (half days from the calendar);
@@ -65,13 +65,13 @@ Claude judges the book at 8:00 and 12:00 ET only. A stop is judged on the close 
     - the kill switch skips firing, but a halt doesn't;
     - with no firer, behaviour is PR 1's;
     - a refused fire is recorded and not retried.
-- [ ] **E7. Notifications.**
+- [x] **E7. Notifications.**
   - `routine.event_run` and `routine.event_run_result` → digest.
-  - Digest "Event run" line: the time, the trips, and the next Claude version's headline ("v24: exited TTMI …").
+  - Digest "Event runs" line: the time, the trips, and whether the run started. *(Built: what the run decided is in its own strategy email, or the digest's "Research runs" line when nothing changed, led by "Event run: …"; not repeated here.)*
   - The `filing.sell_signal` urgent email adds "An event run was started at 10:15 ET" when one was claimed for that symbol before the email was composed. `check-events` runs before `notify-urgent` in the tick, so same-tick claims count.
   - **Accept:** compose and routing tests.
-- [ ] **E8. Lambda.** `checkEventsJob` passes `JobDeps.routineFirer`, which is already built from `ROUTINE_FIRE_TOKENS`. Handler test with the fake firer.
-- [ ] **E9. Prompt.** An *Event runs* section in `agent/routine-prompt.md`:
+- [x] **E8. Lambda.** `checkEventsJob` passes `JobDeps.routineFirer`, which is already built from `ROUTINE_FIRE_TOKENS`. *(Built: the handler already hands the firer to every job, and its check-routine test covers that; a core `runJob` test covers check-events with a fake firer, including a redelivered tick.)*
+- [x] **E9. Prompt.** An *Event runs* section in `agent/routine-prompt.md`:
   - for runs whose text starts "Event run:";
   - orient;
   - research the named holdings first;
@@ -82,7 +82,7 @@ Claude judges the book at 8:00 and 12:00 ET only. A stop is judged on the close 
   - never widen a stop because the price is near it.
 
   It ships on merge.
-- [ ] **E10. Docs.**
+- [x] **E10. Docs.**
   - SPEC-agent → Built;
   - SPEC-notifications;
   - CLAUDE.md;

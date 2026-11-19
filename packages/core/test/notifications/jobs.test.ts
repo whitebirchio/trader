@@ -12,6 +12,7 @@ import { submitStrategy } from "../../src/portfolio/store.js";
 import { strategy, thesis } from "../portfolio/fixtures.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
+import { marketDate } from "../../src/time.js";
 import { FakeMailer } from "./fake-mailer.js";
 
 let db: Db;
@@ -57,6 +58,15 @@ describe("notify-urgent", () => {
     expect(await notifyUrgent(ctx())).toMatchObject({ detail: { events: 1, sent: 1 } });
     expect(mailer.sent[0]?.subject).toBe("Trader: Strategy v1: AAPL 10% added");
     expect(await notifyUrgent(ctx())).toMatchObject({ detail: { events: 0, sent: 0 } });
+  });
+
+  it("says in a sell-signal email when an event run started for it (SPEC-agent § Event-triggered runs)", async () => {
+    await recordEvent(db, { actor: "system", kind: "filing.sell_signal", subject: "TTMI", payload: { thesisId: "ttmi-a", signal: "insider_sale", summary: "Form 4: the CFO sold 20,000 shares.", filedOn: "2026-11-02", url: "https://www.sec.gov/x" } });
+    const [filing] = await db.select().from(auditEvents);
+    const date = marketDate(filing!.at);
+    await recordEvent(db, { actor: "system", kind: "routine.event_run", subject: `${date}#1`, payload: { run: 1, at: "2026-11-02T15:15:00.000Z", trips: [{ subject: `${date}#TTMI#sell_filing`, symbol: "TTMI", trigger: "sell_filing", detail: "TTMI: Form 4" }] } });
+    await notifyUrgent(ctx());
+    expect(mailer.sent[0]!.text).toContain("an event run started at Mon, Nov 2, 10:15 AM ET to judge it now");
   });
 
   it("queues but doesn't send on staging", async () => {
