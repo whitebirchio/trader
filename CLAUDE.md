@@ -32,7 +32,7 @@ npm run earnings:refresh -w @trader/core -- --env production --show AAPL   # fet
 npm run invoke -- --env production --jobs check-filings                     # check SEC filings on every thesis and watchlist name now (runs if the last check was 55+ min ago)
 npm run invoke -- --env production --jobs earnings-backfill                 # fetch the next few companies' earnings history now (within the daily Alpha Vantage budget)
 npm run invoke -- --env production --jobs earnings-estimates                # refresh the next due name's analyst estimates now (weekly per name, 3 a day)
-npm run invoke -- --env production --jobs check-events                      # check held theses against the event triggers now (near a stop, an 8% move, a sell-signal filing); records events.tripped
+npm run invoke -- --env production --jobs check-events                      # check held theses against the event triggers now (near a stop, an 8% move, a sell-signal filing); records events.tripped, and may start an event run (Opus; at most 2 a day)
 npm run events:status -w @trader/core -- --env production                  # read-only: each held thesis's distance to its stop and move from the previous close, and today's trips
 npm run invoke -- --env production --jobs check-routine                     # check today's research runs submitted a strategy (retries a missed one, then emails)
 npm run routine:fire -w @trader/core -- --env production --routine 8:00 --dry-run   # start a research run now (8:00|12:00; drop --dry-run to fire; trades like any run)

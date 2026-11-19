@@ -193,11 +193,16 @@ const checkFilingsJob: JobFn = async ({ db, filings, now }) => {
   return { status: "succeeded", detail: { ...(await checkFilings(db, filings, targets, now())) } };
 };
 
-/** A held thesis near its stop, moving 8%+, or with a sell-signal filing (agent/events.ts). After sync-broker and check-filings, so it reads fresh prices and filings. */
-const checkEventsJob: JobFn = async ({ db, broker, now }) => {
-  const result = await checkEvents(db, broker, now());
+/**
+ * A held thesis near its stop, moving 8%+, or with a sell-signal filing
+ * (agent/events.ts): records the trip, and with a routine firer starts an
+ * event run. After sync-broker and check-filings, so it reads fresh prices
+ * and filings; before notify-urgent, so a sell-signal email can say a run started.
+ */
+const checkEventsJob: JobFn = async ({ db, broker, now, routineFirer }) => {
+  const result = await checkEvents(db, broker, now(), routineFirer);
   if (result.status === "skipped") return result;
-  return { status: "succeeded", detail: { watched: result.watched, tripped: result.tripped.map((t) => `${t.symbol} ${t.trigger}`) } };
+  return { status: "succeeded", detail: { watched: result.watched, tripped: result.tripped.map((t) => `${t.symbol} ${t.trigger}`), ...(result.eventRun ? { eventRun: result.eventRun } : {}) } };
 };
 
 /** A research run that submitted nothing within its grace period (agent/routine-watch.ts). Before notify-urgent, so the email goes the same tick. */

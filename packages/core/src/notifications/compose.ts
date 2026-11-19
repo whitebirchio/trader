@@ -173,7 +173,9 @@ export function describe(e: NotifiableEvent, dashboard: string | null = null): D
         lines: [
           str(p.summary),
           `Filed ${str(p.filedOn)}: ${str(p.url)}`,
-          `It's a sell signal for thesis ${str(p.thesisId)}. Nothing is sold automatically: Claude weighs it at the next research run.`,
+          p.eventRunAt
+            ? `It's a sell signal for thesis ${str(p.thesisId)}. Nothing is sold automatically: an event run started at ${when(p.eventRunAt)} to judge it now.`
+            : `It's a sell signal for thesis ${str(p.thesisId)}. Nothing is sold automatically: Claude weighs it at the next research run.`,
         ],
       };
     case "capital.transfer_reversed":
@@ -415,6 +417,16 @@ function tripLine(e: NotifiableEvent): string | null {
   return `${str(e.payload.detail)} (${time})`;
 }
 
+/** Research runs started by event triggers (SPEC-agent § Event-triggered runs), one line each. */
+function eventRunLine(e: NotifiableEvent): string | null {
+  if (e.kind !== "routine.event_run_result") return null;
+  const p = e.payload;
+  const r = (p.result ?? {}) as { status?: unknown; httpStatus?: unknown; errorType?: unknown };
+  const trips = (Array.isArray(p.trips) ? p.trips : []) as { detail?: unknown }[];
+  const time = when(p.at).split(", ").at(-1);
+  return `${time}: ${trips.map((t) => str(t.detail)).join("; ")}. ${r.status === "fired" ? "Started an Opus run to judge it." : `The run couldn't be started (${retryFailure(r)}); the next scheduled run sees it.`}`;
+}
+
 /** Research runs that only reaffirmed the strategy (their activation isn't urgent): one line each. */
 function researchLine(e: NotifiableEvent): string | null {
   if (e.kind !== "strategy.activated") return null;
@@ -449,6 +461,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
   const lessons = data.events.flatMap(lessonLines);
   const research = data.events.map(researchLine).filter((l): l is string => l !== null);
   const trips = data.events.map(tripLine).filter((l): l is string => l !== null);
+  const eventRuns = data.events.map(eventRunLine).filter((l): l is string => l !== null);
   const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
@@ -479,6 +492,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
     ...(research.length ? ([["Research runs", research]] as [string, string[]][]) : []),
     ...(trips.length ? ([["Watch: event triggers", trips]] as [string, string[]][]) : []),
+    ...(eventRuns.length ? ([["Event runs", eventRuns]] as [string, string[]][]) : []),
     ...(filings.length ? ([["SEC filings", filings]] as [string, string[]][]) : []),
     ...(watchlist.length ? ([["Research watchlist", watchlist]] as [string, string[]][]) : []),
     ...(lessons.length ? ([["Lessons", lessons]] as [string, string[]][]) : []),

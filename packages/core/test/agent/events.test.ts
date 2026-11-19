@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { EVENT_RUNS, type TriggerInput, checkEvents, findTriggers, loadTriggerInput, tripSubject, watchStatus } from "../../src/agent/events.js";
+import { EVENT_ROUTINE, EVENT_RUNS, type TriggerInput, checkEvents, eventRunText, findTriggers, loadTriggerInput, tripSubject, watchStatus } from "../../src/agent/events.js";
+import type { FireResult, RoutineFirer } from "../../src/agent/routine-firer.js";
 import { recordEvent } from "../../src/audit.js";
 import { syncBroker } from "../../src/broker/sync.js";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, thesisCloses } from "../../src/db/schema.js";
+import { auditEvents, riskState, strategies, thesisCloses } from "../../src/db/schema.js";
+import { runJob } from "../../src/jobs.js";
 import { routeFor } from "../../src/notifications/routing.js";
-import { submitStrategy } from "../../src/portfolio/store.js";
 import { FakeBroker } from "../broker/fake-broker.js";
 import { createTestDb } from "../helpers.js";
 import { strategy, thesis } from "../portfolio/fixtures.js";
@@ -83,7 +84,8 @@ describe("checkEvents", () => {
     broker.fill("o1", "AAPL", "buy", "1", "100", new Date("2026-10-28T15:00:00Z"));
     broker.positions = [{ symbol: "AAPL", qty: "1", avgEntryPrice: "100", marketValue: "92", costBasis: "100", currentPrice: "92" }];
     await syncBroker(db, broker, "staging", at("15:00"));
-    await submitStrategy(db, strategy({ conviction: [aapl] }), "claude", new Date("2026-10-28T12:00:00Z"));
+    // Stored directly: submitStrategy's audit row would take the database's clock (today's real date) and read as a submission covering every trip.
+    await db.insert(strategies).values({ authoredBy: "claude", createdAt: new Date("2026-10-28T12:00:00Z"), summary: "v1", document: strategy({ conviction: [aapl] }) as unknown as Record<string, unknown> });
     // Friday's close, the previous session: $92 is 8% below it, and 2.22% above the $90 stop.
     await db.insert(thesisCloses).values([
       { symbol: "AAPL", tradingDate: "2026-10-29", close: "95" },
@@ -145,5 +147,124 @@ describe("checkEvents", () => {
     await syncBroker(db, broker, "staging", at("15:00"));
     const r = await checkEvents(db, broker, at("15:00"));
     expect(r).toMatchObject({ status: "checked", tripped: [] });
+  });
+
+  // ── Firing (PR 2) ──
+
+  const firer = (result: FireResult = { status: "fired", sessionUrl: "https://claude.ai/code/session_x" }) => {
+    const calls: { triggerId: string; text: string; claimed: boolean }[] = [];
+    const f: RoutineFirer = {
+      fire: async (triggerId, text) => {
+        const claimed = (await db.select().from(auditEvents)).some((e) => e.kind === "routine.event_run");
+        calls.push({ triggerId, text, claimed });
+        return result;
+      },
+    };
+    return { f, calls };
+  };
+  const trip = (hhmm: string, symbol: string, trigger = "move") =>
+    db.insert(auditEvents).values({ actor: "system", kind: "events.tripped", subject: `2026-11-02#${symbol}#${trigger}`, payload: { symbol, trigger, detail: `${symbol} moved`, at: at(hhmm).toISOString() }, at: at(hhmm) });
+  const submission = (hhmm: string) => db.insert(auditEvents).values({ actor: "claude", kind: "strategy.activated", payload: {}, at: at(hhmm) });
+  const kinds = async () => (await db.select().from(auditEvents)).map((e) => e.kind).filter((k) => k.startsWith("routine.event_run"));
+
+  it("starts one run on the 8:00 routine for every pending trip, claiming it first", async () => {
+    const { f, calls } = firer();
+    const r = await checkEvents(db, broker, at("15:00"), f);
+    expect(r).toMatchObject({ status: "checked", eventRun: { status: "fired", run: 1, trips: ["2026-11-02#AAPL#near_stop", "2026-11-02#AAPL#move"] } });
+    expect(calls).toEqual([
+      {
+        triggerId: EVENT_ROUTINE.triggerId,
+        text: "Event run: AAPL at $92.00 is 2.22% above its 10% stop ($90.00); AAPL fell 8% from the previous close ($100.00 → $92.00). Judge these holdings first (agent/routine-prompt.md § Event runs).",
+        claimed: true,
+      },
+    ]);
+    expect(await kinds()).toEqual(["routine.event_run", "routine.event_run_result"]);
+    const [claim] = (await db.select().from(auditEvents)).filter((e) => e.kind === "routine.event_run");
+    expect(claim).toMatchObject({ subject: "2026-11-02#1", payload: { run: 1, routine: "Trader research (8:00 ET)", at: "2026-11-02T15:00:00.000Z" } });
+    // Named trips don't fire again.
+    expect((await checkEvents(db, broker, at("16:15"), f)) as object).toMatchObject({ eventRun: { status: "none" } });
+    expect(calls).toHaveLength(1);
+    expect(EVENT_ROUTINE.name).toBe("Trader research (8:00 ET)");
+  });
+
+  it("doesn't fire twice for a redelivered tick", async () => {
+    const { f, calls } = firer();
+    const deps = { db, env: "staging" as const, broker, mailer: { send: async () => ({ id: "x" }) }, now: () => at("15:00"), routineFirer: f };
+    expect(await runJob(deps as never, "check-events", at("15:00"))).toMatchObject({ status: "succeeded" });
+    expect(await runJob(deps as never, "check-events", at("15:00"))).toMatchObject({ status: "duplicate" });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("keeps to two runs a day, 60 minutes apart", async () => {
+    const { f, calls } = firer();
+    await checkEvents(db, broker, at("15:00"), f);
+    await trip("15:20", "MSFT");
+    expect(await checkEvents(db, broker, at("15:30"), f)).toMatchObject({ eventRun: { status: "waiting", pending: 1, reason: "the last event run was at Mon, Nov 2, 10:00 AM ET, under 60 minutes ago" } });
+    expect(await checkEvents(db, broker, at("16:00"), f)).toMatchObject({ eventRun: { status: "fired", run: 2, trips: ["2026-11-02#MSFT#move"] } });
+    await trip("18:00", "NVDA");
+    expect(await checkEvents(db, broker, at("18:15"), f)).toMatchObject({ eventRun: { status: "waiting", reason: "2 event runs already today" } });
+    expect(calls).toHaveLength(2);
+    expect(EVENT_RUNS).toMatchObject({ maxPerDay: 2, minGapMinutes: 60 });
+  });
+
+  it("fires only inside its window: from 9:45 ET to 75 minutes before the close", async () => {
+    await db.delete(thesisCloses); // no price trips: the test's own trips only
+    broker.positions = [{ symbol: "AAPL", qty: "1", avgEntryPrice: "100", marketValue: "99", costBasis: "100", currentPrice: "99" }];
+    await syncBroker(db, broker, "staging", at("14:35"));
+    const { f } = firer();
+    await trip("14:35", "MSFT");
+    expect(await checkEvents(db, broker, at("14:40"), f)).toMatchObject({ eventRun: { status: "waiting", reason: "event runs start at Mon, Nov 2, 9:45 AM ET" } });
+    expect(await checkEvents(db, broker, at("19:46"), f)).toMatchObject({ eventRun: { status: "waiting", reason: "no event run after Mon, Nov 2, 2:45 PM ET, 75 minutes before the close" } });
+    expect(await checkEvents(db, broker, at("19:45"), f)).toMatchObject({ eventRun: { status: "fired" } });
+  });
+
+  it("ends earlier on a half day", async () => {
+    await db.delete(thesisCloses);
+    broker.positions = [{ symbol: "AAPL", qty: "1", avgEntryPrice: "100", marketValue: "99", costBasis: "100", currentPrice: "99" }];
+    await syncBroker(db, broker, "staging", at("15:00"));
+    broker.calendar = [{ date: "2026-11-02", open: at("14:30"), close: at("18:00") }];
+    await trip("16:40", "MSFT");
+    expect(await checkEvents(db, broker, at("16:50"), firer().f)).toMatchObject({ eventRun: { status: "waiting", reason: "no event run after Mon, Nov 2, 11:45 AM ET, 75 minutes before the close" } });
+  });
+
+  it("leaves a trip to a scheduled run that is due, in progress, or submits after it", async () => {
+    const { f, calls } = firer();
+    await checkEvents(db, broker, at("15:00")); // recorded without firing
+    await submission("15:10"); // e.g. a slow 8:00 run: it read the same holdings
+    expect(await checkEvents(db, broker, at("15:15"), f)).toMatchObject({ eventRun: { status: "none" } });
+    await trip("16:20", "MSFT");
+    expect(await checkEvents(db, broker, at("16:31"), f)).toMatchObject({ eventRun: { status: "waiting", reason: "Trader research (12:00 ET) is due at Mon, Nov 2, 12:00 PM ET and will cover it" } });
+    expect(await checkEvents(db, broker, at("17:20"), f)).toMatchObject({ eventRun: { status: "waiting", reason: "Trader research (12:00 ET) is in progress" } });
+    await submission("17:10"); // the noon run covered MSFT
+    await trip("17:15", "NVDA"); // after the noon run submitted
+    expect(await checkEvents(db, broker, at("17:30"), f)).toMatchObject({ eventRun: { status: "fired", trips: ["2026-11-02#NVDA#move"] } });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("holds firing under the kill switch, not under a drawdown halt", async () => {
+    await db.update(riskState).set({ killSwitch: true });
+    const { f, calls } = firer();
+    expect(await checkEvents(db, broker, at("15:00"), f)).toMatchObject({ tripped: [{}, {}], eventRun: { status: "waiting", pending: 2, reason: "the kill switch is on" } });
+    await db.update(riskState).set({ killSwitch: false, halted: true });
+    expect(await checkEvents(db, broker, at("15:15"), f)).toMatchObject({ eventRun: { status: "fired" } });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("records a refused fire and doesn't retry it", async () => {
+    const { f, calls } = firer({ status: "failed", httpStatus: 401, errorType: "authentication_error" });
+    expect(await checkEvents(db, broker, at("15:00"), f)).toMatchObject({ eventRun: { status: "failed", run: 1 } });
+    const [result] = (await db.select().from(auditEvents)).filter((e) => e.kind === "routine.event_run_result");
+    expect(result!.payload).toMatchObject({ result: { status: "failed", httpStatus: 401 } });
+    expect(JSON.stringify(result!.payload)).not.toContain("sk-ant");
+    expect(await checkEvents(db, broker, at("16:15"), f)).toMatchObject({ eventRun: { status: "none" } });
+    expect(calls).toHaveLength(1);
+    expect(routeFor("routine.event_run")).toBe("ignore");
+    expect(routeFor("routine.event_run_result")).toBe("digest");
+  });
+
+  it("builds the fire text from the trips", () => {
+    expect(eventRunText(["TTMI fell 9% from the previous close ($70.00 → $63.70)"])).toBe(
+      "Event run: TTMI fell 9% from the previous close ($70.00 → $63.70). Judge these holdings first (agent/routine-prompt.md § Event runs).",
+    );
   });
 });

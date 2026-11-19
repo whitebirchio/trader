@@ -195,6 +195,10 @@ Neon keeps point-in-time history (free plan: about 6 hours, so check the current
 
 With `ROUTINE_FIRE_TOKENS` set, `check-routine` has already retried the run at +30 and +90 minutes; the email says what happened to each try. Check status.claude.com (an outage) and the routine's runs at claude.ai/code (the weekly usage limit, a connector that failed to connect). Once the cause has cleared, start it again: `npm run routine:fire -w @trader/core -- --env production --routine 8:00` (or **Run now** on claude.ai). A refused retry (401/403) means the token was revoked or regenerated: make a new one and rerun `scripts/set-routine-tokens.sh`. The last strategy keeps executing meanwhile, and a missed run unwinds nothing.
 
+### An event run (digest: "Event runs")
+
+`check-events` starts a focused research run on the 8:00 routine (Opus) when a held thesis nears its stop, moves 8% or more, or gets a sell-signal filing: at most two a day, from 9:45 ET to 75 minutes before the close (SPEC-agent § Event-triggered runs). It uses the same `ROUTINE_FIRE_TOKENS` as the retries, so a refused one (401/403) is fixed the same way. `npm run events:status -w @trader/core -- --env production` shows each holding's distances and today's trips. A refused or failed event run isn't retried: the next scheduled run sees the trip.
+
 ### The engine stops (alarm: "not running")
 
 Check `aws scheduler get-schedule --name trader-tick-production --profile whitebirch` and the Lambda's logs. `npm run invoke -- --env production --jobs heartbeat` shows whether the function itself works. A redeploy (re-run the CI workflow on `main`) restores both from CDK.

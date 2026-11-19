@@ -99,6 +99,15 @@ describe("composeDigest", () => {
     expect(email.text).toContain("Watch: event triggers\n  TTMI at $66.10 is 1.25% above its 15% stop ($65.28) (1:40 PM ET)");
   });
 
+  it("lists event runs: what tripped, and whether the run started", () => {
+    const trips = [{ detail: "TTMI fell 9% from the previous close ($70.00 → $63.70)" }];
+    const fired = ev("routine.event_run_result", { at: "2026-11-02T18:40:00.000Z", trips, result: { status: "fired", sessionUrl: null } }, "2026-11-02#1");
+    const refused = ev("routine.event_run_result", { at: "2026-11-02T19:45:00.000Z", trips, result: { status: "failed", httpStatus: 429, errorType: "rate_limit_error" } }, "2026-11-02#2");
+    const text = composeDigest({ ...base, events: [fired, refused] }, "production").text;
+    expect(text).toContain("Event runs\n  1:40 PM ET: TTMI fell 9% from the previous close ($70.00 → $63.70). Started an Opus run to judge it.");
+    expect(text).toContain("2:45 PM ET: TTMI fell 9% from the previous close ($70.00 → $63.70). The run couldn't be started (429 rate_limit_error); the next scheduled run sees it.");
+  });
+
   it("still sends on a quiet day", () => {
     const email = composeDigest({ ...base, dailyChangePct: "-0.31", positions: [] }, "production");
     expect(email.subject).toBe("Trader daily: -0.31%, 0 trades (Mon Nov 2)");

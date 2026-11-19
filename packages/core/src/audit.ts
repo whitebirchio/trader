@@ -45,6 +45,8 @@ export const AUDIT_KINDS = [
   "filings.noticed",
   // A held thesis tripped an event trigger between runs (SPEC-agent § Event-triggered runs).
   "events.tripped",
+  "routine.event_run",
+  "routine.event_run_result",
   "thesis.stale",
   "thesis.review_overdue",
   "rebalance.planned",
