@@ -5,7 +5,7 @@ import { jobRuns, secFilings } from "../db/schema.js";
 import { add, compare, mul, round } from "../money.js";
 import { activeStrategy } from "../portfolio/store.js";
 import { marketDate } from "../time.js";
-import type { FilingsFeedPort, IndexedFiling } from "./sec.js";
+import { type FilingsFeedPort, type IndexedFiling, SecRefusedError } from "./sec.js";
 import { readWatchlist } from "./watchlist.js";
 
 /**
@@ -325,6 +325,9 @@ const DAY_MS = 86_400_000;
  * urgent event per sell signal on a held name. Idempotent: a filing already
  * stored isn't read or reported again. A name SEC can't read is skipped and
  * listed; if none could be read, it throws, so the job records a failure.
+ * When SEC refuses a request (403 or 429), the run stops there and leaves the
+ * rest for the next hourly check: asking again at once would be refused too,
+ * and would push harder against the limit that refused it.
  */
 export async function checkFilings(db: Db, feed: FilingsFeedPort, targets: FilingTarget[], now: Date, clock: () => number = Date.now): Promise<CheckFilingsResult> {
   const started = clock();
@@ -332,6 +335,7 @@ export async function checkFilings(db: Db, feed: FilingsFeedPort, targets: Filin
   const recent = marketDate(new Date(now.getTime() - FILINGS_LIMITS.alertWithinDays * DAY_MS));
   const result: CheckFilingsResult = { checked: 0, stored: 0, reported: 0, sellSignals: 0, pruned: 0, failed: [], skipped: [] };
   const reported: Record<string, unknown>[] = [];
+  let refused = false;
 
   for (const [i, target] of targets.entries()) {
     if (clock() - started > FILINGS_LIMITS.budgetMs) {
@@ -375,6 +379,11 @@ export async function checkFilings(db: Db, feed: FilingsFeedPort, targets: Filin
       }
     } catch (e) {
       result.failed.push({ symbol, error: message(e).slice(0, 300) });
+      if (e instanceof SecRefusedError) {
+        refused = true;
+        result.skipped = targets.slice(i + 1).map((t) => t.symbol);
+        break;
+      }
     }
   }
 
@@ -382,7 +391,13 @@ export async function checkFilings(db: Db, feed: FilingsFeedPort, targets: Filin
   const cutoff = marketDate(new Date(now.getTime() - FILINGS_LIMITS.keepDays * DAY_MS));
   result.pruned = (await db.delete(secFilings).where(lt(secFilings.filedOn, cutoff)).returning({ a: secFilings.accession })).length;
 
-  if (targets.length > 0 && result.checked === 0 && result.failed.length > 0) throw new Error(`SEC EDGAR couldn't be read for any of ${result.failed.length} names: ${result.failed[0]!.error}`);
+  if (targets.length > 0 && result.checked === 0 && result.failed.length > 0) {
+    throw new Error(
+      refused
+        ? `SEC EDGAR refused the first request, so none of ${targets.length} names were checked; the next hourly check tries again: ${result.failed[0]!.error}`
+        : `SEC EDGAR couldn't be read for any of ${result.failed.length} names: ${result.failed[0]!.error}`,
+    );
+  }
   return result;
 }
 

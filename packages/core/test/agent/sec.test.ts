@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { SecFilings } from "../../src/agent/sec.js";
+import { SecFilings, SecRefusedError } from "../../src/agent/sec.js";
 
 // Trimmed real submissions JSON for LKQ (from the earnings backtest's fixtures).
 const lkq = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "research", "fixtures", "submissions-lkq.json"), "utf8");
@@ -58,6 +58,17 @@ describe("SecFilings", () => {
     await expect(sec.document("https://www.sec.gov/missing.htm")).rejects.toThrow("HTTP 404");
     const down = new SecFilings(fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response("", { status: 503 }) }).fn);
     await expect(down.recentFilings("LKQ")).rejects.toThrow("HTTP 503");
+  });
+
+  it("marks a refusal (403 or 429) apart from other errors, so callers can stop asking", async () => {
+    for (const status of [403, 429]) {
+      const sec = new SecFilings(fakeFetch({ company_tickers: () => new Response("", { status }) }).fn);
+      const e = await sec.recentFilings("LKQ").catch((x: unknown) => x);
+      expect(e).toBeInstanceOf(SecRefusedError);
+      expect(e).toMatchObject({ status, message: `https://www.sec.gov/files/company_tickers.json: HTTP ${status}` });
+    }
+    const down = new SecFilings(fakeFetch({ company_tickers: () => new Response("", { status: 503 }) }).fn);
+    expect(await down.recentFilings("LKQ").catch((x: unknown) => x)).not.toBeInstanceOf(SecRefusedError);
   });
 
   it("is null when SEC can't be read, and tries the ticker map again next time", async () => {

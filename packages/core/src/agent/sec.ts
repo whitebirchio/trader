@@ -45,6 +45,21 @@ interface Submissions {
   filings?: { recent?: FilingColumns & { primaryDocument?: string[] } };
 }
 
+/**
+ * SEC turned the request away (HTTP 403 or 429): its fair-access limits, an
+ * address it's blocking for a while, or maintenance. Every further request
+ * in the same run would likely be refused too, so callers stop and try later.
+ */
+export class SecRefusedError extends Error {
+  constructor(
+    readonly url: string,
+    readonly status: number,
+  ) {
+    super(`${url}: HTTP ${status}`);
+    this.name = "SecRefusedError";
+  }
+}
+
 /** SEC asks automated clients to identify themselves as "name email"; data.sec.gov refuses others. */
 export const SEC_USER_AGENT = "Scott Schmalz scott.schmalz@gmail.com";
 
@@ -64,6 +79,7 @@ export class SecFilings implements FilingsPort, FilingsFeedPort {
   private async json(url: string): Promise<unknown | null> {
     const res = await this.get(url);
     if (res.status === 404) return null;
+    if (res.status === 403 || res.status === 429) throw new SecRefusedError(url, res.status);
     if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
     return res.json();
   }
