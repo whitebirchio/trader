@@ -32,9 +32,15 @@ concurrency:
   group: ${{ github.ref == 'refs/heads/main' && 'ci-main' || format('ci-{0}', github.run_id) }}
   cancel-in-progress: false
 
+# Every job has a time limit well above its usual length, because main's queue
+# waits on the running pipeline: a hung job would hold every later deploy for
+# GitHub's default 6 hours. On 2026-11-19 a build lost its runner and sat 45
+# minutes before failing. A deploy cut off mid-CloudFormation keeps running in
+# AWS, so the next deploy may fail until the stack settles; rerun it then.
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20 # usually 4–5
     steps:
       - uses: actions/checkout@v5
         with:
@@ -69,6 +75,7 @@ jobs:
     needs: build
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # usually under 1; the Neon copy expires on its own
     concurrency:
       group: migrate-check-${{ github.ref }}
       cancel-in-progress: true
@@ -89,6 +96,7 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # usually 2–3
     concurrency:
       group: deploy-production
       cancel-in-progress: false
