@@ -408,6 +408,13 @@ function filingLines(e: NotifiableEvent): string[] {
   return rows.map((f) => `${str(f.symbol)}${f.thesisId ? "" : " (watchlist)"}${f.sellSignal ? " [sell signal]" : ""}, ${shortDate(str(f.filedOn))}: ${str(f.summary)}`);
 }
 
+/** Held theses that tripped an event trigger (SPEC-agent § Event-triggered runs), one line each. */
+function tripLine(e: NotifiableEvent): string | null {
+  if (e.kind !== "events.tripped") return null;
+  const time = formatMarketTime(e.at).split(", ").at(-1);
+  return `${str(e.payload.detail)} (${time})`;
+}
+
 /** Research runs that only reaffirmed the strategy (their activation isn't urgent): one line each. */
 function researchLine(e: NotifiableEvent): string | null {
   if (e.kind !== "strategy.activated") return null;
@@ -441,6 +448,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
   const filings = data.events.flatMap(filingLines);
   const lessons = data.events.flatMap(lessonLines);
   const research = data.events.map(researchLine).filter((l): l is string => l !== null);
+  const trips = data.events.map(tripLine).filter((l): l is string => l !== null);
   const capital = [...(data.withdrawal ? [withdrawalLine(data.withdrawal)] : []), ...data.events.map(capitalLine).filter((l): l is string => l !== null)];
   const status = data.state.killSwitch
     ? "KILL SWITCH ON: all trading blocked"
@@ -470,6 +478,7 @@ export function composeDigest(data: DigestData, env: TradingEnv, at: Date = new 
     ["Trades", trades.length ? trades : ["None today"]],
     ["Guardrail decisions", guardrails.length ? guardrails : ["None today"]],
     ...(research.length ? ([["Research runs", research]] as [string, string[]][]) : []),
+    ...(trips.length ? ([["Watch: event triggers", trips]] as [string, string[]][]) : []),
     ...(filings.length ? ([["SEC filings", filings]] as [string, string[]][]) : []),
     ...(watchlist.length ? ([["Research watchlist", watchlist]] as [string, string[]][]) : []),
     ...(lessons.length ? ([["Lessons", lessons]] as [string, string[]][]) : []),

@@ -46,6 +46,11 @@ export interface ThesisInputs {
 }
 
 /** Average cost per share of the open lots of `symbol`, or null if none are held. */
+/** The stop-loss price: average cost less `stopLossPct`, unrounded, as the stop rule compares it with the close. */
+export function stopLossPrice(averageCost: string, stopLossPct: string): string {
+  return mul(averageCost, sub("1", div(stopLossPct, "100", 6, "half-even")));
+}
+
 export function averageCost(lots: OpenLot[], symbol: string): string | null {
   let qty = "0";
   let basis = "0";
@@ -93,7 +98,7 @@ export function thesisStates(input: ThesisInputs): ThesisState[] {
     const cost = averageCost(input.lots, thesis.symbol);
     const price = input.lastClose[thesis.symbol];
     if (cost && price) {
-      const stopAt = mul(cost, sub("1", div(thesis.stopLossPct, "100", 6, "half-even")));
+      const stopAt = stopLossPrice(cost, thesis.stopLossPct);
       if (compare(price, stopAt) <= 0) {
         return {
           state: "stopped",

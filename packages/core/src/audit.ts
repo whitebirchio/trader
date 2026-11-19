@@ -43,6 +43,8 @@ export const AUDIT_KINDS = [
   // SEC filings on held and watched names (#105).
   "filing.sell_signal",
   "filings.noticed",
+  // A held thesis tripped an event trigger between runs (SPEC-agent § Event-triggered runs).
+  "events.tripped",
   "thesis.stale",
   "thesis.review_overdue",
   "rebalance.planned",

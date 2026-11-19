@@ -42,6 +42,7 @@ const ROUTES: Record<AuditKind, Route> = {
   "routine.retry_result": "digest", // a missed run re-fired by check-routine (SPEC-agent § Missed-run recovery); a failed one also records routine.missed
   "filing.sell_signal": "urgent", // an officer or director leaving, or selling outside a 10b5-1 plan, on a held name (#105)
   "filings.noticed": "digest", // every other new filing on a held or watched name
+  "events.tripped": "digest", // a held thesis near its stop, moving 8%+, or with a sell-signal filing (SPEC-agent § Event-triggered runs); nothing is sold
   "thesis.stale": "urgent", // the research loop may be down
   "thesis.review_overdue": "urgent", // an automatic sale: the review date passed
   "rebalance.planned": "digest",

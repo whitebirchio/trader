@@ -32,6 +32,7 @@
     "strategy:submit": "tsx scripts/strategy-submit.ts",
     "strategy:show": "tsx scripts/strategy-show.ts",
     "scorecard:show": "tsx scripts/scorecard-show.ts",
+    "events:status": "tsx scripts/events-status.ts",
     "research:insiders": "tsx scripts/research-insiders.ts",
     "research:earnings": "tsx scripts/research-earnings.ts",
     "research:momentum": "tsx scripts/research-momentum.ts",

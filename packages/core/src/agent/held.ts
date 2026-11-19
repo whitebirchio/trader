@@ -1,6 +1,7 @@
 import type { Bar } from "../broker/port.js";
 import { compare, div, mul, round, sub } from "../money.js";
 import type { Thesis } from "../portfolio/strategy.js";
+import { stopLossPrice } from "../portfolio/theses.js";
 import type { EarningsRelease } from "../research/earnings-backtest.js";
 import { marketDate } from "../time.js";
 import { type CandidateSignals, EARNINGS_CRASH, type LastEarnings, candidateSignals, lastEarnings } from "./candidate.js";
@@ -99,7 +100,7 @@ export function heldThesis(input: HeldInput): HeldThesis {
     highSinceEntry = { close: high.c, date: marketDate(high.t), belowPct: round(mul(sub("1", div(last.c, high.c, 12, "half-even")), "100"), 2, "half-even") };
   }
 
-  const stopPrice = round(mul(input.averageCost, sub("1", div(thesis.stopLossPct, "100", 6, "half-even"))), 2, "half-even");
+  const stopPrice = round(stopLossPrice(input.averageCost, thesis.stopLossPct), 2, "half-even");
   const stop = { price: stopPrice, abovePct: pct(input.price, stopPrice) };
 
   const signals = candidateSignals(bars, vti, input.releases);
