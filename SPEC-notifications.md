@@ -144,7 +144,7 @@ apps/engine/src/mailer.ts → CloudflareMailer over env.EMAIL
 
 ## Email design (2026-11-15)
 
-> **Status: Approved** (Scott, 2026-11-15), with the open questions resolved below. Prompted by the v21 "New strategy" email (2026-11-13): one 1,000-character bullet, then double bullets. Plan: [tasks/email-design-plan.md](tasks/email-design-plan.md).
+> **Status: Approved** (Scott, 2026-11-15), with the open questions resolved below. **PR 1 built** (#131: the layout, every urgent email, the strategy email). **PR 2 built** (2026-11-19: the digest and the weekly letter). Prompted by the v21 "New strategy" email (2026-11-13): one 1,000-character bullet, then double bullets. Plan: [tasks/email-design-plan.md](tasks/email-design-plan.md).
 
 ### Objective
 
@@ -224,14 +224,16 @@ A line that doesn't match a thesis stays in Claude's notes, and a summary in one
 - **Positions:** a table of symbol, shares, value and % of the account, largest first.
 - **Trades:** a table of side, symbol, shares and price. Other trade lines (partial fills, cancels, buys funded) follow as a list.
 - **Every other section** appears only when it has something. One muted line names the empty ones: "No trades or guardrail decisions today."
+- *Built (2026-11-19):* the muted line also names event triggers when none tripped ("No trades, guardrail decisions or event triggers today."), because an empty watch is news too. The "Since" tile shows the account's return with VTI's beneath it; the money-weighted comparison follows the tiles as a small line. Signed figures in tiles and tables get the dashboard's ▲/▼ in colour, in the text part as well. Stat tiles go two to a row when any value is wider than about six characters, so they fit a 375px phone without media queries.
 
 **6. The weekly letter.** The subject stays.
 - **Stats:** This week vs VTI · Since the start vs VTI · Equity.
 - **Track record:** a table by signal kind, then the forecast line.
 - **Theses opened** as cards with their plain summaries; **theses closed** as a table (symbol, how it ended, days held, vs VTI). Reviews, exits and strategy changes stay as lists.
+- *Built (2026-11-19):* an empty week collapses into one muted line ("No theses opened or closed this week. No review dates in the next 14 days."). The guardrails are a red callout at the top when they aren't normal, and a muted line at the end when they are. The letter links to `/track-record`.
 
 **7. Previewing.** You shouldn't have to wait for a real event to see an email.
-- `notify:preview --sample strategy|reaffirm|urgent|digest|weekly|all --html <dir>` writes each sample's HTML and text from fixtures, with no database. The v21 email is one fixture.
+- `notify:preview --sample <name>|all --html <dir>` writes each sample's HTML and text from fixtures, with no database. The v21 email is one fixture. *(Built: the names are `strategy-v21-as-recorded`, `strategy-v21-reaffirmed`, `strategy-v21-old-summary`, `strategy-v22-changed`, `messy-tick`, `digest-busy`, `digest-quiet`, `digest-halted`, `weekly` and `withdrawal`; `EMAIL_SAMPLES` in `samples.ts`.)*
 - `--html <dir>` also works on the real previews (`--env production`, `--digest`, `--weekly`).
 - `notify:test --env production --sample all` queues the samples as test emails, so they land in Gmail on the next tick.
 

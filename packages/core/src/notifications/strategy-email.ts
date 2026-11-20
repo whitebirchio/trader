@@ -37,7 +37,7 @@ export interface StrategyEmail {
   blocks: Block[];
 }
 
-const LEAD_SIGNAL: Record<string, string> = {
+export const LEAD_SIGNAL: Record<string, string> = {
   congress: "Led by Congress trades",
   insider: "Led by insider buying",
   "13f": "Led by fund filings (13F)",

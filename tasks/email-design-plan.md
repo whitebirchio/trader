@@ -14,7 +14,11 @@ Spec: [SPEC-notifications.md § Email design](../SPEC-notifications.md#email-des
 8. **Verify:** gate; samples served locally and screenshotted at 375px and 1000px; then Scott's OK to send the samples to Gmail via `notify:test --env production --sample all`.
 
 ## PR 2: digest and weekly letter
-`composeDigest` and `composeWeekly` move onto the layout: stats, tables, empty sections collapsed into one line, signed figures with ▲/▼.
+- [x] `composeDigest` and `composeWeekly` move onto the layout: stats, tables, empty sections collapsed into one line, signed figures with ▲/▼.
+- [x] The layout: `signed` on stat tiles and table columns (the arrow in colour, and in the text part); long stat values two to a row so they fit a 375px phone.
+- [x] Samples: `digest-busy`, `digest-quiet`, `digest-halted` and `weekly` in `EMAIL_SAMPLES`, for `notify:preview` and `notify:test`; the layout tests' size, bullet and no-flex checks run on every sample.
+- [x] The digest's new event sections ("Watch: event triggers", "Event runs") are lists like the others.
+- [ ] Verify by eye: screenshots at 375px and 1000px, light and dark (done); then Scott's OK to send `digest-busy`, `digest-quiet` and `weekly` to Gmail via `notify:test --env production --sample <name>`.
 
 ## PR 3: what's left
 Anything PR 1 and 2 surfaced. The prompt moved to PR 1.

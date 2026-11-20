@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { type DigestData, type NotifiableEvent, composeDigest, composeUrgent, escapeHtml, forecastLine } from "../../src/notifications/compose.js";
+import { type DigestData, type NotifiableEvent, composeDigest, composeUrgent, composeWeekly, escapeHtml, forecastLine } from "../../src/notifications/compose.js";
+import { sampleWeekly } from "../../src/notifications/samples.js";
 
 const at = new Date("2026-11-02T20:15:00Z");
 const ev = (kind: string, payload: Record<string, unknown>, subject: string | null = null): NotifiableEvent => ({ kind, subject, payload, at });
@@ -85,18 +86,48 @@ describe("composeDigest", () => {
       "production",
     );
     expect(email.subject).toBe("Trader daily: +0.42%, 1 trade (Mon Nov 2)");
-    expect(email.text).toContain("Equity $1004.20 (+0.42% today, flow-adjusted)");
-    expect(email.text).toContain("VTI: 1.012 sh, $310");
-    expect(email.text).toContain("Bought 1.012 VTI @ $306.32");
-    expect(email.text).toContain("Clipped buy AAPL $300 → $200: Reduced to keep AAPL within 20% of equity ($200).");
-    expect(email.text).toContain("Rejected buy TQQQ: TQQQ is leveraged or inverse (margin requirement 75%).");
-    expect(email.text).toContain("Guardrails: Normal: drawdown 0% from peak");
+    expect(email.text).toContain("Equity: $1004.20 (Cash $694.20)\nToday: ▲ +0.42% (flow-adjusted)\nDrawdown: 0% (from peak)");
+    expect(email.text).toContain("Symbol  Shares    Value  Of account\nVTI      1.012  $310.00       30.9%");
+    expect(email.text).toContain("TRADES\n\n        Symbol  Shares    Price\nBought  VTI      1.012  $306.32");
+    expect(email.text).toContain("GUARDRAIL DECISIONS\n\n- Clipped buy AAPL $300 → $200: Reduced to keep AAPL within 20% of equity ($200).");
+    expect(email.text).toContain("- Rejected buy TQQQ: TQQQ is leveraged or inverse (margin requirement 75%).");
+    expect(email.text).toContain("No event triggers today.");
+    expect(email.html).toContain("Daily summary for Mon Nov 2</h1>");
+    expect(email.html).toContain('>▲</span>&nbsp;+0.42%');
+  });
+
+  it("rounds the snapshot's full-precision figures: cents, 2-place percentages, 4-place shares", () => {
+    const email = composeDigest(
+      {
+        ...base,
+        equity: "938.141234",
+        cash: "1.4",
+        dailyChangePct: "-1.5107",
+        drawdownPct: "6.186",
+        positions: [{ symbol: "VTI", qty: "1.554628394", marketValue: "547.509028" }],
+        events: [ev("order.filled", { side: "buy", filledQty: "0.016339869", filledAvgPrice: "306.0149" }, "VTI")],
+      },
+      "production",
+    );
+    expect(email.subject).toBe("Trader daily: -1.51%, 1 trade (Mon Nov 2)");
+    expect(email.text).toContain("Equity: $938.14 (Cash $1.40)\nToday: ▼ -1.51% (flow-adjusted)\nDrawdown: 6.19% (from peak)");
+    expect(email.text).toContain("VTI     1.5546  $547.51       58.4%");
+    expect(email.text).toContain("Bought  VTI     0.0163  $306.01");
+  });
+
+  it("lists positions largest first, with their share of the account", () => {
+    const positions = [
+      { symbol: "VTI", qty: "1", marketValue: "300" },
+      { symbol: "TTMI", qty: "2", marketValue: "500" },
+    ];
+    const text = composeDigest({ ...base, equity: "800", positions }, "production").text;
+    expect(text).toContain("TTMI         2  $500.00       62.5%\nVTI          1  $300.00       37.5%");
   });
 
   it("lists the event triggers a held thesis tripped (SPEC-agent § Event-triggered runs)", () => {
     const trip = { ...ev("events.tripped", { detail: "TTMI at $66.10 is 1.25% above its 15% stop ($65.28)" }, "2026-11-02#TTMI#near_stop"), at: new Date("2026-11-02T18:40:00Z") };
     const email = composeDigest({ ...base, events: [trip] }, "production");
-    expect(email.text).toContain("Watch: event triggers\n  TTMI at $66.10 is 1.25% above its 15% stop ($65.28) (1:40 PM ET)");
+    expect(email.text).toContain("WATCH: EVENT TRIGGERS\n\n- TTMI at $66.10 is 1.25% above its 15% stop ($65.28) (1:40 PM ET)");
   });
 
   it("lists event runs: what tripped, and whether the run started", () => {
@@ -104,20 +135,25 @@ describe("composeDigest", () => {
     const fired = ev("routine.event_run_result", { at: "2026-11-02T18:40:00.000Z", trips, result: { status: "fired", sessionUrl: null } }, "2026-11-02#1");
     const refused = ev("routine.event_run_result", { at: "2026-11-02T19:45:00.000Z", trips, result: { status: "failed", httpStatus: 429, errorType: "rate_limit_error" } }, "2026-11-02#2");
     const text = composeDigest({ ...base, events: [fired, refused] }, "production").text;
-    expect(text).toContain("Event runs\n  1:40 PM ET: TTMI fell 9% from the previous close ($70.00 → $63.70). Started an Opus run to judge it.");
+    expect(text).toContain("EVENT RUNS\n\n- 1:40 PM ET: TTMI fell 9% from the previous close ($70.00 → $63.70). Started an Opus run to judge it.");
     expect(text).toContain("2:45 PM ET: TTMI fell 9% from the previous close ($70.00 → $63.70). The run couldn't be started (429 rate_limit_error); the next scheduled run sees it.");
   });
 
   it("still sends on a quiet day", () => {
     const email = composeDigest({ ...base, dailyChangePct: "-0.31", positions: [] }, "production");
     expect(email.subject).toBe("Trader daily: -0.31%, 0 trades (Mon Nov 2)");
-    expect(email.text).toContain("None (all cash)");
-    expect(email.text).toContain("Trades\n  None today");
+    expect(email.text).toContain("POSITIONS\n\nNone: all cash.");
+    expect(email.text).toContain("No trades, guardrail decisions or event triggers today.");
+    expect(email.text).not.toContain("TRADES");
+    expect(email.text).not.toContain("GUARDRAIL DECISIONS");
   });
 
-  it("puts a halt in the account section", () => {
-    const email = composeDigest({ ...base, state: { killSwitch: false, halted: true, haltReason: "down 21% from peak" } }, "production");
-    expect(email.text).toContain("Guardrails: HALTED: down 21% from peak");
+  it("leads with a halt or the kill switch, above the figures", () => {
+    const halted = composeDigest({ ...base, state: { killSwitch: false, halted: true, haltReason: "down 21% from peak" } }, "production");
+    expect(halted.text.startsWith("■ Daily summary for Mon Nov 2\nAfter the close\n\n■ Trading HALTED: down 21% from peak. Nothing is bought until you run risk:resume.\n\nEquity:")).toBe(true);
+    const killed = composeDigest({ ...base, state: { killSwitch: true, halted: false, haltReason: null } }, "production");
+    expect(killed.text).toContain("■ Kill switch ON: all trading is blocked until you turn it off.");
+    expect(composeDigest(base, "production").text).not.toContain("■");
   });
 });
 
@@ -216,16 +252,16 @@ describe("filings (#105)", () => {
       },
       "production",
     );
-    expect(email.text).toContain("SEC filings\n  LKQ, Mon Nov 9: 8-K: results of operations.\n  CWST (watchlist) [sell signal], Tue Nov 10: Form 4: Director Doe Jane sold 1000 shares.");
-    expect(composeDigest(base, "production").text).not.toContain("SEC filings");
+    expect(email.text).toContain("SEC FILINGS\n\n- LKQ, Mon Nov 9: 8-K: results of operations.\n- CWST (watchlist) [sell signal], Tue Nov 10: Form 4: Director Doe Jane sold 1000 shares.");
+    expect(composeDigest(base, "production").text).not.toContain("SEC FILINGS");
   });
 });
 
 describe("digest benchmark line", () => {
   it("shows performance vs VTI once there's a comparison", () => {
     const email = composeDigest({ ...base, benchmark: { since: "2026-11-02", portfolioPct: "1.24", benchmarkPct: "0.8" } }, "production");
-    expect(email.text).toContain("Since Mon Nov 2: +1.24% vs VTI +0.8%");
-    expect(composeDigest(base, "production").text).not.toContain("vs VTI");
+    expect(email.text).toContain("Since Mon Nov 2: ▲ +1.24% (VTI +0.8%)");
+    expect(composeDigest(base, "production").text).not.toContain("VTI +");
   });
 });
 
@@ -247,8 +283,8 @@ describe("digest watchlist section (#32)", () => {
       },
       "production",
     );
-    expect(email.text).toContain("Research watchlist\n  Watching UPBD until 2026-12-15: Q4 guidance confirms the lease-to-own recovery\n  Still watching HGV until 2026-12-01: a buyback after the Bluegreen integration\n  Dropped XYZ: the catalyst passed without a move");
-    expect(composeDigest(base, "production").text).not.toContain("Research watchlist");
+    expect(email.text).toContain("RESEARCH WATCHLIST\n\n- Watching UPBD until 2026-12-15: Q4 guidance confirms the lease-to-own recovery\n- Still watching HGV until 2026-12-01: a buyback after the Bluegreen integration\n- Dropped XYZ: the catalyst passed without a move");
+    expect(composeDigest(base, "production").text).not.toContain("RESEARCH WATCHLIST");
   });
 });
 
@@ -268,8 +304,8 @@ describe("digest lessons section (#28)", () => {
       },
       "production",
     );
-    expect(email.text).toContain("Lessons\n  ROL (removed, +1.09% vs VTI): A family buy alone wasn't a business case.\n  XYZ (stopped) [revised]: The stop was too tight for its volatility.");
-    expect(composeDigest(base, "production").text).not.toContain("Lessons");
+    expect(email.text).toContain("LESSONS\n\n- ROL (removed, +1.09% vs VTI): A family buy alone wasn't a business case.\n- XYZ (stopped) [revised]: The stop was too tight for its volatility.");
+    expect(composeDigest(base, "production").text).not.toContain("LESSONS");
   });
 });
 
@@ -311,7 +347,7 @@ describe("capital emails", () => {
       },
       "production",
     );
-    expect(email.text).toContain("Money in and out\n  Received $500 (invested at the next rebalance step)");
+    expect(email.text).toContain("MONEY IN AND OUT\n\n- Received $500 (invested at the next rebalance step)");
     expect(email.text).toContain("Since Fri Oct 30: started with $1000, net transfers $500, now $1560.25; the same money in VTI: $1540.10");
   });
 
@@ -334,7 +370,7 @@ describe("capital emails", () => {
 
   it("lists the open withdrawal in the digest every day until it closes", () => {
     const planning = composeDigest({ ...base, withdrawal: { status: "planning", amount: "500", outstanding: "500", unfunded: "500", planBy: "2026-11-02T18:00:00.000Z" } }, "production");
-    expect(planning.text).toContain("Money in and out\n  Open withdrawal of $500: waiting for Claude's funding plan (by Mon, Nov 2, 1:00 PM ET); $500 still to raise. $500 is held back from investing.");
+    expect(planning.text).toContain("MONEY IN AND OUT\n\n- Open withdrawal of $500: waiting for Claude's funding plan (by Mon, Nov 2, 1:00 PM ET); $500 still to raise. $500 is held back from investing.");
     const ready = composeDigest({ ...base, withdrawal: { status: "ready", amount: "all", outstanding: "998.20", unfunded: "0", planBy: null } }, "production");
     expect(ready.text).toContain("Open withdrawal of everything: ready: withdraw it in Alpaca. $998.20 is held back from investing.");
   });
@@ -355,7 +391,7 @@ describe("capital emails", () => {
   });
 
   it("leaves the money section out on a day without transfers", () => {
-    expect(composeDigest(base, "production").text).not.toContain("Money in and out");
+    expect(composeDigest(base, "production").text).not.toContain("MONEY IN AND OUT");
   });
 });
 
@@ -374,5 +410,44 @@ describe("forecastLine", () => {
       "Forecasts: 1 resolved this week, 1 beat VTI; skill vs the 45% base rate: +0.12 over 34 resolved",
     );
     expect(forecastLine({ ...f, resolved: 30, skill: -0.05, tooFewToJudge: false })).toContain("skill vs the 45% base rate: -0.05 over 30 resolved");
+  });
+});
+
+describe("composeWeekly (SPEC-notifications § Email design)", () => {
+  const at = new Date("2026-11-20T22:30:00Z");
+
+  it("leads with the week and since the start vs VTI, then the track record by lead signal", () => {
+    const { subject, text } = composeWeekly(sampleWeekly(), "production", at);
+    expect(subject).toBe("Trader weekly: +0.62% vs VTI -0.4% (week of Mon Nov 16)");
+    expect(text).toContain("This week: ▲ +0.62% (VTI -0.4%)\nSince Fri Oct 30: ▲ +1.24% (VTI +0.8%)\nEquity: $1012.48");
+    expect(text).toContain("Lead signal  Theses    vs VTI\ninsider           7  ▲ +0.81%\nfundamental       1   ▼ -1.9%\n13f               1         –");
+    expect(text).toContain("Forecasts: none resolved this week");
+  });
+
+  it("shows theses opened as cards and theses closed as a table", () => {
+    const { text, html } = composeWeekly(sampleWeekly(), "production", at);
+    expect(text).toContain("THESES OPENED\n\nSMPL\n  SAMPLE: a made-up thesis");
+    expect(text).toContain("  sample-new-2026q4 · Led by fundamentals");
+    expect(html).toContain('href="https://trader.whitebirch.io/theses/sample-new-2026q4"');
+    expect(text).toContain("THESES CLOSED\n\nSymbol  How it ended  Days    vs VTI\nBA      removed         18  ▼ -3.02%");
+    expect(text).toContain("- v22 (claude): SAMPLE: exited BA on the second insider sale, added SMPL.\n\nReaffirmed unchanged 7 times.");
+    expect(text).toContain("Guardrails normal: drawdown 2.1% from peak.");
+  });
+
+  it("collapses an empty week's sections into one line", () => {
+    const { text } = composeWeekly({ ...sampleWeekly(), week: null, opened: [], closed: [], reviews: [], strategies: [], reaffirmed: 0 }, "production", at);
+    expect(text).toContain("This week: – (no full week yet)");
+    expect(text).toContain("None: the strategy wasn't resubmitted this week.");
+    expect(text).toContain("No theses opened or closed this week. No review dates in the next 14 days.");
+    expect(text).not.toContain("THESES OPENED");
+    expect(text).not.toContain("THESES CLOSED");
+    expect(composeWeekly({ ...sampleWeekly(), opened: [] }, "production", at).text).toContain("No theses opened this week.");
+  });
+
+  it("leads with the guardrails when they aren't normal", () => {
+    const state = { killSwitch: false, halted: true, haltReason: "down 21% from peak", drawdownPct: "21" };
+    const { text } = composeWeekly({ ...sampleWeekly(), state }, "production", at);
+    expect(text.startsWith("■ Weekly letter, week of Mon Nov 16\nThrough Fri Nov 20\n\n■ Trading HALTED: down 21% from peak.")).toBe(true);
+    expect(text).not.toContain("Guardrails normal");
   });
 });
