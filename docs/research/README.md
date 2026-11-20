@@ -12,6 +12,7 @@ Event studies over 2018–2026, on the stocks risk would let Trader buy. A scrip
 | [Earnings reactions vs VTI](earnings-reactions-vs-vti-2026-11.md) | #15 | No edge either way. Big earnings-day drops kept losing. |
 | [Momentum vs VTI](momentum-vs-vti-2026-11.md) | #49 | The top decile doesn't pass. The weakest stocks kept losing, so it's a signal of what not to buy. |
 | [Quality and value vs VTI](quality-value-vs-vti-2026-11.md) | #49 | Nothing passes the promotion rule. |
+| [13F best ideas vs VTI](13f-best-ideas-vs-vti-2026-11.md) | #138 | Nothing passes. Managers' largest holdings trailed VTI; a big new position came closest. The 45-day lag costs little. |
 
 ## Replays: does an idea survive Trader's rules?
 
