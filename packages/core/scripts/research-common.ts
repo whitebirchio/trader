@@ -4,8 +4,11 @@
  * (paper keys, market data only) cached per symbol, and the report's tables
  * and writer. Read-only: no database, no orders.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream } from "node:stream/web";
 import { fileURLToPath } from "node:url";
 import { AlpacaBroker } from "../src/broker/alpaca.js";
 import { BrokerHttpError } from "../src/broker/port.js";
@@ -20,6 +23,45 @@ const BARS_FROM = new Date("2017-06-01T00:00:00Z");
 const BATCH = 20;
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** SEC refused a request (403 or 429): stop, keep what's cached, and resume later (#135). */
+export class SecRefused extends Error {
+  constructor(readonly status: number, readonly url: string) {
+    super(`SEC refused ${url} (${status}). Everything fetched so far is cached: run the same command again later to resume.`);
+  }
+}
+
+let lastSecRequest = 0;
+/** At most 5 requests a second to SEC, under its 10/second limit. */
+async function secFetch(url: string): Promise<Response> {
+  const wait = lastSecRequest + 200 - Date.now();
+  if (wait > 0) await sleep(wait);
+  lastSecRequest = Date.now();
+  const res = await fetch(url, { headers: { "user-agent": SEC_USER_AGENT } });
+  if (res.status === 403 || res.status === 429) throw new SecRefused(res.status, url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  return res;
+}
+
+/** A small SEC document as text, cached at `file` (refetched when older than `maxAgeDays`). */
+export async function secText(url: string, file: string, maxAgeDays = Number.POSITIVE_INFINITY): Promise<string> {
+  if (existsSync(file) && (Date.now() - statSync(file).mtimeMs) / 86_400_000 < maxAgeDays) return readFileSync(file, "utf8");
+  const text = await (await secFetch(url)).text();
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, text);
+  return text;
+}
+
+/** Download a large SEC file straight to disk (streamed, never held in memory); a no-op if it's there. */
+export async function secDownload(url: string, file: string): Promise<void> {
+  if (existsSync(file)) return;
+  mkdirSync(dirname(file), { recursive: true });
+  const res = await secFetch(url);
+  if (!res.body) throw new Error(`${url}: empty body`);
+  const part = `${file}.part`;
+  await pipeline(Readable.fromWeb(res.body as ReadableStream), createWriteStream(part));
+  renameSync(part, file);
+}
 export const log = (msg: string) => console.error(`[${new Date().toISOString().slice(11, 19)}] ${msg}`);
 
 /** Risk's buy filters, as numbers for research. */

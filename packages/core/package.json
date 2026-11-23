@@ -37,6 +37,7 @@
     "research:earnings": "tsx scripts/research-earnings.ts",
     "research:momentum": "tsx scripts/research-momentum.ts",
     "research:quality": "tsx scripts/research-quality.ts",
+    "research:13f": "tsx scripts/research-13f.ts",
     "research:earnings-universe": "tsx scripts/earnings-universe.ts",
     "rebalance:plan": "tsx scripts/rebalance.ts --mode plan",
     "rebalance:run": "tsx scripts/rebalance.ts --mode run",
