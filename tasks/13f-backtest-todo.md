@@ -127,7 +127,8 @@
 - [x] One quarter end to end (2019 Q1, 2026-11-23): 19,173 filings, 4,584 initial, 3,354 kept, 1,126 scored. Five spot-checked on sec.gov, one per bucket plus a delisted company mapped through the fails data: Silver Lake/Dell 13D (44.3%, the group's combined row), Goldman/EnLink 13D (12.3%), Resolution Capital/Empire State Realty 13G (5.27%), Kayne Anderson Rudnick/U.S. Physical Therapy 13G (stake not fetched by design: 10.98% on sec.gov), JPMorgan/Catalent 13G (5.6%). Filer, company, form, date and CUSIP → ticker all matched.
 
 ### T9: Full run and report
-- [ ] 2018 to the latest. `docs/research/13d-13g-stakes-vs-vti-<date>.md`, in the same shape as T5's report, plus the filing-lag table. A row in the research README.
+- [x] 2018 to the latest. `docs/research/13d-13g-stakes-vs-vti-<date>.md`, in the same shape as T5's report, plus the filing-lag table. A row in the research README.
+  - Done 2026-11-23: about 2.5 hours from a cold cache. 269,913 filings, 51,248 initial ones by managers, 18,340 scored. No bucket passes. Vanguard's 2026 move into two new entities refiled about 2,100 initial 13Gs on stakes it already held: noted in the caveats, not filtered (no verdict changes).
 - **Depends on:** T8 · **Scope:** S
 
 ## Checkpoint D
