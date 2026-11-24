@@ -110,19 +110,21 @@
 - **Files:** `src/research/ownership-filings.ts`, `test/research/ownership-filings.test.ts`, fixtures · **Scope:** M
 
 ### T8: `research:13d` script, one quarter end to end
-- [ ] `scripts/research-13d.ts`:
+- [x] `scripts/research-13d.ts`:
   - daily indexes (cached);
   - headers and covers only where needed;
   - subject → ticker via `company_tickers.json`, with the cover's CUSIP through OpenFIGI as the fallback;
   - the concentrated flag from T5's per-period manager sets;
   - bars;
   - tables: 13D/13G × concentrated or not, stake size, prior 60 days, filing lag before and after Feb 2024, year by year, skip counts.
-- [ ] `package.json`: `research:13d`.
+- [x] `package.json`: `research:13d`.
+- [x] Shared with research:13f in `scripts/research-tables.ts`: the tables and OpenFIGI mapping (13F report rerun unchanged, byte for byte). `secFetch` keeps 5 a second across parallel workers and stops them all at a refusal.
+- [x] Found on the first quarter (2019 Q1, 31 minutes serial): most time went to SEC requests, a third of them headers sent by an issuer check that the cover already covers. Dropped that check; headers now only when both parties file 13Fs or the index lists one (97 in 2022 Q1). With 6 parallel workers a heavy quarter takes about 12 minutes (2022 Q1: 2,001 covers in 7 minutes, then OpenFIGI).
 - **Depends on:** T7, PR 1 merged · **Scope:** M
 
 ## Checkpoint C
-- [ ] Gate green
-- [ ] One quarter end to end. Five filings spot-checked on sec.gov: filer, subject, ticker, filing date, form, stake.
+- [x] Gate green
+- [x] One quarter end to end (2019 Q1, 2026-11-23): 19,173 filings, 4,584 initial, 3,354 kept, 1,126 scored. Five spot-checked on sec.gov, one per bucket plus a delisted company mapped through the fails data: Silver Lake/Dell 13D (44.3%, the group's combined row), Goldman/EnLink 13D (12.3%), Resolution Capital/Empire State Realty 13G (5.27%), Kayne Anderson Rudnick/U.S. Physical Therapy 13G (stake not fetched by design: 10.98% on sec.gov), JPMorgan/Catalent 13G (5.6%). Filer, company, form, date and CUSIP → ticker all matched.
 
 ### T9: Full run and report
 - [ ] 2018 to the latest. `docs/research/13d-13g-stakes-vs-vti-<date>.md`, in the same shape as T5's report, plus the filing-lag table. A row in the research README.

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   type OwnershipFiling,
   filingLagDays,
+  latestPublicPeriod,
   normalizeCusip,
   ownershipFilings,
   parseCoverText,
@@ -13,6 +14,7 @@ import {
   parseIndex,
   resolveFromHeader,
   resolveParties,
+  sameGroup,
 } from "../../src/research/ownership-filings.js";
 
 // Real files cut from EDGAR (Feb 14, 2019 and Feb 14, 2025: the annual 13G deadline, so every case turns up).
@@ -48,7 +50,7 @@ describe("ownershipFilings", () => {
     const filings = ownershipFilings(parseIndex(fixture("master.20190214.idx")));
     expect(filings).toHaveLength(7);
     const saba = byAccession(filings, "0001062993-19-000789");
-    expect(saba).toMatchObject({ form: "13D", amendment: false, filedOn: "2019-02-14" });
+    expect(saba).toMatchObject({ form: "13D", amendment: false, filedOn: "2019-02-14", xml: false });
     expect(saba.parties.map((p) => p.cik)).toEqual(["0001510281", "0001568292"]);
     expect(byAccession(filings, "0000080255-19-002372")).toMatchObject({ form: "13G", amendment: true });
   });
@@ -56,7 +58,7 @@ describe("ownershipFilings", () => {
   it("reads the new form names (SCHEDULE 13D, SCHEDULE 13G, /A) from Dec 2024", () => {
     const filings = ownershipFilings(parseIndex(fixture("master.20250214.idx")));
     expect(filings).toHaveLength(6);
-    expect(byAccession(filings, "0001104659-25-014235")).toMatchObject({ form: "13D", amendment: false });
+    expect(byAccession(filings, "0001104659-25-014235")).toMatchObject({ form: "13D", amendment: false, xml: true });
     expect(byAccession(filings, "0001595888-25-000074")).toMatchObject({ form: "13G", amendment: false });
     expect(filings.filter((f) => f.amendment)).toHaveLength(2);
   });
@@ -177,6 +179,27 @@ describe("normalizeCusip", () => {
     expect(normalizeCusip("US0378331005")).toBe("037833100");
     expect(normalizeCusip("037833101")).toBeNull();
     expect(normalizeCusip("Securities")).toBeNull();
+  });
+});
+
+describe("sameGroup", () => {
+  it("matches a filer to the company it's part of by the first significant words of their names", () => {
+    expect(sameGroup("GRAHAM HOLDINGS CO", "Graham Holdings Co")).toBe(true);
+    expect(sameGroup("ROYAL BANK OF CANADA", "ROYAL BANK OF CANADA /CAN/")).toBe(true);
+    expect(sameGroup("FIDUCIARY MANAGEMENT INC /WI/", "Graham Holdings Co")).toBe(false);
+    expect(sameGroup("BERKSHIRE HATHAWAY INC", "BERKSHIRE HILLS BANCORP INC")).toBe(false);
+    expect(sameGroup("FIRST MANHATTAN CO", "FIRST HORIZON CORP")).toBe(false);
+    expect(sameGroup("INC", "CORP")).toBe(false);
+  });
+});
+
+describe("latestPublicPeriod", () => {
+  it("is the latest quarter whose 13Fs were due (45 days after its end) by the filing date", () => {
+    expect(latestPublicPeriod("2019-02-14")).toBe("2018Q4"); // due Feb 14
+    expect(latestPublicPeriod("2019-02-13")).toBe("2018Q3");
+    expect(latestPublicPeriod("2025-05-15")).toBe("2025Q1"); // due May 15
+    expect(latestPublicPeriod("2025-05-14")).toBe("2024Q4");
+    expect(latestPublicPeriod("2020-01-02")).toBe("2019Q3");
   });
 });
 

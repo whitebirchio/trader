@@ -31,21 +31,15 @@ import { parseArgs } from "node:util";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { BENCHMARK } from "../src/broker/benchmark-closes.js";
 import {
-  type CohortStats,
   type DailyBar,
-  type EventOutcome,
   LONG_HORIZONS,
-  type LongHorizon,
-  bucketStats,
   cohortStats,
   outcomeAfter,
-  promotion,
 } from "../src/research/backtest.js";
 import { parseTsv } from "../src/research/insider-backtest.js";
 import { HELD_OUT_FROM } from "../src/research/momentum.js";
 import {
   type EventKind,
-  type Figi,
   type Filing,
   type FilingMeta,
   NAMED_MANAGERS,
@@ -58,7 +52,6 @@ import {
   ftdLinks,
   ftdRow,
   noteSymbol,
-  parseFigi,
   resolveTicker,
   positionEvents,
   quarterOf,
@@ -66,7 +59,8 @@ import {
   windowLinks,
   windowMeta,
 } from "../src/research/thirteen-f.js";
-import { CACHE, SecRefused, TRADABILITY, barsFor, log, pct, secDownload, secText, sleep, writeReport } from "./research-common.js";
+import { CACHE, SecRefused, TRADABILITY, barsFor, log, pct, secDownload, secText, writeReport } from "./research-common.js";
+import { type Cohorts, type Scored as ScoredOf, cohortTable, eventTable, mapCusips, median, promotionTable, yearTable } from "./research-tables.js";
 
 const { values } = parseArgs({
   options: { from: { type: "string" }, to: { type: "string" }, report: { type: "string" }, events: { type: "string" }, "extract-only": { type: "boolean" }, prune: { type: "boolean" }, clean: { type: "boolean" } },
@@ -214,41 +208,6 @@ function findEvents(quarters: string[], windows: Set<string>) {
   return { events, sets, lags };
 }
 
-/** CUSIP → ticker through OpenFIGI's free mapping API (no key: 25 requests a minute, 10 jobs each), cached. */
-async function mapCusips(cusips: string[]): Promise<Map<string, Figi>> {
-  const file = join(ROOT, "figi.json");
-  const cache: Record<string, Figi> = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
-  const missing = cusips.filter((c) => !(c in cache));
-  for (let i = 0; i < missing.length; i += 10) {
-    const batch = missing.slice(i, i + 10);
-    for (let attempt = 1; ; attempt++) {
-      const res = await fetch("https://api.openfigi.com/v3/mapping", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(batch.map((c) => ({ idType: "ID_CUSIP", idValue: c }))),
-      });
-      if (res.status === 429 && attempt < 5) {
-        log("OpenFIGI rate limit; waiting 60s");
-        await sleep(60_000);
-        continue;
-      }
-      if (!res.ok) throw new Error(`OpenFIGI: HTTP ${res.status}`);
-      const results = (await res.json()) as Parameters<typeof parseFigi>[0][];
-      batch.forEach((c, j) => {
-        cache[c] = parseFigi(results[j] ?? {});
-      });
-      break;
-    }
-    if ((i / 10) % 25 === 0) {
-      writeFileSync(file, JSON.stringify(cache));
-      log(`OpenFIGI: ${Math.min(i + 10, missing.length)}/${missing.length} mapped`);
-    }
-    await sleep(2_500);
-  }
-  writeFileSync(file, JSON.stringify(cache));
-  return new Map(cusips.map((c) => [c, cache[c]!]));
-}
-
 const FTD_PAGE = "https://www.sec.gov/data-research/sec-markets-data/fails-deliver-data";
 const FTD_FROM = "cnsfails201801a";
 
@@ -279,7 +238,7 @@ async function ftdSymbols(): Promise<Map<string, FtdSymbol>> {
   return latest;
 }
 
-type Scored = EventOutcome<Tagged, LongHorizon>;
+type Scored = ScoredOf<Tagged>;
 type Skip = "unmapped" | "fund or ETF" | "no bars" | "no entry" | "untradable" | "no VTI" | "stale bars";
 
 type Tickers = Map<string, ReturnType<typeof resolveTicker>>;
@@ -303,61 +262,8 @@ const KINDS: [EventKind, string][] = [
 ];
 const cohortOf = (o: Scored) => quarterOf(o.event.period);
 const inSample = (o: Scored) => o.event.filedOn < HELD_OUT_FROM;
-const se = (x: number | null) => pct(x).replace(/^[+−]/, "");
-const share = (x: number | null) => (x === null ? "–" : `${Math.round(x * 100)}%`);
-
-function eventTable(groups: [string, Scored[]][]): string {
-  const lines = ["| Bucket | Events (60d) | 20d mean | 60d mean ± SE | 60d median | 60d beat VTI | 120d mean | 250d mean |", "|---|---:|---:|---:|---:|---:|---:|---:|"];
-  for (const [label, rows] of groups) {
-    const [s20, s60, s120, s250] = LONG_HORIZONS.map((h) => bucketStats(rows, h));
-    lines.push(`| ${label} | ${s60!.n} | ${pct(s20!.mean)} | ${pct(s60!.mean)} ± ${se(s60!.stdError)} | ${pct(s60!.median)} | ${share(s60!.beatShare)} | ${pct(s120!.mean)} | ${pct(s250!.mean)} |`);
-  }
-  return lines.join("\n");
-}
-
-function cohortTable(groups: [string, Scored[]][]): string {
-  const cell = (s: CohortStats) => `${pct(s.mean)} ± ${se(s.stdError)}`;
-  const lines = ["| Bucket | Quarters | 20d | 60d | 60d quarters beat VTI | 120d | 250d |", "|---|---:|---:|---:|---:|---:|---:|"];
-  for (const [label, rows] of groups) {
-    const [s20, s60, s120, s250] = LONG_HORIZONS.map((h) => cohortStats(rows, cohortOf, h));
-    lines.push(`| ${label} | ${s60!.cohorts} | ${cell(s20!)} | ${cell(s60!)} | ${share(s60!.beatShare)} | ${cell(s120!)} | ${cell(s250!)} |`);
-  }
-  return lines.join("\n");
-}
-
-function promotionTable(groups: [string, Scored[]][]): { table: string; passed: string[] } {
-  const lines = ["| Bucket | In-sample 60d (quarters) | Held-out 60d (quarters) | In-sample 120d | Verdict |", "|---|---:|---:|---:|---|"];
-  const passed: string[] = [];
-  for (const [label, rows] of groups) {
-    const ins = rows.filter(inSample);
-    const out = rows.filter((o) => !inSample(o));
-    const x = { inSample60: cohortStats(ins, cohortOf, 60), heldOut60: cohortStats(out, cohortOf, 60), inSample120: cohortStats(ins, cohortOf, 120) };
-    const verdict = promotion(x);
-    if (verdict.pass) passed.push(label);
-    lines.push(
-      `| ${label} | ${pct(x.inSample60.mean)} ± ${se(x.inSample60.stdError)} (${x.inSample60.cohorts}) | ${pct(x.heldOut60.mean)} ± ${se(x.heldOut60.stdError)} (${x.heldOut60.cohorts}) | ${pct(x.inSample120.mean)} | ${verdict.pass ? "**passes**" : `fails: ${verdict.failed.join(", ")}`} |`,
-    );
-  }
-  return { table: lines.join("\n"), passed };
-}
-
-function yearTable(groups: [string, Scored[]][]): string {
-  const years = [...new Set(groups.flatMap(([, rows]) => rows.map((o) => o.event.filedOn.slice(0, 4))))].sort();
-  const lines = [`| Bucket | ${years.join(" | ")} |`, `|---|${years.map(() => "---:").join("|")}|`];
-  for (const [label, rows] of groups) {
-    const cells = years.map((y) => {
-      const s = bucketStats(rows.filter((o) => o.event.filedOn.startsWith(y)), 60);
-      return s.n ? `${pct(s.mean)} (${s.n})` : "–";
-    });
-    lines.push(`| ${label} | ${cells.join(" | ")} |`);
-  }
-  return lines.join("\n");
-}
-
-const median = (xs: number[]) => {
-  const s = [...xs].sort((a, b) => a - b);
-  return s.length ? s[Math.floor(s.length / 2)]! : null;
-};
+const COHORTS: Cohorts<Tagged> = { of: cohortOf, label: "Quarters", inSample };
+const filedOn = (o: Scored) => o.event.filedOn;
 
 async function main() {
   if (values.clean) {
@@ -394,7 +300,7 @@ async function main() {
 
   const scoreable = events.filter((e) => e.filedOn >= SCORE_FROM);
   const cusips = [...new Set(scoreable.map((e) => e.cusip))].sort();
-  const figi = await mapCusips(cusips);
+  const figi = await mapCusips(cusips, join(ROOT, "figi.json"));
   const ftd = await ftdSymbols();
   const tickers: Tickers = new Map(cusips.map((c) => [c, resolveTicker(figi.get(c), ftd.get(c))]));
   const symbols = [...new Set([...tickers.values()].filter((t) => t.ticker && !t.excluded).map((t) => t.ticker!))].sort();
@@ -416,7 +322,7 @@ async function main() {
     KINDS.map(([kind, label]): [string, Scored[]] => [label, rows.filter((o) => o.event.group === group && o.event.kind === kind)]).filter(([, r]) => r.length > 0);
 
   const ruleGroups = groups(scored.filing, "rule");
-  const { table: promo, passed } = promotionTable(ruleGroups);
+  const { table: promo, passed } = promotionTable(ruleGroups, COHORTS);
   const setSizes = Object.entries(sets).filter(([q]) => q >= "2017Q4");
   const byYear = new Map<string, number[]>();
   for (const [q, ciks] of setSizes) byYear.set(q.slice(0, 4), [...(byYear.get(q.slice(0, 4)) ?? []), ciks.length]);
@@ -451,7 +357,7 @@ async function main() {
     "",
     "## Concentrated managers: by quarter",
     "",
-    cohortTable(ruleGroups),
+    cohortTable(ruleGroups, COHORTS),
     "",
     "## Concentrated managers: by event",
     "",
@@ -463,7 +369,7 @@ async function main() {
     "",
     "### Year by year (60-day mean, events)",
     "",
-    yearTable(ruleGroups),
+    yearTable(ruleGroups, filedOn),
     "",
     "## What the lag costs",
     "",
@@ -477,7 +383,7 @@ async function main() {
     "",
     `${[...new Set(Object.values(NAMED_MANAGERS))].join(" and ")}, every quarter, whatever the rule says.`,
     "",
-    cohortTable(groups(scored.filing, "named")),
+    cohortTable(groups(scored.filing, "named"), COHORTS),
     "",
     eventTable(groups(scored.filing, "named")),
   ].join("\n");

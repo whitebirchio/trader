@@ -50,12 +50,14 @@ export interface OwnershipFiling {
   form: "13D" | "13G";
   amendment: boolean;
   filedOn: string;
+  /** Filed under the new form names (`SCHEDULE 13D…`, from Dec 2024), whose cover page is XML (primary_doc.xml). */
+  xml: boolean;
   /** Every entity the index lists the filing under: the investor(s) and the company. */
   parties: Party[];
 }
 
 /** Both form-name families: `SC 13D…` and, from Dec 2024, `SCHEDULE 13D…`. */
-const OWNERSHIP_FORM = /^(?:SC|SCHEDULE) 13([DG])(\/A)?$/;
+const OWNERSHIP_FORM = /^(SC|SCHEDULE) 13([DG])(\/A)?$/;
 
 /** 13D and 13G rows grouped by accession, in index order. Other forms are skipped. */
 export function ownershipFilings(rows: IndexRow[]): OwnershipFiling[] {
@@ -65,7 +67,7 @@ export function ownershipFilings(rows: IndexRow[]): OwnershipFiling[] {
     if (!m) continue;
     let f = byAccession.get(r.accession);
     if (!f) {
-      f = { accession: r.accession, form: m[1] === "D" ? "13D" : "13G", amendment: m[2] !== undefined, filedOn: r.filedOn, parties: [] };
+      f = { accession: r.accession, form: m[2] === "D" ? "13D" : "13G", amendment: m[3] !== undefined, filedOn: r.filedOn, xml: m[1] === "SCHEDULE", parties: [] };
       byAccession.set(r.accession, f);
     }
     if (!f.parties.some((p) => p.cik === r.cik)) f.parties.push({ cik: r.cik, name: r.name });
@@ -234,6 +236,47 @@ function longDate(s: string): string | null {
   if (!m) return null;
   const month = MONTHS.findIndex((n) => n.startsWith((m[1] as string).toLowerCase().slice(0, 3)));
   return month < 0 ? null : `${m[3]}-${String(month + 1).padStart(2, "0")}-${(m[2] as string).padStart(2, "0")}`;
+}
+
+const NAME_NOISE = /\b(INC|INCORPORATED|CORP|CORPORATION|CO|COMPANY|LTD|LIMITED|LLC|L\.?L\.?C|LP|L\.?P|PLC|SA|AG|NV|HOLDINGS?|GROUP|THE|DE|MD|NEW|CAN)\b/g;
+const nameTokens = (name: string) =>
+  name
+    .toUpperCase()
+    .replace(/\/[A-Z]{2,3}\/?/g, " ")
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .replace(NAME_NOISE, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 1);
+
+/**
+ * The investor looks like the company itself or its parent: their names'
+ * first two significant words match (one word if either has only one). A
+ * heuristic, reported as a count: a parent that files 13Fs isn't an outside
+ * investor's stake.
+ */
+export function sameGroup(filer: string, subject: string): boolean {
+  const a = nameTokens(filer);
+  const b = nameTokens(subject);
+  const n = Math.min(2, a.length, b.length);
+  return n > 0 && a.slice(0, n).join(" ") === b.slice(0, n).join(" ");
+}
+
+/**
+ * The latest 13F period whose holdings were due by `filedOn` (45 days after
+ * the quarter's end): the manager set a filing on that day could have known.
+ */
+export function latestPublicPeriod(filedOn: string, dueDays = 45): string {
+  const filed = Date.parse(`${filedOn}T00:00:00Z`);
+  let year = Number(filedOn.slice(0, 4));
+  let q = Math.ceil(Number(filedOn.slice(5, 7)) / 3);
+  for (;;) {
+    const end = Date.UTC(year, q * 3, 0); // the quarter's last day
+    if (end + dueDays * 86_400_000 <= filed) return `${year}Q${q}`;
+    if (--q === 0) {
+      q = 4;
+      year--;
+    }
+  }
 }
 
 /** Days from the event (the crossing) to the filing; null without an event date. */

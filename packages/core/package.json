@@ -51,7 +51,8 @@
     "capital:status": "tsx scripts/capital-status.ts",
     "capital:withdraw": "tsx scripts/capital-command.ts request",
     "capital:fund-now": "tsx scripts/capital-command.ts fund-now",
-    "capital:cancel": "tsx scripts/capital-command.ts cancel"
+    "capital:cancel": "tsx scripts/capital-command.ts cancel",
+    "research:13d": "tsx scripts/research-13d.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",
