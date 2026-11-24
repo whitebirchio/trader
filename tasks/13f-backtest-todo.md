@@ -132,8 +132,10 @@
 - **Depends on:** T8 · **Scope:** S
 
 ## Checkpoint D
-- [ ] Scott reads the report.
+- [x] Scott reads the report.
+  - 2026-11-24: Scott took the recommendation: a 13D or 13G is supporting evidence at most, never the lead; a review date within about 30 days when a 13D is part of the case; a fresh 13D on a held stock is a reason to re-judge it.
 
 ### T10: The finding into the routine
-- [ ] As T6, for 13D/13G. Then merge, and close #138.
+- [x] As T6, for 13D/13G. Then merge, and close #138.
+  - The direction is in the routine prompt (a 2026-11-24 block and a research bullet) and the MCP instructions. get_rules and SPEC-agent unchanged, as in T6. No live thesis cited a 13D or 13G, so nothing to move over.
 - **Depends on:** Checkpoint D · **Scope:** S
