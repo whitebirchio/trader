@@ -13,17 +13,19 @@ function fakeFetch(routes: Record<string, () => Response>) {
   const fn = (async (url: string | URL | Request, init?: RequestInit) => {
     const u = String(url);
     calls.push(u);
-    expect((init?.headers as Record<string, string>)["user-agent"]).toMatch(/^\S+ \S+ \S+@\S+$/); // SEC's "name email"
+    expect((init?.headers as Record<string, string>)["user-agent"]).toBe("Trader Test contact@example.com"); // the contact it was given
     const route = Object.entries(routes).find(([k]) => u.includes(k));
     return route ? route[1]() : new Response("", { status: 404 });
   }) as typeof fetch;
   return { fn, calls };
 }
 
+const UA = "Trader Test contact@example.com";
+
 describe("SecFilings", () => {
   it("finds a company's earnings releases by ticker, loading the ticker map once", async () => {
     const { fn, calls } = fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response(lkq) });
-    const sec = new SecFilings(fn);
+    const sec = new SecFilings(UA, fn);
     expect((await sec.earningsReleases("LKQ"))?.map((r) => r.filedOn)).toEqual(["2026-10-23", "2026-10-29"]);
     await sec.earningsReleases("LKQ");
     expect(calls.filter((c) => c.includes("company_tickers"))).toHaveLength(1);
@@ -31,7 +33,7 @@ describe("SecFilings", () => {
 
   it("maps SEC's BRK-B to Alpaca's BRK.B, and returns [] for a symbol SEC doesn't list or a missing index", async () => {
     const { fn, calls } = fakeFetch({ company_tickers: () => new Response(TICKERS) });
-    const sec = new SecFilings(fn);
+    const sec = new SecFilings(UA, fn);
     expect(await sec.earningsReleases("BRK.B")).toEqual([]); // the submissions file 404s
     expect(calls.at(-1)).toContain("CIK0001067983");
     expect(await sec.earningsReleases("VTI")).toEqual([]);
@@ -39,16 +41,16 @@ describe("SecFilings", () => {
 
   it("reads a company's SIC industry from the same index; nulls for a symbol SEC doesn't list, null when SEC can't be read", async () => {
     const withSic = JSON.stringify({ ...JSON.parse(lkq), sic: "5013", sicDescription: "WHOLESALE-MOTOR VEHICLE SUPPLIES & NEW PARTS" });
-    const sec = new SecFilings(fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response(withSic) }).fn);
+    const sec = new SecFilings(UA, fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response(withSic) }).fn);
     expect(await sec.industry("LKQ")).toEqual({ sic: "5013", description: "WHOLESALE-MOTOR VEHICLE SUPPLIES & NEW PARTS" });
     expect(await sec.industry("VTI")).toEqual({ sic: null, description: null });
-    const down = new SecFilings(fakeFetch({ company_tickers: () => new Response("", { status: 503 }) }).fn);
+    const down = new SecFilings(UA, fakeFetch({ company_tickers: () => new Response("", { status: 503 }) }).fn);
     expect(await down.industry("LKQ")).toBeNull();
   });
 
   it("lists a company's recent filings with their items and documents, and reads a document; both throw when SEC can't be read (#105)", async () => {
     const { fn } = fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response(lkq), "000106569626000058": () => new Response("<p>8-K</p>") });
-    const sec = new SecFilings(fn);
+    const sec = new SecFilings(UA, fn);
     const recent = await sec.recentFilings("LKQ");
     expect(recent.length).toBeGreaterThan(0);
     expect(recent[0]).toMatchObject({ cik: "0001065696", accession: expect.stringMatching(/^\d{10}-\d{2}-\d{6}$/), filedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
@@ -56,25 +58,25 @@ describe("SecFilings", () => {
     expect(await sec.recentFilings("VTI")).toEqual([]);
     expect(await sec.document("https://www.sec.gov/Archives/edgar/data/1065696/000106569626000058/lkq-20261109.htm")).toBe("<p>8-K</p>");
     await expect(sec.document("https://www.sec.gov/missing.htm")).rejects.toThrow("HTTP 404");
-    const down = new SecFilings(fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response("", { status: 503 }) }).fn);
+    const down = new SecFilings(UA, fakeFetch({ company_tickers: () => new Response(TICKERS), CIK0001065696: () => new Response("", { status: 503 }) }).fn);
     await expect(down.recentFilings("LKQ")).rejects.toThrow("HTTP 503");
   });
 
   it("marks a refusal (403 or 429) apart from other errors, so callers can stop asking", async () => {
     for (const status of [403, 429]) {
-      const sec = new SecFilings(fakeFetch({ company_tickers: () => new Response("", { status }) }).fn);
+      const sec = new SecFilings(UA, fakeFetch({ company_tickers: () => new Response("", { status }) }).fn);
       const e = await sec.recentFilings("LKQ").catch((x: unknown) => x);
       expect(e).toBeInstanceOf(SecRefusedError);
       expect(e).toMatchObject({ status, message: `https://www.sec.gov/files/company_tickers.json: HTTP ${status}` });
     }
-    const down = new SecFilings(fakeFetch({ company_tickers: () => new Response("", { status: 503 }) }).fn);
+    const down = new SecFilings(UA, fakeFetch({ company_tickers: () => new Response("", { status: 503 }) }).fn);
     expect(await down.recentFilings("LKQ").catch((x: unknown) => x)).not.toBeInstanceOf(SecRefusedError);
   });
 
   it("is null when SEC can't be read, and tries the ticker map again next time", async () => {
     let fail = true;
     const { fn } = fakeFetch({ company_tickers: () => (fail ? new Response("", { status: 503 }) : new Response(TICKERS)), CIK0001065696: () => new Response(lkq) });
-    const sec = new SecFilings(fn);
+    const sec = new SecFilings(UA, fn);
     expect(await sec.earningsReleases("LKQ")).toBeNull();
     fail = false;
     expect(await sec.earningsReleases("LKQ")).toHaveLength(2);

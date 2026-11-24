@@ -7,9 +7,10 @@ import { createHandler } from "./handler.js";
 import { loadSecrets } from "./secrets.js";
 import { SesMailer } from "./ses-mailer.js";
 
-// Clients live outside the handler so warm invocations reuse them.
+// Clients live outside the handler so warm invocations reuse them (and SEC's ticker map).
 const ssm = new SSMClient({});
 const ses = new SESv2Client({});
+let filings: { userAgent: string; client: SecFilings } | null = null;
 
 function required(name: string): string {
   const value = process.env[name];
@@ -29,7 +30,11 @@ export const handler = createHandler({
   },
   makeBroker: (config) => new AlpacaBroker({ env: config.tradingEnv, keyId: config.alpaca.keyId, secretKey: config.alpaca.secretKey }),
   makeMailer: () => new SesMailer(ses, required("NOTIFY_FROM"), required("NOTIFY_TO")),
-  filings: new SecFilings(),
+  makeFilings(config) {
+    if (!config.secUserAgent) return undefined;
+    if (filings?.userAgent !== config.secUserAgent) filings = { userAgent: config.secUserAgent, client: new SecFilings(config.secUserAgent) };
+    return filings.client;
+  },
   makeEarnings: (config) => (config.alphaVantageKey ? new AlphaVantageCalendar(config.alphaVantageKey) : undefined),
   makeEarningsHistory: (config) => (config.alphaVantageKey ? new AlphaVantageEarnings(config.alphaVantageKey) : undefined),
   makeRoutineFirer: (config) => (config.routineFireTokens ? new AnthropicRoutineFirer(config.routineFireTokens) : undefined),

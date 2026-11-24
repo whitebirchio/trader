@@ -60,6 +60,23 @@ describe("scheduled ticks", () => {
     expect(closed).toBe(1);
   });
 
+  it("hands check-filings an SEC client only when SEC's contact is configured", async () => {
+    const contacts: (string | null)[] = [];
+    const withFilings = (): HandlerDeps => ({
+      ...deps(),
+      makeFilings: (config) => {
+        contacts.push(config.secUserAgent);
+        return config.secUserAgent ? { recentFilings: async () => [], document: async () => "" } : undefined;
+      },
+    });
+    const tick = { jobs: ["check-filings"], scheduledTime: "2026-11-01T17:00:00Z" };
+    expect(await createHandler(withFilings())(tick)).toMatchObject({ results: [{ job: "check-filings", status: "skipped", reason: "no SEC client" }] });
+    env = { ...ENV, SEC_USER_AGENT: "Trader Test contact@example.com" };
+    // Past the client check: an empty book has nothing to check.
+    expect(await createHandler(withFilings())({ ...tick, scheduledTime: "2026-11-01T17:15:00Z" })).toMatchObject({ results: [{ job: "check-filings", status: "skipped", reason: "no theses or watchlist names" }] });
+    expect(contacts).toEqual([null, "Trader Test contact@example.com"]);
+  });
+
   it("hands check-routine a routine firer when tokens are configured (missed-run recovery)", async () => {
     const fired: string[] = [];
     const monday = new Date("2026-11-02T13:30:00Z");
