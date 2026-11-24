@@ -26,7 +26,7 @@ import {
   reactionEvent,
 } from "../src/research/earnings-backtest.js";
 import { type InsiderPurchase, classifyRoutine, groupEvents, parseTsv, purchasesFrom } from "../src/research/insider-backtest.js";
-import { CACHE, SEC_USER_AGENT, TRADABILITY, barsFor, log, sleep, table, writeReport } from "./research-common.js";
+import { CACHE, TRADABILITY, secUserAgent, barsFor, log, sleep, table, writeReport } from "./research-common.js";
 
 const { values } = parseArgs({ options: { limit: { type: "string" }, report: { type: "string" } } });
 
@@ -39,7 +39,7 @@ mkdirSync(DIR, { recursive: true });
 async function secJson(url: string): Promise<unknown | null> {
   for (let attempt = 1; ; attempt++) {
     await sleep(250);
-    const res = await fetch(url, { headers: { "user-agent": SEC_USER_AGENT, "accept-encoding": "gzip" }, signal: AbortSignal.timeout(30_000) });
+    const res = await fetch(url, { headers: { "user-agent": secUserAgent(), "accept-encoding": "gzip" }, signal: AbortSignal.timeout(30_000) });
     if (res.status === 404) return null;
     if (res.ok) return res.json();
     if ((res.status === 403 || res.status === 429) && attempt < 4) {

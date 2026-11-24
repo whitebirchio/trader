@@ -1,0 +1,21 @@
+Description:           Daily Index of EDGAR Dissemination Feed
+Last Data Received:    Feb 14, 2019
+Comments:              webmaster@sec.gov
+Anonymous FTP:         ftp://ftp.sec.gov/edgar/
+ 
+CIK|Company Name|Form Type|Date Filed|File Name
+--------------------------------------------------------------------------------
+1000228|HENRY SCHEIN INC|SC 13G/A|20190214|edgar/data/1000228/0000080255-19-002372.txt
+1000228|HENRY SCHEIN INC|SC 13G|20190214|edgar/data/1000228/0001085146-19-000767.txt
+104889|Graham Holdings Co|SC 13G|20190214|edgar/data/104889/0000764532-19-000006.txt
+1066194|EGAIN Corp|SC 13D|20190214|edgar/data/1066194/0001104659-19-008823.txt
+1262319|ROY ASHUTOSH|SC 13D|20190214|edgar/data/1262319/0001104659-19-008823.txt
+1317348|Milestone Group, Inc.|SC 13G|20190214|edgar/data/1317348/0001317348-19-000002.txt
+1426092|Longview Partners (Guernsey) LTD|SC 13G|20190214|edgar/data/1426092/0001085146-19-000767.txt
+1510281|Saba Capital Management, L.P.|SC 13D|20190214|edgar/data/1510281/0001062993-19-000789.txt
+1568292|Ivy High Income Opportunities Fund|SC 13D|20190214|edgar/data/1568292/0001062993-19-000789.txt
+1750777|Hawkeye Systems, Inc.|SC 13D|20190214|edgar/data/1750777/0001674796-19-000019.txt
+764532|FIDUCIARY MANAGEMENT INC /WI/|SC 13G|20190214|edgar/data/764532/0000764532-19-000006.txt
+80255|PRICE T ROWE ASSOCIATES INC /MD/|SC 13G/A|20190214|edgar/data/80255/0000080255-19-002372.txt
+1000097|KINGDON CAPITAL MANAGEMENT, L.L.C.|13F-HR|20190214|edgar/data/1000097/0001000097-19-000001.txt
+1564709|Truett-Hurst, Inc.|SC 13E3/A|20190214|edgar/data/1564709/0001144204-19-008140.txt

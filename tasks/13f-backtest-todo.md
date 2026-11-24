@@ -94,18 +94,19 @@
 ## PR 2: 13D/13G
 
 ### T7: Ownership filings from the index (pure)
-- [ ] `parseIndex(text)` → rows. `ownershipFilings(rows)` groups rows by accession into `{ accession, form: "13D" | "13G", amendment, filedAt, ciks }`. Both form-type families count (`SC 13D…` and, from Dec 2024, `SCHEDULE 13D…`).
-- [ ] `resolveParties(filing, thirteenFFilers)`: filer vs subject. When that's ambiguous, return `needs header`, and `parseHeader(text)` reads `SUBJECT COMPANY` / `FILED BY`.
-- [ ] `parseCover(xml | text)`:
+- [x] `parseIndex(text)` → rows. `ownershipFilings(rows)` groups rows by accession into `{ accession, form: "13D" | "13G", amendment, filedAt, ciks }`. Both form-type families count (`SC 13D…` and, from Dec 2024, `SCHEDULE 13D…`).
+- [x] `resolveParties(filing, thirteenFFilers)`: filer vs subject. When that's ambiguous, return `needs header`, and `parseHeader(text)` reads `SUBJECT COMPANY` / `FILED BY`.
+- [x] `parseCoverXml` / `parseCoverText` (built as two):
   - percent of class, CUSIP and event date from the XML (Dec 2024 on);
-  - from the text cover before that, only the CUSIP.
-- [ ] Filters: initial filings only; the filer files 13F-HR; not the subject's own insiders or parent.
-- [ ] Tests:
+  - from the text cover before that, the CUSIP (a US ISIN is read as one), plus best-effort percent, event date and the 13G-to-13D box.
+- [x] Filters: initial filings only (`amendment` kept apart); the filer files 13F-HR, which rules out individuals such as the company's own insiders; a company filing on itself is `self`. A parent company that also files 13Fs isn't told apart yet: T8 counts how often a filer's name matches the subject's.
+- [x] Tests:
   - fixtures from real index days (old and new form names);
   - a pair resolved without a header;
   - an ambiguous pair;
   - an amendment;
   - both cover formats.
+- Found on the fixtures (2026-11-23): almost every filing is a pair of index rows. One 13F filer resolves it; both or one row goes to the header (`.hdr.sgml`, about 1.5 KB, which exists for older filings too); none drops it. Filings before Dec 2024 have no `index.json`, so their cover is the full submission (~50–80 KB): fetch it only when the subject's CIK doesn't map to a ticker.
 - **Files:** `src/research/ownership-filings.ts`, `test/research/ownership-filings.test.ts`, fixtures · **Scope:** M
 
 ### T8: `research:13d` script, one quarter end to end
