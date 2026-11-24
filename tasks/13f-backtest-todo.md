@@ -94,42 +94,48 @@
 ## PR 2: 13D/13G
 
 ### T7: Ownership filings from the index (pure)
-- [ ] `parseIndex(text)` → rows. `ownershipFilings(rows)` groups rows by accession into `{ accession, form: "13D" | "13G", amendment, filedAt, ciks }`. Both form-type families count (`SC 13D…` and, from Dec 2024, `SCHEDULE 13D…`).
-- [ ] `resolveParties(filing, thirteenFFilers)`: filer vs subject. When that's ambiguous, return `needs header`, and `parseHeader(text)` reads `SUBJECT COMPANY` / `FILED BY`.
-- [ ] `parseCover(xml | text)`:
+- [x] `parseIndex(text)` → rows. `ownershipFilings(rows)` groups rows by accession into `{ accession, form: "13D" | "13G", amendment, filedAt, ciks }`. Both form-type families count (`SC 13D…` and, from Dec 2024, `SCHEDULE 13D…`).
+- [x] `resolveParties(filing, thirteenFFilers)`: filer vs subject. When that's ambiguous, return `needs header`, and `parseHeader(text)` reads `SUBJECT COMPANY` / `FILED BY`.
+- [x] `parseCoverXml` / `parseCoverText` (built as two):
   - percent of class, CUSIP and event date from the XML (Dec 2024 on);
-  - from the text cover before that, only the CUSIP.
-- [ ] Filters: initial filings only; the filer files 13F-HR; not the subject's own insiders or parent.
-- [ ] Tests:
+  - from the text cover before that, the CUSIP (a US ISIN is read as one), plus best-effort percent, event date and the 13G-to-13D box.
+- [x] Filters: initial filings only (`amendment` kept apart); the filer files 13F-HR, which rules out individuals such as the company's own insiders; a company filing on itself is `self`. A parent company that also files 13Fs isn't told apart yet: T8 counts how often a filer's name matches the subject's.
+- [x] Tests:
   - fixtures from real index days (old and new form names);
   - a pair resolved without a header;
   - an ambiguous pair;
   - an amendment;
   - both cover formats.
+- Found on the fixtures (2026-11-23): almost every filing is a pair of index rows. One 13F filer resolves it; both or one row goes to the header (`.hdr.sgml`, about 1.5 KB, which exists for older filings too); none drops it. Filings before Dec 2024 have no `index.json`, so their cover is the full submission (~50–80 KB): fetch it only when the subject's CIK doesn't map to a ticker.
 - **Files:** `src/research/ownership-filings.ts`, `test/research/ownership-filings.test.ts`, fixtures · **Scope:** M
 
 ### T8: `research:13d` script, one quarter end to end
-- [ ] `scripts/research-13d.ts`:
+- [x] `scripts/research-13d.ts`:
   - daily indexes (cached);
   - headers and covers only where needed;
   - subject → ticker via `company_tickers.json`, with the cover's CUSIP through OpenFIGI as the fallback;
   - the concentrated flag from T5's per-period manager sets;
   - bars;
   - tables: 13D/13G × concentrated or not, stake size, prior 60 days, filing lag before and after Feb 2024, year by year, skip counts.
-- [ ] `package.json`: `research:13d`.
+- [x] `package.json`: `research:13d`.
+- [x] Shared with research:13f in `scripts/research-tables.ts`: the tables and OpenFIGI mapping (13F report rerun unchanged, byte for byte). `secFetch` keeps 5 a second across parallel workers and stops them all at a refusal.
+- [x] Found on the first quarter (2019 Q1, 31 minutes serial): most time went to SEC requests, a third of them headers sent by an issuer check that the cover already covers. Dropped that check; headers now only when both parties file 13Fs or the index lists one (97 in 2022 Q1). With 6 parallel workers a heavy quarter takes about 12 minutes (2022 Q1: 2,001 covers in 7 minutes, then OpenFIGI).
 - **Depends on:** T7, PR 1 merged · **Scope:** M
 
 ## Checkpoint C
-- [ ] Gate green
-- [ ] One quarter end to end. Five filings spot-checked on sec.gov: filer, subject, ticker, filing date, form, stake.
+- [x] Gate green
+- [x] One quarter end to end (2019 Q1, 2026-11-23): 19,173 filings, 4,584 initial, 3,354 kept, 1,126 scored. Five spot-checked on sec.gov, one per bucket plus a delisted company mapped through the fails data: Silver Lake/Dell 13D (44.3%, the group's combined row), Goldman/EnLink 13D (12.3%), Resolution Capital/Empire State Realty 13G (5.27%), Kayne Anderson Rudnick/U.S. Physical Therapy 13G (stake not fetched by design: 10.98% on sec.gov), JPMorgan/Catalent 13G (5.6%). Filer, company, form, date and CUSIP → ticker all matched.
 
 ### T9: Full run and report
-- [ ] 2018 to the latest. `docs/research/13d-13g-stakes-vs-vti-<date>.md`, in the same shape as T5's report, plus the filing-lag table. A row in the research README.
+- [x] 2018 to the latest. `docs/research/13d-13g-stakes-vs-vti-<date>.md`, in the same shape as T5's report, plus the filing-lag table. A row in the research README.
+  - Done 2026-11-23: about 2.5 hours from a cold cache. 269,913 filings, 51,248 initial ones by managers, 18,340 scored. No bucket passes. Vanguard's 2026 move into two new entities refiled about 2,100 initial 13Gs on stakes it already held: noted in the caveats, not filtered (no verdict changes).
 - **Depends on:** T8 · **Scope:** S
 
 ## Checkpoint D
-- [ ] Scott reads the report.
+- [x] Scott reads the report.
+  - 2026-11-24: Scott took the recommendation: a 13D or 13G is supporting evidence at most, never the lead; a review date within about 30 days when a 13D is part of the case; a fresh 13D on a held stock is a reason to re-judge it.
 
 ### T10: The finding into the routine
-- [ ] As T6, for 13D/13G. Then merge, and close #138.
+- [x] As T6, for 13D/13G. Then merge, and close #138.
+  - The direction is in the routine prompt (a 2026-11-24 block and a research bullet) and the MCP instructions. get_rules and SPEC-agent unchanged, as in T6. No live thesis cited a 13D or 13G, so nothing to move over.
 - **Depends on:** Checkpoint D · **Scope:** S

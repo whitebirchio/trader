@@ -27,7 +27,7 @@ import {
   parseTsv,
   purchasesFrom,
 } from "../src/research/insider-backtest.js";
-import { CACHE, SEC_USER_AGENT, TRADABILITY, barsFor, log, sleep, table, writeReport } from "./research-common.js";
+import { CACHE, TRADABILITY, secUserAgent, barsFor, log, sleep, table, writeReport } from "./research-common.js";
 
 const { values } = parseArgs({ options: { quarters: { type: "string" }, report: { type: "string" } } });
 
@@ -42,7 +42,7 @@ function allQuarters(): string[] {
 
 /** The zip links from SEC's index page (their folder differs by quarter). */
 async function zipLinks(): Promise<Map<string, string>> {
-  const html = await (await fetch(INDEX, { headers: { "user-agent": SEC_USER_AGENT } })).text();
+  const html = await (await fetch(INDEX, { headers: { "user-agent": secUserAgent() } })).text();
   const links = new Map<string, string>();
   for (const m of html.matchAll(/href="(\/files\/[^"]*\/(\d{4}q\d)_form345\.zip)"/g)) links.set(m[2]!, `https://www.sec.gov${m[1]}`);
   return links;
@@ -57,7 +57,7 @@ async function quarterTables(quarter: string, links: () => Promise<Map<string, s
       const url = (await links()).get(quarter);
       if (!url) throw new Error(`no data set listed for ${quarter}`);
       log(`downloading ${quarter} …`);
-      const res = await fetch(url, { headers: { "user-agent": SEC_USER_AGENT } });
+      const res = await fetch(url, { headers: { "user-agent": secUserAgent() } });
       if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
       mkdirSync(dir, { recursive: true });
       writeFileSync(zip, Buffer.from(await res.arrayBuffer()));

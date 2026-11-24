@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><edgarSubmission xmlns="http://www.sec.gov/edgar/schedule13D" xmlns:com="http://www.sec.gov/edgar/common">
+  <headerData>
+    <submissionType>SCHEDULE 13D</submissionType>
+    <filerInfo>
+      <filer>
+        <filerCredentials>
+          <!-- Field: Pseudo-Tag; ID: Name; Data: CAISSE DE DEPOT ET PLACEMENT DU QUEBEC -->
+          <cik>0000898286</cik>
+          <ccc>XXXXXXXX</ccc>
+        </filerCredentials>
+      </filer>
+      <liveTestFlag>LIVE</liveTestFlag>
+
+
+    </filerInfo>
+  </headerData>
+  <formData>
+    <coverPageHeader>
+      <securitiesClassTitle>Common Shares</securitiesClassTitle>
+      <dateOfEvent>02/13/2025</dateOfEvent>
+      <previouslyFiledFlag>true</previouslyFiledFlag>
+      <issuerInfo>
+        <issuerCIK>0001173382</issuerCIK>
+        <issuerCUSIP>124765108</issuerCUSIP>
+        <issuerName>CAE INC.</issuerName>
+        <address>
+          <com:street1>8585 Cote de Liesse</com:street1>
+          <com:city>ST-LAURENT</com:city>
+          <com:stateOrCountry>A8</com:stateOrCountry>
+          <com:zipCode>H4T 1G6</com:zipCode>
+        </address>
+      </issuerInfo>
+      <authorizedPersons>
+        <notificationInfo>
+          <personName>Caisse de depot et placement d</personName>
+          <personPhoneNum>514 847 2353</personPhoneNum>
+          <personAddress>
+            <com:street1>1000, Place Jean-Paul-Riopelle</com:street1>
+            <com:city>Montreal</com:city>
+            <com:stateOrCountry>A8</com:stateOrCountry>
+            <com:zipCode>H2Z 2B3</com:zipCode>
+          </personAddress>
+        </notificationInfo>
+      </authorizedPersons>
+    </coverPageHeader>
+    <reportingPersons>
+      <reportingPersonInfo>
+        <reportingPersonCIK>0000898286</reportingPersonCIK>
+        <reportingPersonNoCIK>N</reportingPersonNoCIK>
+        <reportingPersonName>Caisse depot et placement du Quebec</reportingPersonName>
+        <fundType>OO</fundType>
+        <legalProceedings>N</legalProceedings>
+        <citizenshipOrOrganization>A8</citizenshipOrOrganization>
+        <soleVotingPower>30917402.00</soleVotingPower>
+        <sharedVotingPower>0.00</sharedVotingPower>
+        <soleDispositivePower>30917402.00</soleDispositivePower>
+        <sharedDispositivePower>0.00</sharedDispositivePower>
+        <aggregateAmountOwned>30917402.00</aggregateAmountOwned>
+        <isAggregateExcludeShares>N</isAggregateExcludeShares>
+        <percentOfClass>9.7</percentOfClass>
+        <typeOfReportingPerson>OO</typeOfReportingPerson>
+      </reportingPersonInfo>
+    </reportingPersons>
+    <items1To7>
+      <item1>
+        <securityTitle>Common Shares</securityTitle>
+        <issuerName>CAE INC.</issuerName>
+        <issuerPrincipalAddress>
+          <com:street1>8585 Cote de Liesse</com:street1>
+          <com:city>ST-LAURENT</com:city>
+          <com:stateOrCountry>A8</com:stateOrCountry>
+          <com:zipCode>H4T 1G6</com:zipCode>
+        </issuerPrincipalAddress>
+      </item1>
+      <item2>
+        <filingPersonName>The Reporting Person is a legal person without share capital created by a special act of the Legislature of the Province of Quebec.</filingPersonName>
+        <principalBusinessAddress>The address of the Reporting Person is 1000, place Jean-Paul-Riopelle, Montreal, Quebec, H2Z 2B3.</principalBusinessAddress>
+        <principalJob>The principal business of the Reporting Person is to receive on deposit and manage funds deposited by agencies and instrumentalities of the Province of Quebec. The name, residence or business address and principal occupation or employment of each director, executive officer and controlling person are available in Exhibit 1 to this Schedule 13D.</principalJob>
+        <hasBeenConvicted>During the last five years, the Reporting Person has not been and, to the best of the Reporting Person's knowledge, none of the executive officers or directors of the Reporting Person have been convicted in a criminal proceeding (excluding traffic violations or similar misdemeanors).</hasBeenConvicted>
+        <convictionDescription>During the last five years, the Reporting Person has not been and, to the best of the Reporting Person's knowledge, none of the executive officers or directors of the Reporting Person have been a party to a civil proceeding of a judicial or administrative body of competent jurisdiction and as a result of such proceeding was or is subject to a judgment, decree or final order enjoining future violations of, or prohibiting or mandating activities subject to, federal or state securities laws or finding any violation with respect to such laws.</convictionDescription>
+        <citizenship>The citizenship of the natural persons who are officers, directors or controlling persons of the Reporting Person is set forth in Exhibit 1.</citizenship>
+      </item2>
+      <item3>
+        <fundsSource>All of the Common Shares to which this Schedule 13D relates were purchased by the Reporting Person using funds on deposit at the Reporting Person. The 30,917,402 Common Shares held by the Reporting Person and reported herein were acquired as follows: (i) in a private placement transaction on November 16, 2020, the Reporting Person acquired 5,025,016 Common Shares at a purchase price of $29.85 per share (in Canadian dollars, or "CAD$"); (ii) in a private placement transaction on March 4, 2021, the Reporting Person acquired 15,200,000 subscription receipts at a purchase price of CAD$31.25 per subscription receipt, which were subsequently converted on a 1-to-1 basis for Common Shares for no additional consideration; (iii) in a series of open market transactions between November 13, 2024 and December 31, 2024, the Reporting Person acquired 6,313,165 Common Shares at purchase prices ranging from CAD$29.24 to CAD$36.46 per share; and (iv) in a series of open market transactions between 2001 and 2016, the Reporting Person acquired the balance of Common Shares at purchase prices ranging from CAD$2.88 to CAD$15.17 per share.</fundsSource>
+      </item3>
+      <item4>
+        <transactionPurpose>The Reporting Person purchased the Common Shares for investment purposes.
+
+On February 13 2025, the Reporting Person entered into a Nomination Agreement (the "Nomination Agreement") with the Issuer. The Nomination Agreement provides that, for as long as the Reporting Person, together with its affiliates and group members, holds at least 5% of the outstanding Common Shares, the Reporting Person has the right, subject to certain terms and conditions, to nominate a candidate for election in connection with a proxy solicitation relating to the election of directors of the Company. The Reporting Person intends to nominate Louis Tetu for election as a director at the Issuer's 2025 annual general meeting of shareholders.
+
+The foregoing summary of the Nomination Agreement is not complete and is qualified in its entirety by reference to the full text of the Nomination Agreement, a summary translation of which is attached as Exhibit 3 and is incorporated by reference herein.
+
+The Reporting Person has not entered into any agreement with any third party to act together for the purpose of acquiring, holding, voting or disposing of the Common Shares reported herein.</transactionPurpose>
+      </item4>
+      <item5>
+        <percentageOfClassSecurities>The responses to this Item 5 and the information on the cover page are based on 318,590,139 Common Shares outstanding as of September 30, 2024 as reported in the Issuer's 2025 Q2 Financial Statements and Management's Discussion and Analysis as filed by the Issuer on Form 6-K with the Securities and Exchange Commission on November 12, 2024.
+
+The information set forth in Items 2, 3 and 6 of this Schedule 13D and the cover pages of this Schedule 13D is hereby incorporated by reference into this Item 5.
+
+The Reporting Person is the direct beneficial owner of 30,917,402 Common Shares, which represents approximately 9.7% of the Issuer's outstanding Common Shares.</percentageOfClassSecurities>
+        <numberOfShares>The Reporting Person has sole power to vote and sole power to direct the disposition of 30,917,402 Common Shares, and has no shared voting or dispositive power.</numberOfShares>
+        <transactionDesc>The transactions by the Reporting Person in the Common Shares during the past sixty days are set forth in Exhibit 2. Except as otherwise disclosed therein, the Reporting Person has not effected any transaction in the Common Shares in the last 60 days.</transactionDesc>
+        <listOfShareholders>No other person is known to have the right to receive or the power to direct the receipt of dividends from, or any proceeds from the sale of the Common Shares beneficially owned by the Reporting Person.</listOfShareholders>
+        <date5PercentOwnership>Not applicable.</date5PercentOwnership>
+      </item5>
+      <item6>
+        <contractDescription>On February 13, 2025, the Reporting Person and the Issuer entered into the Nomination Agreement described in Item 4 above, a summary translation of which is attached as Exhibit 3 hereto. The information regarding the Nomination Agreement in Item 4, as qualified by the full text of the Nomination Agreement, is incorporated into this Item 6 by reference.</contractDescription>
+      </item6>
+      <item7>
+        <filedExhibits>Exhibit 1 - Directors and Officers
+Exhibit 2 - Schedule of Transactions
+Exhibit 3 - Nomination Agreement (summary translation)</filedExhibits>
+      </item7>
+    </items1To7>
+    <signatureInfo>
+      <signaturePerson>
+        <signatureReportingPerson>Caisse depot et placement du Quebec</signatureReportingPerson>
+        <signatureDetails>
+          <signature>/s/ Soulef Hadjoudj</signature>
+          <title>Soulef Hadjoudj/Authorized Signatory</title>
+          <date>02/14/2025</date>
+        </signatureDetails>
+      </signaturePerson>
+    </signatureInfo>
+  </formData>
+
+</edgarSubmission>

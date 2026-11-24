@@ -17,8 +17,27 @@ import { LIMITS } from "../src/risk/limits.js";
 import { readRepoEnv } from "./repo-env.js";
 
 export const CACHE = join(dirname(fileURLToPath(import.meta.url)), "..", ".cache");
-// SEC asks automated clients to identify themselves as "name email" (data.sec.gov refuses others); requests stay well under its 10/second.
-export const SEC_USER_AGENT = "Scott Schmalz scott.schmalz@gmail.com";
+let secUserAgentValue: string | undefined;
+/**
+ * SEC asks automated clients to identify themselves as "name email"
+ * (data.sec.gov refuses others); requests stay well under its 10/second. The
+ * contact is the owner's to choose, so it's read from SEC_USER_AGENT (the
+ * environment, else the repo's .env), never written in the code.
+ */
+export function secUserAgent(): string {
+  if (secUserAgentValue) return secUserAgentValue;
+  let value = process.env.SEC_USER_AGENT;
+  if (!value) {
+    try {
+      value = readRepoEnv().get("SEC_USER_AGENT");
+    } catch {
+      // no .env: fall through to the error below
+    }
+  }
+  if (!value?.trim()) throw new Error('SEC_USER_AGENT is not set. Add SEC_USER_AGENT="Your Name contact@example.com" to .env: SEC requires a real contact.');
+  secUserAgentValue = value.trim();
+  return secUserAgentValue;
+}
 const BARS_FROM = new Date("2017-06-01T00:00:00Z");
 const BATCH = 20;
 
@@ -31,16 +50,40 @@ export class SecRefused extends Error {
   }
 }
 
-let lastSecRequest = 0;
-/** At most 5 requests a second to SEC, under its 10/second limit. */
+let nextSecSlot = 0;
+let secRefused: SecRefused | null = null;
+/**
+ * At most 5 requests a second to SEC, under its 10/second limit, however many
+ * callers run at once: each takes the next 200 ms slot before it waits. After
+ * a refusal every later call fails with it, so parallel workers stop too.
+ */
 async function secFetch(url: string): Promise<Response> {
-  const wait = lastSecRequest + 200 - Date.now();
-  if (wait > 0) await sleep(wait);
-  lastSecRequest = Date.now();
-  const res = await fetch(url, { headers: { "user-agent": SEC_USER_AGENT } });
-  if (res.status === 403 || res.status === 429) throw new SecRefused(res.status, url);
+  if (secRefused) throw secRefused;
+  const slot = Math.max(Date.now(), nextSecSlot);
+  nextSecSlot = slot + 200;
+  if (slot > Date.now()) await sleep(slot - Date.now());
+  if (secRefused) throw secRefused;
+  const res = await fetch(url, { headers: { "user-agent": secUserAgent() } });
+  if (res.status === 403 || res.status === 429) throw (secRefused = new SecRefused(res.status, url));
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   return res;
+}
+
+/** Run `fn` over `items` with at most `workers` at a time (SEC requests still keep secFetch's pace). */
+export async function inParallel<T>(items: T[], workers: number, fn: (item: T, index: number) => Promise<void>): Promise<void> {
+  let next = 0;
+  const run = async () => {
+    while (next < items.length) {
+      const i = next++;
+      await fn(items[i] as T, i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(workers, items.length) }, run));
+}
+
+/** An SEC document as text, not cached: for a file read once and reduced (a daily index). */
+export async function secGet(url: string): Promise<string> {
+  return (await secFetch(url)).text();
 }
 
 /** A small SEC document as text, cached at `file` (refetched when older than `maxAgeDays`). */

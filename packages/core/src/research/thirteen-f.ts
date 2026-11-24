@@ -444,7 +444,7 @@ export function noteSymbol(latest: Map<string, FtdSymbol>, row: { cusip: string 
   if (!had || row.date >= had.date) latest.set(row.cusip, { symbol: row.symbol, date: row.date, description: row.description });
 }
 
-const FUND_NAME = /\b(ETF|ETN|FUND|FD|ISHARES|SPDR|PROSHARES)\b/i;
+export const FUND_NAME = /\b(ETF|ETN|FUND|FD|ISHARES|SPDR|PROSHARES)\b/i;
 
 /**
  * The ticker to fetch bars for: OpenFIGI's US listing when it has one (it
