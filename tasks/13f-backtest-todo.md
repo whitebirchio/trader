@@ -83,11 +83,11 @@
 - **Depends on:** T4 · **Scope:** S
 
 ## Checkpoint B
-- [ ] Scott reads the report and decides how the routine treats `13f`.
+- [x] Scott reads the report and decides how the routine treats `13f`. Scott (2026-11-23): like insider buying. A 13F can lead a thesis sized at 5–10%, with a second, independent kind of evidence, and only a big new position (new in a manager's top five at 5%+ of the book) counts.
 
 ### T6: The finding into the routine
-- [ ] `agent/routine-prompt.md` and the MCP server instructions state Scott's direction. `get_rules` gains it if it's a rule.
-- [ ] Docs: the plan ticked, SPEC-agent if the evidence rules change.
+- [x] `agent/routine-prompt.md` and the MCP server instructions state Scott's direction. `get_rules` unchanged: it's guidance, not a rule code enforces, and the other evidence directions aren't there either.
+- [x] Docs: the plan ticked. SPEC-agent unchanged: it doesn't record the owner's evidence directions.
 - [ ] Merge. The prompt ships on merge; RemoteTrigger only if the routine's stub text changes.
 - **Depends on:** Checkpoint B · **Scope:** S
 
