@@ -9,7 +9,7 @@ import { createServer } from "./server.js";
 
 // Clients live outside the handler so warm invocations reuse them (and SEC's ticker map).
 const ssm = new SSMClient({});
-const filings = new SecFilings();
+let filings: { userAgent: string; client: SecFilings } | null = null;
 
 function required(name: string): string {
   const value = process.env[name];
@@ -30,7 +30,11 @@ const server = createServer({
   // every environment: the MCP server never touches an account, so production's
   // holds no live-account credential (review finding R1).
   makeBroker: (config) => new MarketDataOnly(new AlpacaBroker({ env: "staging", keyId: config.alpaca.keyId, secretKey: config.alpaca.secretKey })),
-  filings,
+  makeFilings(config) {
+    if (!config.secUserAgent) return undefined;
+    if (filings?.userAgent !== config.secUserAgent) filings = { userAgent: config.secUserAgent, client: new SecFilings(config.secUserAgent) };
+    return filings.client;
+  },
   now: () => new Date(),
   log: (level, message, detail) => console[level === "error" ? "error" : "log"](JSON.stringify({ level, message, ...detail })),
 });

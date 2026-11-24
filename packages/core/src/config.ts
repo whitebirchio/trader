@@ -13,6 +13,12 @@ export interface Config {
    * recovery). Optional: without it check-routine alerts and doesn't retry.
    */
   routineFireTokens: Record<string, string> | null;
+  /**
+   * The contact SEC asks automated clients to send as their user agent
+   * ("name email"). Optional: without it nothing reads SEC (the filings check
+   * skips, and the tools report the gap). The owner's to set, never in code.
+   */
+  secUserAgent: string | null;
 }
 
 export type ConfigResult =
@@ -24,9 +30,10 @@ export type ConfigResult =
 /**
  * The MCP server's own SSM parameters (least privilege, review finding R1).
  * Its IAM role (infra) reads exactly these names, and apps/mcp loads exactly
- * these: never the engine's DATABASE_URL or Alpaca keys.
+ * these: never the engine's DATABASE_URL or Alpaca keys. SEC_USER_AGENT is
+ * shared with the engine: a contact, not a credential.
  */
-export const MCP_PARAMETERS = ["MCP_DATABASE_URL", "MCP_ALPACA_KEY_ID", "MCP_ALPACA_SECRET_KEY", "MCP_TOKEN", "MCP_PASSPHRASE", "MCP_SIGNING_KEY"] as const;
+export const MCP_PARAMETERS = ["MCP_DATABASE_URL", "MCP_ALPACA_KEY_ID", "MCP_ALPACA_SECRET_KEY", "MCP_TOKEN", "MCP_PASSPHRASE", "MCP_SIGNING_KEY", "SEC_USER_AGENT"] as const;
 
 /**
  * The engine's own SSM parameters, read by name like MCP_PARAMETERS. Its IAM
@@ -34,7 +41,7 @@ export const MCP_PARAMETERS = ["MCP_DATABASE_URL", "MCP_ALPACA_KEY_ID", "MCP_ALP
  * dashboard's: each decrypted SecureString is a KMS request, and reading the
  * whole path decrypted all of them on every tick.
  */
-export const ENGINE_PARAMETERS = ["DATABASE_URL", "ALPACA_KEY_ID", "ALPACA_SECRET_KEY", "ALPHAVANTAGE_API_KEY", "ROUTINE_FIRE_TOKENS"] as const;
+export const ENGINE_PARAMETERS = ["DATABASE_URL", "ALPACA_KEY_ID", "ALPACA_SECRET_KEY", "ALPHAVANTAGE_API_KEY", "ROUTINE_FIRE_TOKENS", "SEC_USER_AGENT"] as const;
 
 const VARS = {
   TRADING_ENV: z.enum(TRADING_ENVS),
@@ -60,6 +67,8 @@ const routineFireTokens = z
 const OPTIONAL = {
   ALPHAVANTAGE_API_KEY: z.string().regex(/^[A-Za-z0-9]{8,64}$/),
   ROUTINE_FIRE_TOKENS: routineFireTokens,
+  /** "Name contact@example.com": a name, a space, an email address. */
+  SEC_USER_AGENT: z.string().max(200).regex(/^[\x20-\x7e]*[^\s@] +[^\s@]+@[^\s@]+\.[^\s@]+$/),
 } as const;
 
 type VarName = keyof typeof VARS | keyof typeof OPTIONAL;
@@ -99,6 +108,7 @@ export function parseConfig(env: Partial<Record<VarName, unknown>>): ConfigResul
       },
       alphaVantageKey: typeof env.ALPHAVANTAGE_API_KEY === "string" && env.ALPHAVANTAGE_API_KEY !== "" ? env.ALPHAVANTAGE_API_KEY : null,
       routineFireTokens: typeof env.ROUTINE_FIRE_TOKENS === "string" && env.ROUTINE_FIRE_TOKENS !== "" ? OPTIONAL.ROUTINE_FIRE_TOKENS.parse(env.ROUTINE_FIRE_TOKENS) : null,
+      secUserAgent: typeof env.SEC_USER_AGENT === "string" && env.SEC_USER_AGENT !== "" ? env.SEC_USER_AGENT : null,
     },
   };
 }

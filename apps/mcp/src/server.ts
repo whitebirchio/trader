@@ -42,8 +42,8 @@ export interface ServerDeps {
   loadEnv(): Promise<Record<string, unknown>>;
   openDb(config: Config): Promise<{ db: Db; close(): Promise<void> }>;
   makeBroker(config: Config): BrokerAdapter;
-  /** SEC filings for check_eligibility's earnings screen (optional). */
-  filings?: FilingsPort;
+  /** SEC filings for check_eligibility's earnings screen, when SEC's contact (SEC_USER_AGENT) is configured. */
+  makeFilings?(config: Config): FilingsPort | undefined;
   now(): Date;
   log(level: "info" | "error", message: string, detail?: Record<string, unknown>): void;
 }
@@ -224,7 +224,7 @@ export function createServer(deps: ServerDeps) {
       let session: { db: Db; close(): Promise<void> } | null = null;
       const toolDeps = async (): Promise<ToolDeps> => {
         session ??= await deps.openDb(config);
-        return { db: session.db, broker: deps.makeBroker(config), env: config.tradingEnv, now: deps.now(), filings: deps.filings };
+        return { db: session.db, broker: deps.makeBroker(config), env: config.tradingEnv, now: deps.now(), filings: deps.makeFilings?.(config) };
       };
       const methods = rpcMethods(async (name, args) => {
         const started = Date.now();

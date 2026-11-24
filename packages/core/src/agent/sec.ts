@@ -60,15 +60,17 @@ export class SecRefusedError extends Error {
   }
 }
 
-/** SEC asks automated clients to identify themselves as "name email"; data.sec.gov refuses others. */
-export const SEC_USER_AGENT = "Scott Schmalz scott.schmalz@gmail.com";
-
 export class SecFilings implements FilingsPort, FilingsFeedPort {
   private tickers: Promise<Map<string, string>> | null = null;
 
+  /**
+   * `userAgent` is the contact SEC asks automated clients to send ("name
+   * email"; data.sec.gov refuses others): config's `secUserAgent`, from SSM,
+   * never written in the code.
+   */
   constructor(
+    private readonly userAgent: string,
     private readonly fetchFn: typeof fetch = fetch,
-    private readonly userAgent = SEC_USER_AGENT,
     private readonly timeoutMs = 10_000,
   ) {}
 

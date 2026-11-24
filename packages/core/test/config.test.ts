@@ -22,6 +22,7 @@ describe("parseConfig", () => {
         alpaca: { keyId: KEY_ID, secretKey: SECRET_KEY },
         alphaVantageKey: null,
         routineFireTokens: null,
+        secUserAgent: null,
       },
     });
   });
@@ -41,6 +42,14 @@ describe("parseConfig", () => {
     expect(parseConfig({ ...valid, ALPHAVANTAGE_API_KEY: "ABCD1234EFGH5678" })).toMatchObject({ ok: true, config: { alphaVantageKey: "ABCD1234EFGH5678" } });
     expect(parseConfig({ ...valid, ALPHAVANTAGE_API_KEY: "" })).toMatchObject({ ok: true, config: { alphaVantageKey: null } });
     expect(parseConfig({ ...valid, ALPHAVANTAGE_API_KEY: "not a key!" })).toEqual({ ok: false, missing: [], invalid: ["ALPHAVANTAGE_API_KEY"] });
+  });
+
+  it("takes SEC's contact as an optional \"name email\", and fails closed on one that isn't", () => {
+    expect(parseConfig({ ...valid, SEC_USER_AGENT: "Trader Test contact@example.com" })).toMatchObject({ ok: true, config: { secUserAgent: "Trader Test contact@example.com" } });
+    expect(parseConfig({ ...valid, SEC_USER_AGENT: "" })).toMatchObject({ ok: true, config: { secUserAgent: null } });
+    for (const bad of ["contact@example.com", "Trader Test", "Trader contact@example", "Trader\ncontact@example.com"]) {
+      expect(parseConfig({ ...valid, SEC_USER_AGENT: bad })).toEqual({ ok: false, missing: [], invalid: ["SEC_USER_AGENT"] });
+    }
   });
 
   it("accepts postgres:// as well as postgresql://", () => {

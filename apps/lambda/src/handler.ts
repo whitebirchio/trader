@@ -34,8 +34,8 @@ export interface HandlerDeps {
   makeEarnings?(config: Config): EarningsCalendarPort | undefined;
   /** Alpha Vantage's earnings history for the backfill (#105), when a key is configured. */
   makeEarningsHistory?(config: Config): (EarningsHistoryPort & EstimatesPort) | undefined;
-  /** SEC EDGAR for the filings check (#105); one per container, so SEC's ticker map loads once. */
-  filings?: FilingsFeedPort;
+  /** SEC EDGAR for the filings check (#105), when SEC's contact (SEC_USER_AGENT) is configured; one per container, so SEC's ticker map loads once. */
+  makeFilings?(config: Config): FilingsFeedPort | undefined;
   /** The routines API, when routine tokens are configured (SPEC-agent § Missed-run recovery). */
   makeRoutineFirer?(config: Config): RoutineFirer | undefined;
   now(): Date;
@@ -96,7 +96,7 @@ export function createHandler(deps: HandlerDeps) {
     const results: unknown[] = [];
     try {
       for (const job of requested.filter(isJobName)) {
-        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now, earnings, earningsHistory, estimates: earningsHistory, filings: deps.filings, routineFirer }, job, scheduledFor);
+        const outcome = await runJob({ db, env: config.tradingEnv, broker, mailer, now: deps.now, earnings, earningsHistory, estimates: earningsHistory, filings: deps.makeFilings?.(config), routineFirer }, job, scheduledFor);
         deps.log("info", "job", { job, scheduledFor: scheduledFor.toISOString(), ...outcome });
         results.push({ job, ...outcome });
       }

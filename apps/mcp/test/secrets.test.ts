@@ -23,7 +23,7 @@ describe("loadMcpParameters", () => {
 
 describe("mcpEnv", () => {
   it("maps the MCP parameters onto the names parseConfig and the auth module read", () => {
-    expect(mcpEnv({ MCP_DATABASE_URL: "db", MCP_ALPACA_KEY_ID: "k", MCP_ALPACA_SECRET_KEY: "s", MCP_TOKEN: "t", MCP_PASSPHRASE: "p", MCP_SIGNING_KEY: "g" }, "production")).toEqual({
+    expect(mcpEnv({ MCP_DATABASE_URL: "db", MCP_ALPACA_KEY_ID: "k", MCP_ALPACA_SECRET_KEY: "s", MCP_TOKEN: "t", MCP_PASSPHRASE: "p", MCP_SIGNING_KEY: "g", SEC_USER_AGENT: "u" }, "production")).toEqual({
       TRADING_ENV: "production",
       DATABASE_URL: "db",
       ALPACA_KEY_ID: "k",
@@ -31,6 +31,7 @@ describe("mcpEnv", () => {
       MCP_TOKEN: "t",
       MCP_PASSPHRASE: "p",
       MCP_SIGNING_KEY: "g",
+      SEC_USER_AGENT: "u",
     });
   });
 });

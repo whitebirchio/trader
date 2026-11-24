@@ -30,6 +30,7 @@ export function mcpEnv(values: Record<string, string>, tradingEnv: string | unde
     MCP_TOKEN: values.MCP_TOKEN,
     MCP_PASSPHRASE: values.MCP_PASSPHRASE,
     MCP_SIGNING_KEY: values.MCP_SIGNING_KEY,
+    SEC_USER_AGENT: values.SEC_USER_AGENT,
   };
 }
 
