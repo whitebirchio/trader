@@ -43,7 +43,7 @@ apps/engine/
 
 ### Lambda and schedules
 
-- **One function per environment:** `trader-engine-staging` and `trader-engine-production`. Bundled by CDK's `NodejsFunction` (esbuild), Node 22, arm64, 512 MB, 5-minute timeout. Environment variables carry only non-secrets: `TRADING_ENV`, `NOTIFY_FROM`, `NOTIFY_TO`, and the SSM path.
+- **One function per environment:** `trader-engine-staging` and `trader-engine-production`. Bundled by CDK's `NodejsFunction` (esbuild), Node 22, arm64, 512 MB, 5-minute timeout. Environment variables carry only non-secrets: `TRADING_ENV`, `NOTIFY_FROM`, `NOTIFY_TO`, and the SSM path. `NOTIFY_TO`, like the dashboard's `OWNER_EMAIL`, the owner's SES identity and the alarm subscription, is the owner's address: not in the code, but read at deploy time from the address in `/trader/production/SEC_USER_AGENT` (`infra/scripts/with-owner-email.sh`; a plain synth uses `owner@example.com`, which the deploy refuses).
 - **Schedules:** an EventBridge Scheduler schedule `cron(0/15 * * * ? *)`, with input `{"jobs": [...], "scheduledTime": "<aws.scheduler.scheduled-time>"}`. The scheduled time feeds `slotFor()`, so idempotency per `(job, slot)` works exactly as before (ADR-007). Retries are allowed: a retried delivery is a recorded no-op. `portfolio` can later add its own schedule (e.g. for `rebalance`) without plan limits.
 - **Fail closed, unchanged:** invalid config or missing SSM parameters mean no jobs run, an error log entry, the error alarm fires, and `/healthz` returns 503 naming what's missing.
 
@@ -58,7 +58,7 @@ apps/engine/
 
 ### Email (SES)
 
-- **CDK creates the identities.** The domain identity `whitebirch.io` (Easy DKIM, 3 CNAME records) and the email identity `scott.schmalz@gmail.com`. You click one SES verification email. The stack outputs the 3 DKIM CNAMEs, and you add them in Cloudflare DNS **DNS-only**.
+- **CDK creates the identities.** The domain identity `whitebirch.io` (Easy DKIM, 3 CNAME records) and the email identity for the owner's address (`OWNER_EMAIL`, from SSM at deploy). You click one SES verification email. The stack outputs the 3 DKIM CNAMEs, and you add them in Cloudflare DNS **DNS-only**.
 - **Stays in the SES sandbox on purpose.** In the sandbox SES can only send to verified addresses, which is exactly Trader's rule ("only email the owner"). The IAM policy also pins `ses:FromAddress` to `trader@whitebirch.io`.
 - **`SesMailer` implements the existing `Mailer` port,** so the outbox, routing, composition and suppression are untouched. Sending from SES doesn't touch inbound mail: the Cloudflare Email Routing MX and catch-all stay as they are.
 
@@ -135,7 +135,7 @@ npm run invoke -w trader-lambda -- --env production --jobs heartbeat,sync-broker
 ## Resolved Questions (2026-10-31)
 
 1. **AWS credentials:** a CLI profile **`whitebirch`**, through **IAM Identity Center** (SSO) with an `AdministratorAccess` permission set. That gives short-lived credentials, refreshed with `aws sso login --profile whitebirch`. No root access keys. All commands, scripts and CDK use `--profile whitebirch` locally. CI uses the OIDC role, not this profile.
-2. **Alarm email:** CloudWatch → SNS → `scott.schmalz@gmail.com`, kept separate from Trader's own email path, so alarms still arrive if Trader's email breaks.
+2. **Alarm email:** CloudWatch → SNS → the owner's address, kept separate from Trader's own email path, so alarms still arrive if Trader's email breaks.
 
 ## Amendment (2026-11-11): staging retired (ADR-018)
 

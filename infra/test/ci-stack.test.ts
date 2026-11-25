@@ -32,7 +32,7 @@ describe("TraderCi", () => {
     });
   });
 
-  it("can only assume CDK's bootstrap roles", () => {
+  it("can only assume CDK's bootstrap roles, and read the owner's contact for the deploy", () => {
     const policies = template.findResources("AWS::IAM::Policy");
     const statements = Object.values(policies).flatMap(
       (p) => (p as { Properties: { PolicyDocument: { Statement: unknown[] } } }).Properties.PolicyDocument.Statement,
@@ -43,6 +43,12 @@ describe("TraderCi", () => {
         Effect: "Allow",
         Action: "sts:AssumeRole",
         Resource: "arn:aws:iam::111111111111:role/cdk-hnb659fds-*-111111111111-us-east-1",
+      },
+      {
+        Sid: "ReadOwnerContact",
+        Effect: "Allow",
+        Action: "ssm:GetParameter",
+        Resource: "arn:aws:ssm:us-east-1:111111111111:parameter/trader/production/SEC_USER_AGENT",
       },
     ]);
   });

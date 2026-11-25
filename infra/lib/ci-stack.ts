@@ -6,7 +6,8 @@ import { CDK_QUALIFIER, GITHUB_OIDC_SUBJECT_PREFIX } from "./config.js";
 /**
  * GitHub Actions → AWS without long-lived keys (SPEC-platform-aws). Deployed
  * once by the owner. The role can do nothing itself except assume CDK's
- * bootstrap roles, which perform the deploy: CDK's least-privilege pattern.
+ * bootstrap roles, which perform the deploy (CDK's least-privilege pattern),
+ * and read the owner's contact for it.
  */
 export class CiStack extends Stack {
   readonly deployRole: iam.Role;
@@ -35,6 +36,17 @@ export class CiStack extends Stack {
         sid: "AssumeCdkBootstrapRoles",
         actions: ["sts:AssumeRole"],
         resources: [`arn:aws:iam::${this.account}:role/cdk-${CDK_QUALIFIER}-*-${this.account}-${this.region}`],
+      }),
+    );
+
+    // The owner's address for the deploy (infra/scripts/with-owner-email.sh):
+    // this one parameter, never the rest of /trader/production/. aws/ssm
+    // decrypts it through SSM by the key's own policy.
+    this.deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "ReadOwnerContact",
+        actions: ["ssm:GetParameter"],
+        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/trader/production/SEC_USER_AGENT`],
       }),
     );
   }

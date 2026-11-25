@@ -66,7 +66,7 @@ Order matters. Steps marked *(you)* need your registrar or Cloudflare login. I'l
 3. *(you)* **Add whitebirch.io to Cloudflare** (Free plan). Cloudflare imports the records it can find. I'll compare them against the inventory, record by record.
    - The GitHub Pages records stay **DNS-only** (grey cloud), so GitHub keeps managing the site's HTTPS certificate.
    - The GitHub challenge TXT is kept as is.
-4. *(you)* **Set up Email Routing** in Cloudflare: verify `scott.schmalz@gmail.com` (you'll get one click-to-confirm email), and recreate today's forwarding: a **catch-all** (every @whitebirch.io address → your Gmail). Cloudflare then replaces the Mailgun MX/SPF records with its own. The Mailgun DKIM (`k1._domainkey`) can be dropped.
+4. *(you)* **Set up Email Routing** in Cloudflare: verify the owner's address (you'll get one click-to-confirm email), and recreate today's forwarding: a **catch-all** (every @whitebirch.io address → your Gmail). Cloudflare then replaces the Mailgun MX/SPF records with its own. The Mailgun DKIM (`k1._domainkey`) can be dropped.
 5. *(you)* **Switch nameservers** at the registrar to the two Cloudflare gives you. During propagation (minutes to a day), mail arrives through either path, and both forward to Gmail.
 6. **Verify.** I'll check through Cloudflare's nameservers that the site, the GitHub challenge and the MX records resolve. You send a test email to a forwarded address from another account. Then *(you)* re-enable DNSSEC in Cloudflare and add its DS record at the registrar.
 
