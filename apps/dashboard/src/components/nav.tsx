@@ -16,18 +16,15 @@ const NAV = [
   ["/performance", "Performance"],
   ["/positions", "Positions"],
   ["/ideas", "Ideas"],
-  ["/holdings", "Holdings"],
+  ["/history", "History"],
   ["/money", "Money"],
-  ["/strategy", "Strategy"],
-  ["/track-record", "Track record"],
-  ["/activity", "Activity"],
 ] as const;
 
 const STALE_AFTER_MS = 60_000;
 
-/** The menu entry a path belongs to (a thesis page sits under the track record). */
+/** The menu entry a path belongs to (a thesis page sits under History). */
 export function activeHref(pathname: string): string {
-  if (pathname.startsWith("/theses/")) return "/track-record";
+  if (pathname.startsWith("/theses/")) return "/history";
   return NAV.map(([href]) => href).find((href) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`))) ?? "";
 }
 

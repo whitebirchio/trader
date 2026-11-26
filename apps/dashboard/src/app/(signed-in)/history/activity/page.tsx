@@ -63,7 +63,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         {RANGES.map((d) => (
           <Link
             key={d}
-            href={`/activity?days=${d}`}
+            href={`/history/activity?days=${d}`}
             aria-current={d === days ? "true" : undefined}
             className={`flex min-h-11 items-center rounded-md px-3 sm:min-h-0 sm:px-2.5 sm:py-1 ${d === days ? "bg-[var(--text)] text-[var(--background)]" : "hover:bg-[var(--border)]"}`}
           >

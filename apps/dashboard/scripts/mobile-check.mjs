@@ -171,8 +171,8 @@ async function pageList(browser) {
     const links = await page.$$eval("a[href]", (as) => as.map((a) => a.getAttribute("href")));
     return links.find((h) => h && pattern.test(h)) ?? null;
   };
-  const version = await href("/strategy", /^\/strategy\/\d+$/);
-  const thesis = await href("/track-record", /^\/theses\/[a-z0-9-]+$/);
+  const version = await href("/history/strategy", /^\/history\/strategy\/\d+$/);
+  const thesis = await href("/history", /^\/theses\/[a-z0-9-]+$/);
   await page.close();
   return [
     "/",
@@ -181,15 +181,15 @@ async function pageList(browser) {
     "/performance?range=7d",
     "/positions",
     "/ideas",
-    "/holdings",
+    "/history",
+    "/history/activity",
+    "/history/strategy",
+    ...(version ? [version] : []),
+    "/history/forecasts",
     "/money",
     // The confirmation step only renders on a GET; nothing is queued without its POST form.
     "/money/confirm?kind=cancel",
     "/money/confirm?kind=request&amount=500",
-    "/strategy",
-    ...(version ? [version] : []),
-    "/track-record",
-    "/activity",
     ...(thesis ? [thesis, `${thesis}?range=1y`] : []),
     "/login",
   ];
@@ -200,8 +200,17 @@ let failed = 0;
 try {
   console.error(`starting next dev on :${PORT} (production data, read only; dev sign-in)…`);
   await waitFor(`${BASE}/login`, 120_000);
-  await warm(["/", "/performance", "/positions", "/ideas", "/holdings", "/money", "/strategy", "/track-record", "/activity", "/login"]);
+  await warm(["/", "/performance", "/positions", "/ideas", "/history", "/history/activity", "/history/strategy", "/history/forecasts", "/money", "/login"]);
   rmSync(OUT, { recursive: true, force: true });
+  // The retired pages' URLs land on their new homes (SPEC-dashboard Amendment 3), query string kept.
+  console.log("\nredirects");
+  for (const [from, to] of [["/holdings", "/positions"], ["/track-record", "/history"], ["/activity?days=30", "/history/activity?days=30"], ["/strategy", "/history/strategy"]]) {
+    const res = await fetch(`${BASE}${from}`, { redirect: "manual" });
+    const location = res.headers.get("location") ?? "";
+    const ok = res.status === 308 && location.endsWith(to);
+    if (!ok) failed++;
+    console.log(`  ${ok ? "ok  " : "FAIL"} ${from} → ${location || res.status}`);
+  }
   let pages = null;
   for (const vp of VIEWPORTS) {
     const browser = await vp.engine.launch();
