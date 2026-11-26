@@ -30,6 +30,7 @@ describe("schema", () => {
       "earnings_history",
       "earnings_history_fetches",
       "equity_snapshots",
+      "extended_prices",
       "job_runs",
       "notification_items",
       "notifications",

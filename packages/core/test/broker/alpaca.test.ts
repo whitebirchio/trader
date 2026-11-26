@@ -105,6 +105,13 @@ describe("AlpacaBroker", () => {
     expect(mon?.close.toISOString()).toBe("2026-11-02T21:00:00.000Z"); // EST
   });
 
+  it("reads the extended session's times when the calendar gives them", async () => {
+    const { b } = broker({ "/v2/calendar": () => ({ body: [{ date: "2026-11-27", open: "09:30", close: "13:00", session_open: "0400", session_close: "1700" }] }) });
+    const [half] = await b.getCalendar("2026-11-27", "2026-11-27");
+    expect(half?.sessionOpen?.toISOString()).toBe("2026-11-27T09:00:00.000Z");
+    expect(half?.sessionClose?.toISOString()).toBe("2026-11-27T22:00:00.000Z");
+  });
+
   it("parses positions, an order and a fill (synthetic, schema-shaped)", async () => {
     const { b } = broker({
       "/v2/positions": () => ({
@@ -248,5 +255,16 @@ describe("AlpacaBroker", () => {
     expect(bars.SPY?.length).toBeGreaterThan(0);
     expect(typeof bars.SPY?.[0]?.c).toBe("string");
     expect(bars.VTI?.at(-1)).toMatchObject({ c: "300.75", o: "300.1" });
+  });
+
+  it("asks for raw daily bars, and one-minute bars as traded with the same delay (SPEC-dashboard Amendment 3)", async () => {
+    const { b, calls } = broker({ "/v2/stocks/bars": () => ({ body: { bars: { ICE: [{ t: "2026-11-02T17:30:00Z", o: 1, h: 1, l: 1, c: 177.4, v: 5 }] }, next_page_token: null } }) });
+    await b.getDailyBars(["ICE"], new Date("2026-10-26T00:00:00Z"), new Date("2026-11-02T20:00:00Z"), { adjustment: "raw" });
+    expect(calls[0]?.url.searchParams.get("adjustment")).toBe("raw");
+    const minutes = await b.getMinuteBars(["ICE"], new Date("2026-11-02T09:00:00Z"), new Date("2026-11-02T20:00:00Z"));
+    expect(calls[1]?.url.searchParams.get("timeframe")).toBe("1Min");
+    expect(calls[1]?.url.searchParams.get("adjustment")).toBe("raw");
+    expect(calls[1]?.url.searchParams.get("end")).toBe("2026-11-02T17:44:00.000Z");
+    expect(minutes.ICE?.[0]).toMatchObject({ c: "177.4" });
   });
 });

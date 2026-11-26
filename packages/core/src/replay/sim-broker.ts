@@ -251,6 +251,11 @@ export class SimBroker implements BrokerAdapter {
     return { timestamp: this.now, isOpen, nextOpen: next?.open ?? this.now, nextClose };
   }
 
+  /** The replay has daily bars only: no extended-hours prices. */
+  async getMinuteBars(): Promise<Record<string, Bar[]>> {
+    return {};
+  }
+
   async getCalendar(start: string, end: string): Promise<CalendarDay[]> {
     return this.market.calendar.filter((d) => d.date >= start && d.date <= end);
   }

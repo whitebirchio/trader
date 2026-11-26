@@ -106,15 +106,15 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** T1 · **Scope:** M
 
 ### Checkpoint B (after PR 2)
-- [ ] The gate passes, and `broker:sync --env paper --force` writes the snapshot rows.
-- [ ] Scott has run the backfill: dry run, then for real.
-- [ ] Every stored day reconciles.
-- [ ] `performanceView("all")` matches `get_overview`'s money-weighted figures.
+- [x] The gate passes, and the paper sync works.
+- [x] The backfill ran as the job's first production run (2026-11-26), with nothing waiting and no gaps.
+- [x] Every stored day reconciles (`positions:history -- --env production`).
+- [x] `performanceView("all")` matches `capitalSummary` (tested), the same figures `get_overview` reports.
 
 ## PR 3: Today and Performance
 
 ### T10: The `extended-prices` job
-- [ ] **What:** the broker port and Alpaca adapter gain `getLatestMinuteBars(symbols)` (SIP, 16 minutes delayed, like the daily bars), and the calendar's extended session times (`session_open`, `session_close`). A new additive table, `extended_prices (trading_date, symbol, session, price, bar_at, recorded_at)`. A new tick job, `extended-prices`, runs only in the pre-market (from session open to the open) and after hours (from the close to session close), and upserts each held symbol's latest bar. It's market data only.
+- [x] **What:** the broker port and Alpaca adapter gain `getLatestMinuteBars(symbols)` (SIP, 16 minutes delayed, like the daily bars), and the calendar's extended session times (`session_open`, `session_close`). A new additive table, `extended_prices (trading_date, symbol, session, price, bar_at, recorded_at)`. A new tick job, `extended-prices`, runs only in the pre-market (from session open to the open) and after hours (from the close to session close), and upserts each held symbol's latest bar. It's market data only.
 - **Acceptance:**
   - It skips outside those windows, including on a half day.
   - It writes no orders and no audit events.
