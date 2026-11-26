@@ -9,9 +9,9 @@
     "test": "vitest run",
     "cdk": "cdk",
     "synth": "cdk synth --quiet",
-    "diff:production": "cdk diff TraderProduction",
+    "diff:production": "scripts/with-owner-email.sh cdk diff TraderProduction",
     "deploy:ci": "cdk deploy TraderCi",
-    "deploy:production": "cdk deploy TraderProduction --require-approval never"
+    "deploy:production": "scripts/with-owner-email.sh cdk deploy TraderProduction --require-approval never"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

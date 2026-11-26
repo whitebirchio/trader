@@ -7,6 +7,7 @@ import { ENGINE_PARAMETERS, MCP_PARAMETERS } from "@trader/core";
 import { describe, expect, it } from "vitest";
 import { CertsStack } from "../lib/certs-stack.js";
 import { EngineStack } from "../lib/engine-stack.js";
+import { OWNER_EMAIL_PLACEHOLDER, ownerEmail } from "../lib/config.js";
 
 const env = { account: "111111111111", region: "us-east-1" };
 
@@ -42,7 +43,7 @@ describe("EngineStack", () => {
           TRADING_ENV: "production",
           SECRETS_PATH: "/trader/production/",
           NOTIFY_FROM: "trader@whitebirch.io",
-          NOTIFY_TO: "scott.schmalz@gmail.com",
+          NOTIFY_TO: "owner@example.com", // OWNER_EMAIL is unset in tests: the placeholder
         },
       },
     });
@@ -121,7 +122,7 @@ describe("EngineStack", () => {
   it("owns the SES identities, retained so they outlive the stack (ADR-018)", () => {
     production.resourceCountIs("AWS::SES::EmailIdentity", 2);
     production.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "whitebirch.io" });
-    production.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "scott.schmalz@gmail.com" });
+    production.hasResourceProperties("AWS::SES::EmailIdentity", { EmailIdentity: "owner@example.com" });
     for (const r of Object.values(production.findResources("AWS::SES::EmailIdentity"))) expect(r).toMatchObject({ DeletionPolicy: "Retain", UpdateReplacePolicy: "Retain" });
   });
 
@@ -137,7 +138,14 @@ describe("EngineStack", () => {
     production.resourceCountIs("AWS::CloudWatch::Alarm", 3);
     production.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Errors", Threshold: 1, TreatMissingData: "notBreaching" });
     production.hasResourceProperties("AWS::CloudWatch::Alarm", { MetricName: "Invocations", ComparisonOperator: "LessThanThreshold", TreatMissingData: "breaching" });
-    production.hasResourceProperties("AWS::SNS::Subscription", { Protocol: "email", Endpoint: "scott.schmalz@gmail.com" });
+    production.hasResourceProperties("AWS::SNS::Subscription", { Protocol: "email", Endpoint: "owner@example.com" });
+  });
+
+  it("takes the owner's address from OWNER_EMAIL, never the code: a placeholder when unset, and a malformed one fails the synth", () => {
+    expect(ownerEmail(undefined)).toBe(OWNER_EMAIL_PLACEHOLDER);
+    expect(ownerEmail("")).toBe(OWNER_EMAIL_PLACEHOLDER);
+    expect(ownerEmail("someone@example.org")).toBe("someone@example.org");
+    expect(() => ownerEmail("Trader Test someone@example.org")).toThrow("OWNER_EMAIL is not an email address");
   });
 
   it("keeps logs for 30 days and tags everything", () => {

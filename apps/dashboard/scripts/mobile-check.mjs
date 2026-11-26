@@ -19,8 +19,9 @@ const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(APP, ".mobile");
 const PORT = 3100;
 const BASE = `http://localhost:${PORT}`;
-// Defaults mirror infra/lib/config.ts; set them in the environment if those change.
-const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "scott.schmalz@gmail.com";
+// The local server signs in as this address (DASHBOARD_DEV_EMAIL below), so any address works.
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "owner@example.com";
+// Mirrors infra/lib/config.ts; set it in the environment if that changes.
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? "944410438267-6jg5ik0qpm9t0q4430ja1kv6l3ncs7g9.apps.googleusercontent.com"; // not secret
 const MIN_TAP = 44;
 const MIN_INPUT_FONT = 16;
