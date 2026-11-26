@@ -1,19 +1,70 @@
-import { ideasView } from "@trader/core";
+import Link from "next/link";
+import { ideasView, positionsView } from "@trader/core";
+import { ExitList } from "@/components/exits";
 import { Info } from "@/components/info";
 import { SankeyChart } from "@/components/sankey";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, Signed } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
-import { formatDays, formatPts, safeHref, shortDate } from "@/lib/format";
+import { formatDays, formatPct, formatPts, formatSignedUsd, formatUsd, safeHref, shortDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 /** Ideas (SPEC-dashboard Amendment 3): what the routine is watching, what would make each a buy, and how ideas have turned out. */
 export default async function IdeasPage() {
   const { db } = await signedIn();
-  const v = await ideasView(db, new Date());
+  const now = new Date();
+  const [v, positions] = await Promise.all([ideasView(db, now), positionsView(db, now)]);
+  const invested = positions.cards.filter((c) => c.thesisId);
   const when = (days: number, due: boolean) => (due ? "due now" : days === 0 ? "today" : `in ${formatDays(days)}`);
   return (
     <div className="grid grid-cols-1 gap-4">
+      <Card title={`Invested (${invested.length})`}>
+        {invested.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">No bets held right now.</p>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]">
+            {invested.map((c) => (
+              <li key={c.symbol} className="py-3 text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="flex items-baseline gap-2">
+                    <Link href={`/theses/${c.thesisId}`} className="font-semibold">
+                      {c.symbol}
+                    </Link>
+                    <span className="rounded-md bg-[var(--portfolio)] px-1.5 py-0.5 text-xs font-medium text-white">Invested</span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <Signed value={c.pnl}>{formatSignedUsd(c.pnl)}</Signed>
+                    {c.returnPct && <span className="ml-1 text-xs text-[var(--muted)]">{formatPct(c.returnPct)}</span>}
+                  </span>
+                </div>
+                {c.headline && (
+                  <p className="mt-1">
+                    {c.headline.text}
+                    {c.headline.fallback && <span className="ml-1 text-[var(--muted)]">(summary)</span>}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {formatUsd(c.value)} · {formatPct(c.weightPct, 1, false)} of the account
+                </p>
+                {c.exits && (
+                  <div className="mt-2">
+                    <p className="text-[var(--muted)]">When it sells:</p>
+                    <div className="mt-1">
+                      <ExitList exits={c.exits} />
+                    </div>
+                  </div>
+                )}
+                {c.forecast && (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    Forecast: {c.forecast.beatVtiPct}% chance it beats VTI{c.forecast.horizon ? ` by ${shortDate(c.forecast.horizon)}` : ""} (expected {formatPts(c.forecast.expectedExcessPct)}) <Info term="forecast" />
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <Card title={`Watching (${v.open.length})`}>
         {v.open.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">Nothing on the watchlist.</p>
@@ -22,7 +73,10 @@ export default async function IdeasPage() {
             {v.open.map((c) => (
               <li key={c.symbol} className="py-3 text-sm">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-semibold">{c.symbol}</span>
+                  <span className="flex items-baseline gap-2">
+                    <span className="font-semibold">{c.symbol}</span>
+                    <span className="rounded-md border border-[var(--border)] px-1.5 py-0.5 text-xs text-[var(--muted)]">Watching</span>
+                  </span>
                   <span className="shrink-0 text-xs text-[var(--muted)]">
                     next look {shortDate(c.revisitBy)} ({when(c.daysToRevisit, c.due)})
                   </span>

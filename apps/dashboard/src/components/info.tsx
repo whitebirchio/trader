@@ -9,15 +9,16 @@ export function Info({ term }: { term: GlossaryTerm }) {
   const id = useId();
   const entry = GLOSSARY[term];
   return (
-    <span className="relative inline-block align-middle">
+    <span className="relative inline-block align-middle text-sm font-normal">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={id}
         aria-label={`What "${entry.term}" means`}
         onClick={() => setOpen((o) => !o)}
-        // A 44 px tap target on phones, pulled in by negative margins so it doesn't stretch the line it sits in.
-        className="-mx-2.5 -my-3 inline-flex size-11 items-center justify-center text-[var(--muted)] hover:text-[var(--text)] sm:m-0 sm:size-6"
+        // A 44 px tap target on phones, pulled in by negative margins so it doesn't stretch the line it
+        // sits in; a fixed small size (not the surrounding text's), a gap before it, and a pointer cursor.
+        className="-my-3 -mr-2.5 ml-0.5 inline-flex size-11 cursor-pointer items-center justify-center align-middle text-sm font-normal leading-none text-[var(--muted)] hover:text-[var(--text)] sm:my-0 sm:mr-0 sm:ml-1.5 sm:size-5"
       >
         ⓘ
       </button>

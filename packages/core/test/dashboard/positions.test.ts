@@ -67,6 +67,8 @@ describe("positionsView", () => {
     const aapl = v.cards[0]!;
     expect(aapl).toMatchObject({ value: "175", weightPct: "17.95", targetPct: "20", thesisId: "aapl-services", headline: { text: "Buying Apple because services keep compounding", fallback: false } });
     expect(aapl.exits).toMatchObject({ stop: { price: "170", belowPct: "2.86" }, review: { date: "2026-12-15" } });
+    // The fixture's forecast has no horizon of its own when a review date is set: it runs to the review date.
+    expect(aapl.forecast).toEqual({ beatVtiPct: 55, expectedExcessPct: "4", horizon: "2026-12-15" });
     // 2.86% above the stop, and 12.5 points behind VTI since entry.
     expect(aapl.exits!.flags.map((f) => f.flag)).toEqual(expect.arrayContaining(["near_stop", "lagging_vti"]));
     expect(v.cards[1]).toMatchObject({ symbol: "VTI", thesisId: null, headline: null, exits: null, pnl: "0", vsVti: null });

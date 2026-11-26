@@ -55,9 +55,10 @@ describe("positionsPnl", () => {
     if (r.status !== "ok") throw new Error("unavailable");
     expect(r.positions).toEqual([
       // ICE: 256.20 → 0, sold for 262.50: +6.30. VTI: 602.20 → 459.00, sold 0.5 for 151: +7.80. DAL: bought 80, worth 83: +3.
-      { symbol: "VTI", valueStart: "602.20", valueEnd: "459.00", netBought: "-151.00", pnl: "7.80" },
-      { symbol: "ICE", valueStart: "256.20", valueEnd: "0.00", netBought: "-262.50", pnl: "6.30" },
-      { symbol: "DAL", valueStart: "0.00", valueEnd: "83.00", netBought: "80.00", pnl: "3.00" },
+      // The percentage is on the dollars at stake: the start value plus what was bought in the range.
+      { symbol: "VTI", valueStart: "602.20", valueEnd: "459.00", netBought: "-151.00", pnl: "7.80", atStake: "602.20", returnPct: "1.30" },
+      { symbol: "ICE", valueStart: "256.20", valueEnd: "0.00", netBought: "-262.50", pnl: "6.30", atStake: "256.20", returnPct: "2.46" },
+      { symbol: "DAL", valueStart: "0.00", valueEnd: "83.00", netBought: "80.00", pnl: "3.00", atStake: "80.00", returnPct: "3.75" },
     ]);
     // The dividend lands in cashAndOther; after-close pricing moved from −0.20 to +0.30.
     expect(r).toMatchObject({ afterClosePricing: "0.50", cashAndOther: "0.37", total: "17.97" });

@@ -82,6 +82,8 @@ export interface PositionCard {
   /** The same dollars in VTI over the same days; null for VTI itself. */
   vsVti: { pnl: string; excess: string; excessPct: string } | null;
   exits: Exits | null;
+  /** The routine's forecast for the thesis: the chance it beats VTI by the horizon (its review date by default). */
+  forecast: { beatVtiPct: number; expectedExcessPct: string; horizon: string | null } | null;
 }
 
 const closesAsBars = (rows: { tradingDate: string; close: string }[]): Bar[] => rows.map((r) => ({ t: new Date(`${r.tradingDate}T17:00:00Z`), o: r.close, h: r.close, l: r.close, c: r.close, v: "0" }));
@@ -138,6 +140,7 @@ export async function positionsView(db: Db, now: Date): Promise<{ equity: string
         returnPct: row?.money?.returnPct ?? null,
         vsVti: row?.money ? { pnl: row.money.vtiPnl, excess: row.money.excess, excessPct: row.money.excessPct } : null,
         exits: exitsFor({ thesis, averageCost: cost, price: p.currentPrice, reaffirmedAt: active.reaffirmedAt, flags: held.flags, now }),
+        forecast: thesis.forecast ? { beatVtiPct: thesis.forecast.beatVtiPct, expectedExcessPct: thesis.forecast.expectedExcessPct, horizon: thesis.forecast.horizon ?? thesis.reviewBy ?? null } : null,
       });
     } else {
       const gain = sub(p.marketValue, p.costBasis);
@@ -152,6 +155,7 @@ export async function positionsView(db: Db, now: Date): Promise<{ equity: string
         returnPct: compare(p.costBasis, "0") > 0 ? round(mul(div(gain, p.costBasis, 12, "half-even"), "100"), 2, "half-even") : null,
         vsVti: null,
         exits: null,
+        forecast: null,
       });
     }
   }
