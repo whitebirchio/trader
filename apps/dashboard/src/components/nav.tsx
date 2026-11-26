@@ -12,7 +12,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
  * and the page refreshes itself when the app returns after a minute away.
  */
 const NAV = [
-  ["/", "Overview"],
+  ["/", "Today"],
+  ["/performance", "Performance"],
   ["/holdings", "Holdings"],
   ["/money", "Money"],
   ["/strategy", "Strategy"],

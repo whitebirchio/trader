@@ -176,6 +176,9 @@ async function pageList(browser) {
   await page.close();
   return [
     "/",
+    "/performance",
+    "/performance?range=1d",
+    "/performance?range=7d",
     "/holdings",
     "/money",
     // The confirmation step only renders on a GET; nothing is queued without its POST form.
@@ -195,7 +198,7 @@ let failed = 0;
 try {
   console.error(`starting next dev on :${PORT} (production data, read only; dev sign-in)…`);
   await waitFor(`${BASE}/login`, 120_000);
-  await warm(["/", "/holdings", "/money", "/strategy", "/track-record", "/activity", "/login"]);
+  await warm(["/", "/performance", "/holdings", "/money", "/strategy", "/track-record", "/activity", "/login"]);
   rmSync(OUT, { recursive: true, force: true });
   let pages = null;
   for (const vp of VIEWPORTS) {
