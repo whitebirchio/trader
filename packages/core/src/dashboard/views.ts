@@ -66,9 +66,9 @@ export interface PerformanceSeries {
 }
 
 /** The portfolio's flow-adjusted index against VTI over a range, from the daily snapshots and recorded closes. */
-export async function performanceSeries(db: Db, requested: ChartRange = "all"): Promise<PerformanceSeries> {
+export async function performanceSeries(db: Db, requested: ChartRange = "all", allowed: readonly ChartRange[] = OVERVIEW_RANGES): Promise<PerformanceSeries> {
   const { snapshots: snaps, flows } = await loadIndexInputs(db);
-  if (snaps.length === 0) return { points: [], totals: null, range: "all", rangeTotals: null, ranges: rangeOptions(OVERVIEW_RANGES, [], "") };
+  if (snaps.length === 0) return { points: [], totals: null, range: "all", rangeTotals: null, ranges: rangeOptions(allowed, [], "") };
   const index = buildIndex(snaps, flows);
   const closes = await db
     .select({ tradingDate: benchmarkCloses.tradingDate, close: benchmarkCloses.close })
@@ -79,7 +79,7 @@ export async function performanceSeries(db: Db, requested: ChartRange = "all"): 
 
   const dates = index.points.map((p) => p.tradingDate);
   const end = dates.at(-1)!;
-  const ranges = rangeOptions(OVERVIEW_RANGES, dates, end);
+  const ranges = rangeOptions(allowed, dates, end);
   const range = ranges.find((r) => r.range === requested)?.available ? requested : "all";
   const window = index.points.slice(windowBase(dates, rangeFrom(range, end)) ?? 0);
 

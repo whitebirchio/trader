@@ -34,6 +34,7 @@ describe("schema", () => {
       "notification_items",
       "notifications",
       "orders",
+      "position_snapshots",
       "positions",
       "rebalance_plans",
       "risk_decisions",

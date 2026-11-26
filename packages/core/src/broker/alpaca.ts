@@ -396,7 +396,7 @@ export class AlpacaBroker implements BrokerAdapter {
     };
   }
 
-  async getDailyBars(symbols: string[], start: Date, end: Date): Promise<Record<string, Bar[]>> {
+  async getDailyBars(symbols: string[], start: Date, end: Date, opts: { adjustment?: "all" | "raw" } = {}): Promise<Record<string, Bar[]>> {
     const latest = new Date(this.now().getTime() - SIP_DELAY_MS);
     const clampedEnd = end > latest ? latest : end;
     const out: Record<string, Bar[]> = Object.fromEntries(symbols.map((s) => [s, []]));
@@ -407,7 +407,7 @@ export class AlpacaBroker implements BrokerAdapter {
         timeframe: "1Day",
         start: start.toISOString(),
         end: clampedEnd.toISOString(),
-        adjustment: "all",
+        adjustment: opts.adjustment ?? "all",
         feed: "sip",
         limit: "10000",
       });

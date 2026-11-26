@@ -218,6 +218,13 @@
       "when": 1795701728485,
       "tag": "0030_slippery_stature",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795702828637,
+      "tag": "0031_position_snapshots",
+      "breakpoints": true
     }
   ]
 }

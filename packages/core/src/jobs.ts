@@ -17,6 +17,7 @@ import type { Db } from "./db/client.js";
 import { notifyDigest, notifyUrgent, notifyWeekly } from "./notifications/jobs.js";
 import { rebalanceJob } from "./portfolio/rebalance.js";
 import type { Mailer } from "./notifications/port.js";
+import { recordPositionHistory } from "./portfolio/position-history.js";
 import { jobRuns } from "./db/schema.js";
 import type { TradingEnv } from "./env.js";
 import { marketDate } from "./time.js";
@@ -213,10 +214,23 @@ const checkRoutineJob: JobFn = async ({ db, broker, now, routineFirer }) => {
   return { status: "succeeded", detail };
 };
 
+/**
+ * Each completed session's holdings at the official close (SPEC-dashboard
+ * Amendment 3 § Position history), for the dashboard. Runs every tick and
+ * writes only what's missing, so its first run backfills from the first fill.
+ * Market data and the database only: no orders, and risk never reads it.
+ */
+const positionHistoryJob: JobFn = async ({ db, broker, now }) => {
+  const result = await recordPositionHistory(db, broker, now());
+  if (result.rows === 0 && result.waiting.length === 0) return { status: "skipped", reason: "up to date" };
+  return { status: "succeeded", detail: { ...result } };
+};
+
 /** Every job the engine can run, by name: the tick jobs and the rebalance. */
 export const JOBS = {
   heartbeat,
   "sync-broker": syncBrokerJob,
+  "position-history": positionHistoryJob,
   "process-capital": processCapitalJob,
   "notify-urgent": notifyUrgent,
   "notify-digest": notifyDigest,
@@ -301,7 +315,7 @@ export async function runJob(
  * work, notifications last so they report this tick's events. The engine's
  * schedule (CDK) and the Lambda handler both use this one list.
  */
-export const TICK_JOBS = ["heartbeat", "sync-broker", "process-capital", "earnings-calendar", "check-filings", "earnings-estimates", "earnings-backfill", "check-events", "check-routine", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
+export const TICK_JOBS = ["heartbeat", "sync-broker", "position-history", "process-capital", "earnings-calendar", "check-filings", "earnings-estimates", "earnings-backfill", "check-events", "check-routine", "notify-urgent", "notify-digest", "notify-weekly"] as const satisfies readonly JobName[];
 
 export function isJobName(name: string): name is JobName {
   return Object.hasOwn(JOBS, name);
