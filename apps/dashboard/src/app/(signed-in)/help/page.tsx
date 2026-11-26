@@ -1,6 +1,9 @@
 import { Card } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
 
+// Signed in, like every page here: rendered per request and never cached (SPEC-dashboard § Boundaries).
+export const dynamic = "force-dynamic";
+
 /** How to read the dashboard (SPEC-dashboard Amendment 3): every term an ⓘ explains, in one list. */
 export default function HelpPage() {
   return (
