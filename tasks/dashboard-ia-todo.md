@@ -180,7 +180,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 ## PR 5: Ideas
 
 ### T15: The Ideas page and the idea funnel
-- [ ] **What:** `ideasView` lists the open watchlist, soonest revisit first: the headline (or its fallback), the trigger, the revisit date, the forecast, and a count of new filings with a tap to see them. It adds `ideaFunnelSankey` over the whole history of watchlist notes and theses. The page is `/ideas`.
+- [x] **What:** `ideasView` lists the open watchlist, soonest revisit first: the headline (or its fallback), the trigger, the revisit date, the forecast, and a count of new filings with a tap to see them. It adds `ideaFunnelSankey` over the whole history of watchlist notes and theses. The page is `/ideas`.
 - **Acceptance:** spec success criterion 5, and the funnel's counts match the notes and the scorecard.
 - **Verify:** `npx vitest run views sankey`; `mobile:check`.
 - **Files:** `views.ts`, `apps/dashboard/src/app/(signed-in)/ideas/page.tsx`.

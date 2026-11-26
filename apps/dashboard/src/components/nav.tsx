@@ -15,6 +15,7 @@ const NAV = [
   ["/", "Today"],
   ["/performance", "Performance"],
   ["/positions", "Positions"],
+  ["/ideas", "Ideas"],
   ["/holdings", "Holdings"],
   ["/money", "Money"],
   ["/strategy", "Strategy"],
