@@ -200,6 +200,12 @@ With `ROUTINE_FIRE_TOKENS` set, `check-routine` has already retried the run at +
 
 `check-events` starts a focused research run on the 8:00 routine (Opus) when a held thesis nears its stop, moves 8% or more, or gets a sell-signal filing: at most two a day, from 9:45 ET to 75 minutes before the close (SPEC-agent § Event-triggered runs). It uses the same `ROUTINE_FIRE_TOKENS` as the retries, so a refused one (401/403) is fixed the same way. `npm run events:status -w @trader/core -- --env production` shows each holding's distances and today's trips. A refused or failed event run isn't retried: the next scheduled run sees the trip.
 
+**The dashboard's market data** (SPEC-dashboard Amendment 3) comes from two tick jobs that place no orders. Nothing that trades reads what they write.
+- **`position-history`** writes each completed session's holdings at the official close, about 45 minutes after the bell. Its first run backfilled every session from the first fill.
+  - `npm run positions:history -w @trader/core -- --env production` (read-only) splits each day's recorded equity into cash, positions at the close and after-close pricing, and shows what the job would write next.
+  - Days still waiting for a bar retry for 5 days, then are written as gaps.
+- **`extended-prices`** records each holding's latest pre-market or after-hours price from 4:00 AM to 8:00 PM ET on trading days. It uses the free SIP feed, about 16 minutes behind. `npm run invoke -- --env production --jobs extended-prices` runs it now; it skips outside those sessions.
+
 ### The engine stops (alarm: "not running")
 
 Check `aws scheduler get-schedule --name trader-tick-production --profile whitebirch` and the Lambda's logs. `npm run invoke -- --env production --jobs heartbeat` shows whether the function itself works. A redeploy (re-run the CI workflow on `main`) restores both from CDK.

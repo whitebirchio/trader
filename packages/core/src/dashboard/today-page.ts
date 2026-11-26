@@ -23,6 +23,8 @@ export interface TodayPage {
   sinceStart: RangeFigures | null;
   guardrails: Awaited<ReturnType<typeof overviewView>>["guardrails"];
   lastSync: string | null;
+  /** How far the flow-adjusted index is below its peak, % (the halt is at 30). */
+  drawdownFromPeakPct: string;
   /** Each conviction holding's headline, by symbol. */
   headlines: Record<string, Headline & { thesisId: string }>;
   /** Null until the position history covers the whole account, or if its inputs don't reconcile. */
@@ -55,6 +57,6 @@ export async function todayPage(db: Db, env: TradingEnv, now: Date): Promise<Tod
       }
     }
   }
-  return { today, extended, sinceStart, guardrails: overview.guardrails, lastSync: overview.lastSync, headlines, money };
+  return { today, extended, sinceStart, guardrails: overview.guardrails, lastSync: overview.lastSync, drawdownFromPeakPct: overview.account.drawdownFromPeakPct, headlines, money };
 }
 

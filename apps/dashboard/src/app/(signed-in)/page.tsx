@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { marketDate, todayPage } from "@trader/core";
+import { Info } from "@/components/info";
 import { SankeyChart } from "@/components/sankey";
 import { Badge, Card, PhoneRow, RowsOnPhone, Signed, Status, TableOnWide } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
@@ -34,6 +35,7 @@ export default async function TodayPage() {
             <p className="text-3xl font-semibold">
               <Signed value={t.move}>{formatSignedUsd(t.move)}</Signed>
               {t.movePct && <span className="ml-2 text-lg text-[var(--muted)]">{formatPct(t.movePct)}</span>}
+              <Info term="todayMove" />
             </p>
             <p className="mt-1 text-sm text-[var(--muted)]">
               {vti?.movePct ? <>VTI {formatPct(vti.movePct)} · </> : null}Account value {formatUsd(t.equity)} · as of {formatEt(t.asOf)}
@@ -47,6 +49,7 @@ export default async function TodayPage() {
             {p.extended.session === "post" ? "After hours" : "Pre-market"}: <Signed value={p.extended.move}>{formatSignedUsd(p.extended.move)}</Signed>
             {p.extended.movePct && <> ({formatPct(p.extended.movePct)})</>}
             <span className="text-[var(--muted)]"> · as of {formatEt(p.extended.asOf)}, indicative (thin trading, about 16 minutes delayed)</span>
+            <Info term="extendedHours" />
           </p>
         )}
         {p.sinceStart?.pnl && (
@@ -58,6 +61,7 @@ export default async function TodayPage() {
                 · {formatSignedUsd(p.sinceStart.gapUsd)} {p.sinceStart.gapUsd.startsWith("-") ? "behind" : "ahead of"} the same money in VTI
               </span>
             )}
+            <Info term="vsVti" />
           </p>
         )}
       </Card>
@@ -117,7 +121,11 @@ export default async function TodayPage() {
               );
             })}
           </RowsOnPhone>
-          {t.other && t.other !== "0.00" && <p className="mt-2 text-xs text-[var(--muted)]">Cash, fees and pricing at the previous close: {formatSignedUsd(t.other)}.</p>}
+          {t.other && t.other !== "0.00" && (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Cash, fees and pricing at the previous close: {formatSignedUsd(t.other)}. <Info term="cashAndOther" />
+            </p>
+          )}
         </Card>
       )}
 
@@ -140,12 +148,16 @@ export default async function TodayPage() {
         <details>
           <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm sm:min-h-0">
             {problems.length === 0 ? <Status level="good">Guardrails: all clear</Status> : <Status level="bad">Guardrails: {problems.join(" · ")}</Status>}
+            <Info term="guardrails" />
           </summary>
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm">
             {g.killSwitch ? <Status level="bad">Kill switch on</Status> : <Status level="good">Kill switch off</Status>}
             {g.halted ? <Status level="bad">Halted</Status> : <Status level="good">Not halted</Status>}
             {g.buysPausedToday ? <Status level="warn">Buys paused today</Status> : <Status level="good">Buys allowed</Status>}
             {g.brokerTradingAllowed ? <Status level="good">Broker checks pass</Status> : <Status level="bad">Broker blocked</Status>}
+            <span>
+              From peak {p.drawdownFromPeakPct === "0" ? "0.00%" : `−${formatPct(p.drawdownFromPeakPct, 2, false)}`} <Info term="drawdown" />
+            </span>
             <span className="text-[var(--muted)]">Last sync {p.lastSync ? formatEt(p.lastSync) : "never"}</span>
           </div>
         </details>

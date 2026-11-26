@@ -205,7 +205,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 ## PR 7: What each figure means
 
 ### T18: The glossary, the ⓘ explanations and `/help`
-- [ ] **What:** `glossary.ts` holds the plain definition of every term: flow-adjusted, vs VTI, P&L, drawdown, stop, review date, stale, lead signal, forecast, indicative, extended hours and the rest. An `info.tsx` ⓘ opens on a tap, and every figure on every page gets one. `/help` lists them all, and each page's foot links to it.
+- [x] **What:** `glossary.ts` holds the plain definition of every term: flow-adjusted, vs VTI, P&L, drawdown, stop, review date, stale, lead signal, forecast, indicative, extended hours and the rest. An `info.tsx` ⓘ opens on a tap, and every figure on every page gets one. `/help` lists them all, and each page's foot links to it.
 - **Acceptance:**
   - A test fails if any ⓘ names a term missing from the glossary.
   - The toggles are 44 px tap targets.
