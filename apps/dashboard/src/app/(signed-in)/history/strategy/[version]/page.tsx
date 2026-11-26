@@ -16,7 +16,7 @@ export default async function StrategyVersionPage({ params }: { params: Promise<
   return (
     <div className="grid grid-cols-1 gap-4">
       <p className="text-sm text-[var(--muted)]">
-        <Link href="/strategy" className="underline underline-offset-2">← Active strategy</Link> · Version {v.version} by {v.authoredBy}
+        <Link href="/history/strategy" className="underline underline-offset-2">← Active strategy</Link> · Version {v.version} by {v.authoredBy}
         {v.createdAt ? `, ${formatEt(v.createdAt)}` : ""}
       </p>
       <StrategyDocument document={v.document as Strategy} />

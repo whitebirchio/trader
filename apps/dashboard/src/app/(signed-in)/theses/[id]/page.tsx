@@ -27,7 +27,7 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
   return (
     <div className="grid grid-cols-1 gap-4">
       <p className="text-sm text-[var(--muted)]">
-        <Link href="/track-record" className="underline underline-offset-2">← Track record</Link>
+        <Link href="/history" className="underline underline-offset-2">← History</Link>
       </p>
 
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -101,7 +101,7 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
           {v.history.map((h) => (
             <PhoneRow
               key={h.version}
-              title={<Link href={`/strategy/${h.version}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">v{h.version}</Link>}
+              title={<Link href={`/history/strategy/${h.version}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">v{h.version}</Link>}
               value={h.thesis ? `${formatPct(h.thesis.targetWeightPct, 1, false)} target` : "dropped"}
               detail={formatEt(h.createdAt)}
               secondary={h.thesis ? `stop ${formatPct(h.thesis.stopLossPct, 0, false)}${h.thesis.reviewBy ? ` · review by ${h.thesis.reviewBy}` : ""}` : undefined}
@@ -124,7 +124,7 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
             <tbody>
               {v.history.map((h) => (
                 <tr key={h.version} className="border-t border-[var(--border)] align-top">
-                  <td className="py-2"><Link href={`/strategy/${h.version}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">v{h.version}</Link></td>
+                  <td className="py-2"><Link href={`/history/strategy/${h.version}`} className="underline decoration-[var(--border)] underline-offset-2 hover:decoration-current">v{h.version}</Link></td>
                   <td className="whitespace-nowrap">{formatEt(h.createdAt)}</td>
                   <td className="text-right">{h.thesis ? formatPct(h.thesis.targetWeightPct, 1, false) : "—"}</td>
                   <td className="text-right">{h.thesis ? formatPct(h.thesis.stopLossPct, 0, false) : "—"}</td>

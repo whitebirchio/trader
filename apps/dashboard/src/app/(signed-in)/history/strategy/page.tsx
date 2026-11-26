@@ -21,7 +21,7 @@ export default async function StrategyPage() {
         <ul className="grid gap-2 text-sm">
           {history.map((h) => (
             <li key={h.version} className="flex gap-3">
-              <Link href={`/strategy/${h.version}`} className="w-10 shrink-0 font-medium underline decoration-[var(--border)] underline-offset-2">v{h.version}</Link>
+              <Link href={`/history/strategy/${h.version}`} className="w-10 shrink-0 font-medium underline decoration-[var(--border)] underline-offset-2">v{h.version}</Link>
               <span className="w-28 shrink-0 text-xs text-[var(--muted)] sm:w-36 sm:text-sm">{h.createdAt ? formatEt(h.createdAt) : "initial"} · {h.authoredBy}</span>
               <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{h.summary}</span>
             </li>

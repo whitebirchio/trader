@@ -189,14 +189,14 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 ## PR 6: History and redirects
 
 ### T16: The History page and signal to outcome
-- [ ] **What:** `historyView` is every thesis ever held, newest first: headline, how it ended, P&L, vs VTI, days held. It adds the totals by lead signal and `signalSankey`, with links to All trades, Strategy versions and Forecasts. The activity and strategy pages move to `/history/activity` and `/history/strategy` (the version pages to `/history/strategy/[version]`), and the forecasts section to `/history/forecasts`.
+- [x] **What:** `historyView` is every thesis ever held, newest first: headline, how it ended, P&L, vs VTI, days held. It adds the totals by lead signal and `signalSankey`, with links to All trades, Strategy versions and Forecasts. The activity and strategy pages move to `/history/activity` and `/history/strategy` (the version pages to `/history/strategy/[version]`), and the forecasts section to `/history/forecasts`.
 - **Acceptance:** everything the old Track record, Activity and Strategy pages showed is reachable from History.
 - **Verify:** `mobile:check` on every History route.
 - **Files:** `views.ts`, `apps/dashboard/src/app/(signed-in)/history/**`.
 - **Depends on:** T8 · **Scope:** M
 
 ### T17: The redirects and the final menu
-- [ ] **What:** `next.config.ts` gets permanent redirects: `/holdings` → `/positions`, `/track-record` → `/history`, `/activity` → `/history/activity`, `/strategy` and `/strategy/:v` → `/history/strategy/…`, each keeping the query string. The old page files are removed.
+- [x] *(Holdings retired too: everything it showed is on Positions, the open wash-sale windows included.)* **What:** `next.config.ts` gets permanent redirects: `/holdings` → `/positions`, `/track-record` → `/history`, `/activity` → `/history/activity`, `/strategy` and `/strategy/:v` → `/history/strategy/…`, each keeping the query string. The old page files are removed.
 - **Acceptance:** every old URL lands on its new page with a 308, and `?range=` survives.
 - **Verify:** `npm test -w trader-dashboard` (the redirect table); `mobile:check` visits every old URL.
 - **Files:** `apps/dashboard/next.config.ts`, the old page files, `apps/dashboard/scripts/mobile-check.mjs`.

@@ -58,4 +58,5 @@ export * from "./dashboard/headlines.js";
 export * from "./dashboard/today-page.js";
 export * from "./dashboard/positions.js";
 export * from "./dashboard/ideas.js";
+export * from "./dashboard/history.js";
 export * from "./capital/withdrawals.js";

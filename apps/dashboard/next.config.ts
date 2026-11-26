@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+import { REDIRECTS } from "./src/lib/redirects";
 
 const nextConfig: NextConfig = {
   // A self-contained server for the Lambda Web Function (scripts/package.mjs).
@@ -8,6 +9,10 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
   transpilePackages: ["@trader/core"],
   poweredByHeader: false,
+  // The pages regrouped by question (SPEC-dashboard Amendment 3): old URLs, and home-screen bookmarks, land on their new page.
+  async redirects() {
+    return REDIRECTS;
+  },
   // The dashboard uses no next/image, so the image optimizer (a server-side
   // fetch-and-transcode endpoint behind several advisories) stays off.
   images: { unoptimized: true },

@@ -17,6 +17,7 @@ import { nextEarnings } from "../agent/earnings-calendar.js";
 import { estimatesFor } from "../agent/estimates.js";
 import { filingsSince } from "../agent/filings.js";
 import { type HeldFlag, heldThesis } from "../agent/held.js";
+import { getHoldings } from "../agent/tools.js";
 import { loadScorecard } from "../portfolio/scorecard.js";
 import { activeStrategy } from "../portfolio/store.js";
 import type { Thesis } from "../portfolio/strategy.js";
@@ -86,7 +87,7 @@ export interface PositionCard {
 const closesAsBars = (rows: { tradingDate: string; close: string }[]): Bar[] => rows.map((r) => ({ t: new Date(`${r.tradingDate}T17:00:00Z`), o: r.close, h: r.close, l: r.close, c: r.close, v: "0" }));
 
 /** Every holding, theses first (by value), then the idle money in VTI. */
-export async function positionsView(db: Db, now: Date): Promise<{ equity: string; cards: PositionCard[] }> {
+export async function positionsView(db: Db, now: Date): Promise<{ equity: string; cards: PositionCard[]; washSaleWindows: Awaited<ReturnType<typeof getHoldings>>["washSaleWindows"] }> {
   const [account] = await db.select({ equity: brokerAccount.equity }).from(brokerAccount).where(eq(brokerAccount.id, 1));
   const equity = account?.equity ?? "0";
   const held = await db.select().from(positions).orderBy(desc(positions.marketValue));
@@ -155,5 +156,6 @@ export async function positionsView(db: Db, now: Date): Promise<{ equity: string
     }
   }
   cards.sort((a, b) => (a.thesisId === null ? 1 : 0) - (b.thesisId === null ? 1 : 0) || compare(b.value, a.value));
-  return { equity, cards };
+  const { washSaleWindows } = await getHoldings({ db, now });
+  return { equity, cards, washSaleWindows };
 }
