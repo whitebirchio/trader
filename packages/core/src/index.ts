@@ -56,4 +56,5 @@ export * from "./dashboard/sankey.js";
 export * from "./dashboard/today.js";
 export * from "./dashboard/headlines.js";
 export * from "./dashboard/today-page.js";
+export * from "./dashboard/positions.js";
 export * from "./capital/withdrawals.js";

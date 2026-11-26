@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 const NAV = [
   ["/", "Today"],
   ["/performance", "Performance"],
+  ["/positions", "Positions"],
   ["/holdings", "Holdings"],
   ["/money", "Money"],
   ["/strategy", "Strategy"],

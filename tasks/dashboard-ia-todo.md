@@ -159,7 +159,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 ## PR 4: Positions and exits
 
 ### T13: The exits model
-- [ ] **What:** `exitsFor(thesis, holding, flags, now)` returns:
+- [x] *(The flags come from agent/held.ts's pure check, fed stored closes, filings, estimates and the calendar. The earnings-day crash flag needs SEC's releases at read time, so only the routine's get_holdings has it.)* **What:** `exitsFor(thesis, holding, flags, now)` returns:
   - the automatic exits as figures: the stop price, its distance, and the sentence "sells if it closes below $X, Y% below today"; the review date with days left; the stale date;
   - the `exitIf` list;
   - the live sell-signal flags in plain words, reusing `heldTheses`' flags.
@@ -171,7 +171,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** T1, T7 · **Scope:** M
 
 ### T14: The Positions page and the thesis page's layers
-- [ ] **What:** `/positions` shows one card per holding (theses first, then VTI) with the headline, figures and exits, linking to the thesis page. The thesis page gains the headline, the plain summary and the exits above its chart.
+- [x] **What:** `/positions` shows one card per holding (theses first, then VTI) with the headline, figures and exits, linking to the thesis page. The thesis page gains the headline, the plain summary and the exits above its chart.
 - **Acceptance:** spec success criteria 3 and 4 for held positions.
 - **Verify:** `mobile:check` (on the new route and every thesis range).
 - **Files:** `apps/dashboard/src/app/(signed-in)/positions/page.tsx`, `apps/dashboard/src/app/(signed-in)/theses/[id]/page.tsx`, `apps/dashboard/src/components/exits.tsx`.
