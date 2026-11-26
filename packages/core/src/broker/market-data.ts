@@ -10,8 +10,8 @@ import type { BrokerAdapter, CalendarDay } from "./port.js";
 export class MarketDataOnly implements BrokerAdapter {
   constructor(private readonly inner: Pick<BrokerAdapter, "getDailyBars" | "getAsset" | "getCalendar">) {}
 
-  getDailyBars(symbols: string[], start: Date, end: Date) {
-    return this.inner.getDailyBars(symbols, start, end);
+  getDailyBars(symbols: string[], start: Date, end: Date, opts?: { adjustment?: "all" | "raw" }) {
+    return this.inner.getDailyBars(symbols, start, end, opts);
   }
   getAsset(symbol: string) {
     return this.inner.getAsset(symbol);

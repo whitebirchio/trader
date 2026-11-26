@@ -7,9 +7,16 @@
 
 export const OVERVIEW_RANGES = ["4w", "3m", "6m", "ytd", "1y", "all"] as const;
 export const THESIS_RANGES = ["4w", "3m", "6m", "1y", "held"] as const;
-export type ChartRange = (typeof OVERVIEW_RANGES)[number] | (typeof THESIS_RANGES)[number];
+/** The Performance page's ranges (SPEC-dashboard Amendment 3), in calendar days back from the last close; "1d" is the last session. */
+export const PERFORMANCE_RANGES = ["1d", "7d", "30d", "60d", "90d", "ytd", "1y", "all"] as const;
+export type ChartRange = (typeof OVERVIEW_RANGES)[number] | (typeof THESIS_RANGES)[number] | (typeof PERFORMANCE_RANGES)[number];
 
 export const RANGE_LABELS: Record<ChartRange, string> = {
+  "1d": "Last session",
+  "7d": "7 days",
+  "30d": "30 days",
+  "60d": "60 days",
+  "90d": "90 days",
   "4w": "4 weeks",
   "3m": "3 months",
   "6m": "6 months",
@@ -38,7 +45,18 @@ function monthsBefore(date: string, months: number): string {
  * starts at `heldFrom`, `all` at the beginning (null).
  */
 export function rangeFrom(range: ChartRange, end: string, heldFrom: string | null = null): string | null {
+  const daysBack = (n: number) => new Date(Date.parse(`${end}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
   switch (range) {
+    case "1d":
+      return daysBack(1);
+    case "7d":
+      return daysBack(7);
+    case "30d":
+      return daysBack(30);
+    case "60d":
+      return daysBack(60);
+    case "90d":
+      return daysBack(90);
     case "4w":
       return new Date(Date.parse(`${end}T00:00:00Z`) - 28 * 86_400_000).toISOString().slice(0, 10);
     case "3m":

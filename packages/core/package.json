@@ -31,6 +31,7 @@
     "notify:run": "tsx scripts/notify-run.ts",
     "strategy:submit": "tsx scripts/strategy-submit.ts",
     "strategy:show": "tsx scripts/strategy-show.ts",
+    "positions:history": "tsx scripts/positions-history.ts",
     "scorecard:show": "tsx scripts/scorecard-show.ts",
     "events:status": "tsx scripts/events-status.ts",
     "research:insiders": "tsx scripts/research-insiders.ts",

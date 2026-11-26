@@ -125,7 +125,13 @@ export interface BrokerAdapter {
   getActivities(after?: Date): Promise<Activity[]>;
   getAsset(symbol: string): Promise<Asset | null>;
   /** Split- and dividend-adjusted daily bars per symbol, oldest first. */
-  getDailyBars(symbols: string[], start: Date, end: Date): Promise<Record<string, Bar[]>>;
+  /**
+   * Daily bars, adjusted for splits and dividends by default. `raw` gives the
+   * prices as they traded, for valuing a past day's holdings (position
+   * history, SPEC-dashboard Amendment 3): adjusted closes change as later
+   * dividends land.
+   */
+  getDailyBars(symbols: string[], start: Date, end: Date, opts?: { adjustment?: "all" | "raw" }): Promise<Record<string, Bar[]>>;
 }
 
 /** An HTTP-level failure from the broker. Never carries credentials. */

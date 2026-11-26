@@ -209,9 +209,19 @@ Each one totals exactly to the figure it explains, to the cent, and a test prove
 
 #### Position history
 
-- **New table `position_snapshots (trading_date, symbol, qty, market_value, cost_basis, close)`,** added in an additive migration. `sync-broker`'s after-close phase writes one row per held symbol each trading day, beside `equity_snapshots`. It's idempotent per date.
-- **Backfill:** rebuilt once from the fills, the FIFO lots and the stored closes (`thesis_closes`, `benchmark_closes`) back to the account's first fill, so the history is complete from the start. The rebuilt rows must reproduce each day's `equity_snapshots` total to the cent, cash included. Days that don't reconcile are reported and left out, not guessed.
-- **Per-range P&L by position:** the value at the range's end, minus the value at its start, minus net buys over the range (plus sells), from the snapshots and the fills. A position opened or closed inside the range counts from or to zero. The positions' figures, plus cash and interest, sum to the portfolio's dollar P&L for the range; a test proves it.
+> *(Revised 2026-11-26, after the T3 spike; Scott approved the change.)* Each day's recorded equity is Alpaca's own mark at the after-close sync. That mark can include after-hours trades, so a rebuild at the official close can't match it to the cent: most days are within cents, and a day with a big after-hours move is off by dollars. Positions are therefore valued at the official close, and the difference is shown as its own reconciling line, never hidden.
+
+- **New table `position_snapshots (trading_date, symbol, qty, close, market_value, recorded_at)`,** added in an additive migration (0031).
+  - `qty` is rebuilt from the fills up to the session's close.
+  - `close` is the official close as traded (Alpaca's raw bars), not the adjusted close, so later dividends never rewrite it.
+  - A null close marks a session Alpaca had no bar for.
+- **Written by a new tick job, `position-history`.** It writes every completed session that's missing, 45 minutes after the close, once the bar is final.
+  - Its first run backfills from the first fill, so there's no separate backfill write.
+  - A missing bar is retried for 5 days, then written as a gap.
+  - It's market data and the database only: no orders, and risk never reads it.
+- **Read-only report:** `npm run positions:history -w @trader/core -- --env production` shows each day's equity, cash, positions and after-close pricing, and what the job would write next.
+- **Reconciliation:** each day, equity = cash + positions at the close + **after-close pricing**. Cash comes from the day's equity snapshot, which is exact. After-close pricing is Alpaca's mark minus the official close: usually cents, and dollars on a day with a big after-hours move. The dashboard shows it as its own line with an ⓘ. The recorded equity, which feeds the risk index and the drawdown halt, is unchanged.
+- **Per-range P&L by position:** the value at the range's end, minus the value at its start, minus net buys over the range (sells are added back), from the snapshots and the fills. A position opened or closed inside the range counts from or to zero. The positions' figures, plus the change in after-close pricing between the range's two ends, sum to the portfolio's dollar P&L for the range, to the cent. A test proves it.
 
 #### Upstream changes (portfolio and agent)
 

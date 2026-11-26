@@ -189,6 +189,27 @@ export const positions = pgTable("positions", {
 });
 
 /**
+ * Each completed session's holdings (SPEC-dashboard Amendment 3 § Position
+ * history): the quantity at the close, rebuilt from the fills, valued at the
+ * official close as traded (not adjusted, so later dividends never rewrite
+ * it). Written by the position-history job, once per day and symbol; a null
+ * close is a session Alpaca had no bar for. Read by the dashboard for profit
+ * and loss by position over any range. Never read by risk or rebalance.
+ */
+export const positionSnapshots = pgTable(
+  "position_snapshots",
+  {
+    tradingDate: date({ mode: "string" }).notNull(),
+    symbol: text().notNull(),
+    qty: numeric().notNull(),
+    close: numeric(),
+    marketValue: numeric(),
+    recordedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tradingDate, t.symbol] })],
+);
+
+/**
  * Daily adjusted closes of the benchmark (VTI), so readers without broker keys
  * (the dashboard) can chart against it. A cache of market data, not an action:
  * each after-close sync rewrites the whole window, so dividend adjustments to
