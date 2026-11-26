@@ -26,6 +26,8 @@ const change = z.discriminatedUnion("action", [
     symbol,
     why,
     trigger: z.string().trim().min(10, "say what would make it a thesis").max(400, "keep it to 400 characters"),
+    /** The idea in one plain line for the owner (SPEC-dashboard Amendment 3): required on a new name; an update without one keeps the last. */
+    headline: z.string().trim().min(10, "say the idea in a line").max(120, "keep it to one line (120 characters)").optional(),
     revisitBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD"),
     /** SPEC-portfolio § Forecast ledger: required on a new name; horizon defaults to revisitBy. */
     forecast: forecast.optional(),
@@ -36,6 +38,8 @@ export type WatchlistChange = z.infer<typeof change>;
 
 export interface WatchlistEntry {
   symbol: string;
+  /** The idea in one line (null on notes written before headlines). */
+  headline: string | null;
   why: string;
   trigger: string;
   revisitBy: string;
@@ -90,6 +94,7 @@ export async function readWatchlist(db: Db, now: Date, droppedDays = 14): Promis
       .sort((a, b) => a.at.getTime() - b.at.getTime())[0];
     open.push({
       symbol: s,
+      headline: last.headline ?? null,
       why: last.why,
       trigger: last.trigger!,
       revisitBy,
@@ -132,6 +137,9 @@ export async function updateWatchlist(db: Db, input: unknown, actor: "claude" | 
       if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== c.revisitBy) errors.push(`changes[${i}].revisitBy: must be a real date`);
       else if (c.revisitBy <= today) errors.push(`changes[${i}].revisitBy: must be after today (${today})`);
       else if (days(today, c.revisitBy) > WATCHLIST_LIMITS.revisitMaxDays) errors.push(`changes[${i}].revisitBy: at most ${WATCHLIST_LIMITS.revisitMaxDays} days out`);
+      if (!c.headline && !openNow.has(c.symbol)) {
+        errors.push(`changes[${i}].headline: ${c.symbol} is new to the watchlist, so it needs a headline: the idea in one plain line (what would we buy, and why)`);
+      }
       if (!c.forecast && !openNow.has(c.symbol)) {
         errors.push(`changes[${i}].forecast: ${c.symbol} is new to the watchlist, so it needs a forecast: the chance (5–95%) it beats VTI by its horizon (default: revisitBy), and the expected excess`);
       } else if (c.forecast?.horizon) {
@@ -145,6 +153,7 @@ export async function updateWatchlist(db: Db, input: unknown, actor: "claude" | 
   if (after.size > WATCHLIST_LIMITS.open) errors.push(`the watchlist would hold ${after.size} names; at most ${WATCHLIST_LIMITS.open} (drop the stalest first)`);
   if (errors.length) return { status: "rejected", errors };
 
+  const headlines = new Map(open.map((e) => [e.symbol, e.headline]));
   await db.insert(watchlistNotes).values(
     changes.map((c) => {
       const f = c.action === "watch" ? c.forecast : undefined;
@@ -152,6 +161,7 @@ export async function updateWatchlist(db: Db, input: unknown, actor: "claude" | 
         symbol: c.symbol,
         action: c.action,
         why: c.why,
+        headline: c.action === "watch" ? (c.headline ?? headlines.get(c.symbol) ?? null) : null,
         trigger: c.action === "watch" ? c.trigger : null,
         revisitBy: c.action === "watch" ? c.revisitBy : null,
         beatVtiPct: f?.beatVtiPct ?? null,

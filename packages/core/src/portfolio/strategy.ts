@@ -100,6 +100,24 @@ const thesis = z.object({
    */
   plainSummary: z.string().trim().min(20, "needs at least a sentence").max(600, "keep it to 2–4 sentences (600 characters)").optional(),
   /**
+   * The bet in one plain line for the owner (SPEC-dashboard Amendment 3): what
+   * we're buying and why, not what the company does. The dashboard's first
+   * layer, above plainSummary. Optional so stored versions stay valid; Claude's
+   * tools require one on a new thesis or a raised weight (presentationErrors).
+   */
+  headline: z.string().trim().min(10, "say the bet in a line").max(120, "keep it to one line (120 characters)").optional(),
+  /**
+   * What would make Claude sell before the stop (SPEC-dashboard Amendment 3):
+   * 1–3 conditions someone could check, like "Q4 claims stay above about
+   * $45M". The judgment exits beside the automatic ones (stop, review date,
+   * staleness). Optional and required like headline.
+   */
+  exitIf: z
+    .array(z.string().trim().min(10, "say a condition someone could check").max(120, "keep each to one line (120 characters)"))
+    .min(1, "needs at least one condition")
+    .max(3, "at most 3 conditions")
+    .optional(),
+  /**
    * The strongest case against the thesis right now, and why it doesn't win
    * (#106): the other side's argument, not the exit trigger (that's in
    * plainSummary). Optional so stored versions stay valid; Claude's tools

@@ -477,6 +477,8 @@ export const watchlistNotes = pgTable(
     symbol: text().notNull(),
     action: text({ enum: ["watch", "drop"] }).notNull(),
     why: text().notNull(),
+    /** The idea in one plain line for the owner (watch only; SPEC-dashboard Amendment 3). Null on older notes. */
+    headline: text(),
     /** What would make it a thesis (watch only). */
     trigger: text(),
     /** When to look again (watch only). */

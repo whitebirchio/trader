@@ -8,7 +8,7 @@ let db: Db;
 const NOW = new Date("2026-11-11T17:00:00Z"); // Wednesday, market date 2026-11-11
 const later = (days: number) => new Date(NOW.getTime() + days * 86_400_000);
 const FORECAST = { beatVtiPct: 40, expectedExcessPct: "-2" };
-const watch = (symbol: string, revisitBy = "2026-12-15", over: object = {}) => ({ action: "watch", symbol, why: `${symbol} looked good but missed the bar`, trigger: `${symbol} files a 10-Q confirming the turn`, revisitBy, forecast: FORECAST, ...over });
+const watch = (symbol: string, revisitBy = "2026-12-15", over: object = {}) => ({ action: "watch", symbol, headline: "Watching it for the turn in margins", why: `${symbol} looked good but missed the bar`, trigger: `${symbol} files a 10-Q confirming the turn`, revisitBy, forecast: FORECAST, ...over });
 const drop = (symbol: string) => ({ action: "drop", symbol, why: "the catalyst passed without a move" });
 
 beforeEach(async () => {
@@ -53,7 +53,7 @@ describe("updateWatchlist and readWatchlist (#32)", () => {
   });
 
   it("rejects the whole batch for any bad change, and writes nothing", async () => {
-    const bad = await updateWatchlist(db, [watch("UPBD"), watch("upbd"), watch("HGV", "2026-11-11"), watch("LKQ", "2027-04-01"), drop("ZZZ"), { action: "watch", symbol: "AN", why: "short" }], "claude", NOW);
+    const bad = await updateWatchlist(db, [watch("UPBD"), watch("upbd"), watch("HGV", "2026-11-11"), watch("LKQ", "2027-04-01"), drop("ZZZ"), { action: "watch", symbol: "AN", headline: "Watching it for the turn in margins", why: "short" }], "claude", NOW);
     expect(bad.status).toBe("rejected");
     expect(bad.status === "rejected" && bad.errors).toEqual(expect.arrayContaining([expect.stringContaining("must be a ticker"), expect.stringContaining("say why in a sentence")]));
     expect(await db.select().from(watchlistNotes)).toEqual([]);
@@ -92,6 +92,18 @@ describe("updateWatchlist and readWatchlist (#32)", () => {
     const rows = await db.select().from(watchlistNotes);
     expect(rows.map((r) => r.beatVtiPct)).toEqual([40, null, 55]);
     expect(await updateWatchlist(db, [watch("HGV", "2026-12-15", { forecast: { ...FORECAST, horizon: "2026-11-11" } })], "claude", NOW)).toMatchObject({ status: "rejected", errors: ["changes[0].forecast.horizon: must be after today (2026-11-11)"] });
+  });
+
+  it("needs a headline on a new name, and keeps the last one when an update leaves it out (SPEC-dashboard Amendment 3)", async () => {
+    expect(await updateWatchlist(db, [watch("UPBD", "2026-12-15", { headline: undefined })], "claude", NOW)).toEqual({
+      status: "rejected",
+      errors: ["changes[0].headline: UPBD is new to the watchlist, so it needs a headline: the idea in one plain line (what would we buy, and why)"],
+    });
+    await updateWatchlist(db, [watch("UPBD", "2026-12-15", { headline: "Buy Upbound if the 10-Q shows charge-offs falling" })], "claude", NOW);
+    expect(await updateWatchlist(db, [watch("UPBD", "2026-12-20", { headline: undefined })], "claude", later(1))).toMatchObject({ status: "updated" });
+    expect((await readWatchlist(db, later(1))).open[0]!.headline).toBe("Buy Upbound if the 10-Q shows charge-offs falling");
+    await updateWatchlist(db, [watch("UPBD", "2026-12-20", { headline: "Buy Upbound once Q4 guidance confirms the recovery" })], "claude", later(2));
+    expect((await readWatchlist(db, later(2))).open[0]!.headline).toBe("Buy Upbound once Q4 guidance confirms the recovery");
   });
 
   it("is insert-only: a row can't be changed or removed", async () => {

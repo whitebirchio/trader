@@ -6,7 +6,7 @@ import { add } from "../money.js";
 import { marketDate } from "../time.js";
 import { EXIT_RULES, type ExitRules, type Strategy, VERSION_0, validateStrategy } from "./strategy.js";
 import { sameExceptSummary, strategyChanges } from "./strategy-diff.js";
-import { CLOSING_KINDS, bearCaseErrors, ledgerErrors, reviewDateErrors } from "./theses.js";
+import { CLOSING_KINDS, bearCaseErrors, ledgerErrors, presentationErrors, reviewDateErrors } from "./theses.js";
 
 export interface ActiveStrategy {
   version: number;
@@ -78,7 +78,7 @@ export async function submissionErrors(db: Db, s: Strategy, now: Date, rules: Ex
   return [
     ...errors,
     ...reviewDateErrors(s, active.strategy, today),
-    ...(opts.requireBearCase ? bearCaseErrors(s, active.strategy) : []),
+    ...(opts.requireBearCase ? [...bearCaseErrors(s, active.strategy), ...presentationErrors(s, active.strategy)] : []),
     ...(opts.requireLedger ? ledgerErrors(s, active.strategy, today) : []),
   ];
 }
