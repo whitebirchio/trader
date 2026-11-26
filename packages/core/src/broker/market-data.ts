@@ -8,10 +8,13 @@ import type { BrokerAdapter, CalendarDay } from "./port.js";
  * client, so the public MCP function holds no live-account credential at all.
  */
 export class MarketDataOnly implements BrokerAdapter {
-  constructor(private readonly inner: Pick<BrokerAdapter, "getDailyBars" | "getAsset" | "getCalendar">) {}
+  constructor(private readonly inner: Pick<BrokerAdapter, "getDailyBars" | "getMinuteBars" | "getAsset" | "getCalendar">) {}
 
   getDailyBars(symbols: string[], start: Date, end: Date, opts?: { adjustment?: "all" | "raw" }) {
     return this.inner.getDailyBars(symbols, start, end, opts);
+  }
+  getMinuteBars(symbols: string[], start: Date, end: Date) {
+    return this.inner.getMinuteBars(symbols, start, end);
   }
   getAsset(symbol: string) {
     return this.inner.getAsset(symbol);

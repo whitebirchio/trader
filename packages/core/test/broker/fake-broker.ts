@@ -64,6 +64,8 @@ export class FakeBroker implements BrokerAdapter {
     { symbol: "VTI", name: "Vanguard Total Stock Market ETF", status: "active", tradable: true, fractionable: true, marginRequirementLong: "30" },
   ];
   bars: Record<string, Bar[]> = {};
+  /** One-minute bars (getMinuteBars), filtered to the asked window. */
+  minuteBars: Record<string, Bar[]> = {};
   /** Bars as traded (adjustment: raw); falls back to `bars`. */
   rawBars: Record<string, Bar[]> | null = null;
   nextSubmit: SubmitBehaviour = { kind: "accept" };
@@ -161,6 +163,10 @@ export class FakeBroker implements BrokerAdapter {
   async getAsset(symbol: string) {
     this.count("getAsset");
     return this.assets.find((a) => a.symbol === symbol) ?? null;
+  }
+  async getMinuteBars(symbols: string[], start: Date, end: Date) {
+    this.count("getMinuteBars");
+    return Object.fromEntries(symbols.map((s) => [s, (this.minuteBars[s] ?? []).filter((b) => b.t >= start && b.t <= end)]));
   }
   async getDailyBars(symbols: string[], _start?: Date, _end?: Date, opts: { adjustment?: "all" | "raw" } = {}) {
     this.count("getDailyBars");

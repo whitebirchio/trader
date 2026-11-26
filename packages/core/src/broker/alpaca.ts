@@ -78,7 +78,7 @@ const clockSchema = z.object({
 });
 
 const calendarSchema = z.array(
-  z.object({ date: z.string(), open: z.string(), close: z.string() }),
+  z.object({ date: z.string(), open: z.string(), close: z.string(), session_open: z.string().optional(), session_close: z.string().optional() }),
 );
 
 const positionSchema = z.object({
@@ -305,6 +305,8 @@ export class AlpacaBroker implements BrokerAdapter {
       date: d.date,
       open: marketTimeToUtc(d.date, d.open),
       close: marketTimeToUtc(d.date, d.close),
+      ...(d.session_open ? { sessionOpen: marketTimeToUtc(d.date, d.session_open) } : {}),
+      ...(d.session_close ? { sessionClose: marketTimeToUtc(d.date, d.session_close) } : {}),
     }));
   }
 
@@ -396,7 +398,15 @@ export class AlpacaBroker implements BrokerAdapter {
     };
   }
 
+  async getMinuteBars(symbols: string[], start: Date, end: Date): Promise<Record<string, Bar[]>> {
+    return this.bars(symbols, start, end, "1Min", "raw");
+  }
+
   async getDailyBars(symbols: string[], start: Date, end: Date, opts: { adjustment?: "all" | "raw" } = {}): Promise<Record<string, Bar[]>> {
+    return this.bars(symbols, start, end, "1Day", opts.adjustment ?? "all");
+  }
+
+  private async bars(symbols: string[], start: Date, end: Date, timeframe: "1Day" | "1Min", adjustment: "all" | "raw"): Promise<Record<string, Bar[]>> {
     const latest = new Date(this.now().getTime() - SIP_DELAY_MS);
     const clampedEnd = end > latest ? latest : end;
     const out: Record<string, Bar[]> = Object.fromEntries(symbols.map((s) => [s, []]));
@@ -404,10 +414,10 @@ export class AlpacaBroker implements BrokerAdapter {
     do {
       const qs = new URLSearchParams({
         symbols: symbols.join(","),
-        timeframe: "1Day",
+        timeframe,
         start: start.toISOString(),
         end: clampedEnd.toISOString(),
-        adjustment: opts.adjustment ?? "all",
+        adjustment,
         feed: "sip",
         limit: "10000",
       });

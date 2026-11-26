@@ -189,6 +189,26 @@ export const positions = pgTable("positions", {
 });
 
 /**
+ * Pre-market and after-hours prices for the dashboard (SPEC-dashboard
+ * Amendment 3 § Pre-market and after-hours): each held symbol's latest
+ * one-minute bar in the session, about 16 minutes delayed. Indicative only:
+ * risk, the index, rebalance and the scorecard never read it. One row per
+ * symbol, session and day, updated as the session moves on.
+ */
+export const extendedPrices = pgTable(
+  "extended_prices",
+  {
+    tradingDate: date({ mode: "string" }).notNull(),
+    symbol: text().notNull(),
+    session: text({ enum: ["pre", "post"] }).notNull(),
+    price: numeric().notNull(),
+    barAt: timestamptz().notNull(),
+    recordedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tradingDate, t.symbol, t.session] })],
+);
+
+/**
  * Each completed session's holdings (SPEC-dashboard Amendment 3 § Position
  * history): the quantity at the close, rebuilt from the fills, valued at the
  * official close as traded (not adjusted, so later dividends never rewrite

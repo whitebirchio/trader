@@ -38,6 +38,13 @@ export interface CalendarDay {
   date: string;
   open: Date;
   close: Date;
+  /**
+   * The extended session around the regular one: pre-market from sessionOpen
+   * to open, after hours from close to sessionClose (SPEC-dashboard Amendment
+   * 3). Alpaca gives both; fakes and the replay may leave them out.
+   */
+  sessionOpen?: Date;
+  sessionClose?: Date;
 }
 
 export interface Position {
@@ -132,6 +139,12 @@ export interface BrokerAdapter {
    * dividends land.
    */
   getDailyBars(symbols: string[], start: Date, end: Date, opts?: { adjustment?: "all" | "raw" }): Promise<Record<string, Bar[]>>;
+  /**
+   * One-minute bars as traded, extended hours included, from the same delayed
+   * feed as the daily bars (the end is clamped to it). Market data only: for
+   * the dashboard's pre-market and after-hours line, never risk or rebalance.
+   */
+  getMinuteBars(symbols: string[], start: Date, end: Date): Promise<Record<string, Bar[]>>;
 }
 
 /** An HTTP-level failure from the broker. Never carries credentials. */

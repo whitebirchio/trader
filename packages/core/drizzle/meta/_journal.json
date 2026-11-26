@@ -225,6 +225,13 @@
       "when": 1795702828637,
       "tag": "0031_position_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795705316976,
+      "tag": "0032_extended_prices",
+      "breakpoints": true
     }
   ]
 }
