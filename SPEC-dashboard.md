@@ -119,6 +119,206 @@ npm run mobile:check -w trader-dashboard   # Playwright, iPhone 15 profile: ever
 1. **Menu:** one row that scrolls inside itself is fine, provided it's obvious there's more and it's easy to reach (the cut-off item, the faded edge, the current page in view).
 2. **Sign out:** keep it available somewhere unobtrusive. It goes at the foot of each page on phones.
 
+### Amendment 3 (2026-11-26): pages that answer the owner's questions
+
+> **Status: Approved** (Scott, 2026-11-26). Plan and tasks: [tasks/dashboard-ia-plan.md](tasks/dashboard-ia-plan.md), [tasks/dashboard-ia-todo.md](tasks/dashboard-ia-todo.md). Scott, 2026-11-26: "There's a lot of good information on there, but I don't always know what it all means." Decided with Scott the same day:
+> - regroup the pages by the question each answers;
+> - a new one-line **headline** on every thesis and watchlist name;
+> - a structured **exit list** on every thesis;
+> - **four Sankey diagrams**: where the money is, profit and loss by bet, the idea funnel, and signal to outcome.
+>
+> Open questions resolved by Scott, also 2026-11-26:
+> - the ranges stand;
+> - a closed day shows the last session, with pre-market and after-hours prices where available;
+> - the PR order stands;
+> - per-range profit and loss by position is in, through a new daily position snapshot.
+
+**The owner's questions,** in his order of interest:
+1. **How is it doing today?** "Now" means today: since the last close.
+2. **How has it done over time?** Over the portfolio's whole life, and over 7, 30, 60 days and so on.
+3. **Why was each bet made?** A one-line headline, with the detail one tap away.
+4. **What's the overall profit or loss, and how does that compare with VTI?** Dollars first, then percent.
+5. **What did it hold before?** All of it should be reachable, but it comes after "now".
+6. **What is it thinking of buying?** The watchlist, and what would make each name a buy.
+7. **When does it sell?** Each position's exit criteria, stated plainly.
+8. **Sankey diagrams** wherever they make a flow clear.
+
+**Objective:** each page answers one of these questions on the first screen, in plain words. Every figure says what it means, and every level of detail is a tap away, never in the way. The data stays the same, with two new fields from the routine. The read-only model, sign-in, headers and Amendment 1's one write are unchanged.
+
+**Assumptions** (correct any of these):
+1. **"Today" is the regular session's change since the previous close, as of the last sync.** The dashboard has no broker keys, so it's never fresher than `sync-broker` (every 15 minutes in the session, 30 minutes after it). Each page says how old its data is. On a day the market is closed, "today" is the last session, labelled with its date. **Pre-market and after-hours moves** show beside it, never inside it (§ Pre-market and after-hours).
+2. **Profit and loss is in dollars:** the account's value minus the net money put in. Today's money-weighted figures (`capitalSummary`) already compute it. "Vs VTI" is the same deposits and withdrawals held in VTI, in dollars and in points. Time-weighted percentages stay as the secondary figure.
+3. **Ranges** are today, 7, 30, 60 and 90 days, YTD, 1 year and since start, in calendar days, each ending at the last close. They replace #59's 4 weeks, 3 and 6 months. A range the history doesn't reach yet is disabled, as today.
+4. **Profit and loss per position comes for every range,** from a new daily position snapshot (§ Position history). Before the snapshots reach back far enough, a range falls back to each thesis's scorecard figures since bought, marked as such.
+5. **Old URLs keep working** as permanent redirects (`/holdings` → `/positions`, `/track-record` and `/activity` → `/history/…`, `/strategy` → `/history/strategy`), so home-screen bookmarks don't break.
+6. **The Sankey diagrams use Recharts' `Sankey`.** Recharts is already a dependency, so nothing new is added.
+
+#### The pages
+
+| Route | Answers | First screen |
+|---|---|---|
+| `/` **Today** | 1, 4 | Today's profit or loss in dollars and percent, and VTI's today. Since start, in one line: P&L in dollars, and dollars ahead of or behind the same money in VTI. **Each position's move today** (dollars and percent, biggest first). **What changed today:** trades, with each one's headline; strategy changes; event runs; stops hit; guardrail trips. The guardrails stay as one status line ("All clear") that expands. Then the "where the money is" Sankey. |
+| `/performance` | 2, 4 | A range picker (assumption 3). For the chosen range: P&L in dollars, the return in percent, VTI's return, and the gap in dollars and points. The flow-adjusted index chart against VTI. A **table by range**, with every range's P&L, return, VTI and gap in one table, so no clicking is needed to compare. Then the "profit and loss by bet" Sankey for the chosen range (assumption 4). |
+| `/positions` | 3, 4, 7 | One card per holding (theses first, then VTI): symbol, **headline**, value, weight vs target, P&L in dollars and percent since bought, vs VTI over the same days, and **its exits** (below). A tap opens the thesis page. |
+| `/ideas` | 6 | The open watchlist, soonest revisit first: symbol, **headline**, **what would make it a buy** (its trigger), when it's next looked at, and the routine's forecast (chance to beat VTI) where set. New SEC filings since it was listed are a tap away. Then the idea funnel Sankey. |
+| `/history` | 5 | Every thesis ever held, newest first: headline, how it ended (still held, closed, stopped out, went stale), P&L and vs VTI, days held. Totals by lead signal, then the signal-to-outcome Sankey. Below them, links to **All trades** (`/history/activity`, today's activity page with headlines added), **Strategy versions** (`/history/strategy`, today's strategy page and version history) and **Forecasts** (today's track-record section). |
+| `/theses/[id]` | 3, 7 | Unchanged, with the new layers on top: headline, then plain summary, then **exits**, then the price chart, reasoning, evidence, bear case and version history (the full detail). |
+| `/money` | — | Unchanged (Amendment 1). |
+
+**Menu:** Today · Performance · Positions · Ideas · History · Money. That's six items, like today; Amendment 2's phone menu rules still apply.
+
+**Layers of detail, the same everywhere:** headline → plain summary → full reasoning, evidence and bear case → version history. The first is always shown. The rest open in place or on the thesis page.
+
+**Saying what each figure means:**
+- Each figure has a plain label ("Profit since you started: +$X"), not a field name.
+- Each has a one-line explanation behind an ⓘ. It opens on a tap, so it works on the phone too, and isn't hover-only.
+- The terms that need it (flow-adjusted, vs VTI, drawdown, stop, review date, stale, lead signal, forecast) are defined once in `src/lib/glossary.ts`, and each ⓘ reads from there.
+- A short "How to read this" page at `/help` lists them all, linked from the foot of every page.
+
+#### Exits: when a position is sold
+
+Each position card and thesis page lists every way it can end:
+- **Automatic, enforced by code:** the stop price and how far away it is ("sells if it closes below $151, 12% below today"); the review date, with days left; and the date it goes stale if not reaffirmed. These are figures computed from the thesis, not text.
+- **Judgment, from the routine:** the thesis's new `exitIf` list, 1–3 short conditions ("Q4 claims stay above about $45M", "Pershing trims in its next 13F"). Each run re-judges these, and they are what would make it sell before the stop.
+- **Live flags:** any sell-signal flag on the thesis now (`near_stop`, `insider_selling`, `estimates_falling` and the rest, from `get_holdings`), in plain words.
+
+#### The Sankey diagrams
+
+Each one totals exactly to the figure it explains, to the cent, and a test proves it. Flows are drawn in dollars (or counts, where stated). On phones, at most 8 nodes a side: the smallest are grouped as "Other", and a tap shows a flow's value.
+
+1. **Where the money is** (Today): Net deposits and Gains flow into today's value, split across each holding. Losses leave as their own flow. It answers "what did my money turn into, and where is it now?" The left side (deposits + gains − losses) equals the right side (equity, cash included).
+2. **Profit and loss by bet** (Performance, over the chosen range): each thesis's gain flows into Total gained, and each one's loss into Total lost. VTI, the idle money, counts as one bet. Beside the chart: the net P&L and the same money in VTI. It answers "which bets made or lost the money?"
+3. **The idea funnel** (Ideas), by count: Watched → Bought, Dropped or Still watching. Bought → Beat VTI, Lagged VTI, Stopped out or Still open. Theses never on the watchlist enter as "Found directly". It answers "how do ideas turn into results?"
+4. **Signal to outcome** (History), by count, with dollars in the tooltip: lead signal (insider, 13F, fundamental…) → Beat VTI, Lagged VTI or Still open. It answers "which kinds of evidence have worked?" The data is the scorecard's roll-up by lead signal.
+
+#### Pre-market and after-hours
+
+- **What's shown:** beside today's session figures, each position's and the portfolio's move in the extended session: "After hours: +$4.20 (+0.4%), as of 6:42 PM ET". Before the open, it's "Pre-market", measured from the last close. After the close, it's "After hours", measured from today's close.
+  - Labelled **indicative**: thin trading, prices about 16 minutes delayed.
+  - Never added into today's P&L, the ranges, the Sankeys or the track record. Those stay on regular-session closes.
+- **When:** pre-market from 4:00 to 9:30 ET, and after hours from the close to 8:00 PM ET, on trading days. Half days end earlier, so the session times come from Alpaca's market calendar. On weekends and holidays, the page shows the last session and its after-hours close.
+- **Where it comes from: a new engine job, `extended-prices`.** It runs on the 15-minute tick in those windows, takes each held symbol's latest 1-minute SIP bar (16 minutes delayed, the same free feed as the daily bars), and stores it. It's market data only:
+  - it makes no orders;
+  - risk, the drawdown index and rebalance never read it;
+  - it changes nothing that trades.
+- **"Where available":**
+  - A symbol with no extended-session trade since the session started shows nothing, not zero.
+  - A price more than 30 minutes old is marked stale.
+  - If the job fails, the page simply has no extended-hours line.
+- **New table `extended_prices (trading_date, symbol, session: 'pre' | 'post', price, bar_at, recorded_at)`,** added in an additive migration. One row per symbol and session is upserted as it moves. The dashboard reads it through its SELECT-only role.
+
+#### Position history
+
+- **New table `position_snapshots (trading_date, symbol, qty, market_value, cost_basis, close)`,** added in an additive migration. `sync-broker`'s after-close phase writes one row per held symbol each trading day, beside `equity_snapshots`. It's idempotent per date.
+- **Backfill:** rebuilt once from the fills, the FIFO lots and the stored closes (`thesis_closes`, `benchmark_closes`) back to the account's first fill, so the history is complete from the start. The rebuilt rows must reproduce each day's `equity_snapshots` total to the cent, cash included. Days that don't reconcile are reported and left out, not guessed.
+- **Per-range P&L by position:** the value at the range's end, minus the value at its start, minus net buys over the range (plus sells), from the snapshots and the fills. A position opened or closed inside the range counts from or to zero. The positions' figures, plus cash and interest, sum to the portfolio's dollar P&L for the range; a test proves it.
+
+#### Upstream changes (portfolio and agent)
+
+These are recorded in SPEC-portfolio and SPEC-agent in the same PR. They change no trading behaviour.
+- **Strategy schema (`strategy.ts`):** each thesis gains `headline` (one line, 10–120 characters) and `exitIf` (1–3 strings, each up to 120 characters). Both are optional in stored documents, so every past version stays valid.
+- **Watchlist notes:** a `watch` note gains `headline` too, in an additive migration (a nullable column).
+- **MCP tools:** `submit_strategy` and `preview_strategy` require both fields on a new thesis or a raised weight, as they already do for `bearCase`. `update_watchlist` requires a headline on a new `watch` note.
+- **Routine prompt:** write the headline as the bet in plain words ("Buying Delta because fuel costs are falling and Berkshire keeps adding"), not a description of the company. The exit list holds the thesis's own "what would prove it wrong", as conditions someone could check.
+- **Backfill:** the next run adds both fields to every held thesis and open watchlist name. Until then, the dashboard shows the plain summary's first sentence, marked "summary".
+
+#### Commands
+
+As today. Plus:
+```sh
+npm run mobile:check -w trader-dashboard   # every new page, and every old URL's redirect, at 393 and 1280 px
+```
+
+#### Project structure
+
+```
+packages/core/src/dashboard/views.ts   → todayView, performanceView (all ranges at once), positionsView, ideasView, historyView
+packages/core/src/dashboard/sankey.ts  → the four diagrams' nodes and links (pure, reconciled to their totals)
+packages/core/src/dashboard/today.ts   → each position's move today (previous close from benchmark_closes / thesis_closes), and its extended-session move
+packages/core/src/dashboard/positions-pnl.ts → per-range P&L by position from position_snapshots and fills
+packages/core/src/broker/sync.ts        → after close: + position_snapshots; a one-time backfill script
+packages/core/src/jobs.ts               → + extended-prices (market data only)
+packages/core/src/db/schema.ts          → + extended_prices, position_snapshots (additive)
+apps/dashboard/src/app/(signed-in)/    → page.tsx (Today), performance/, positions/, ideas/, history/ (+ activity/, strategy/), help/
+apps/dashboard/src/lib/glossary.ts     → every term's plain definition
+apps/dashboard/src/components/         → sankey.tsx (Recharts), info.tsx (ⓘ), exits.tsx, headline.tsx
+apps/dashboard/next.config.ts          → the old URLs' redirects
+```
+
+#### Code style
+
+As the rest of this spec: pages are server components over core read models, and money stays a decimal string until it's rendered. Each Sankey's shape is built in core, and the component only draws it:
+
+```ts
+// packages/core/src/dashboard/sankey.ts
+export interface SankeyData { nodes: { name: string }[]; links: { source: number; target: number; value: string }[]; total: string }
+/** Deposits and gains into today's value: the links into "Now" sum to equity, to the cent. */
+export function moneySankey(input: { netDeposits: string; holdings: { symbol: string; marketValue: string; gain: string }[]; cash: string }): SankeyData
+```
+
+#### Testing
+
+- **Core (PGlite):**
+  - Each new view on seeded data.
+  - Every Sankey reconciles to its total to the cent, including a book with losses, an empty watchlist and a single holding.
+  - Today's per-position change handles a position bought today (measured from its fill, not the previous close) and one sold today.
+  - The range table's figures match `compareToBenchmark` and `capitalSummary` for each range.
+  - **Position history:** the backfill reproduces every day's `equity_snapshots` total to the cent on a seeded account with buys, sells, a partial sale and a deposit. Per-range P&L by position sums to the portfolio's P&L for each range. The after-close write is idempotent.
+  - **Extended hours:** the job runs only inside the calendar's pre-market and after-hours windows (including a half day); it writes no orders and leaves risk's inputs untouched; a symbol with no extended trade gets no row; a stale price is marked.
+- **Schema:** stored versions without `headline` or `exitIf` still parse. The tools refuse a new thesis without them. `exitIf` takes 1–3 items, each within its limit.
+- **Dashboard (vitest):** the glossary covers every term an ⓘ uses; the headline fallback; the redirects.
+- **`mobile:check`:** every page listed above at 393 and 1280 px, with no sideways scroll, 44 px tap targets, the ⓘ toggles reachable, and a Sankey at 393 px that fits with its labels readable.
+- **Live:** Scott answers each of his eight questions from the phone, without help.
+
+#### Boundaries
+
+- **Always:**
+  - Keep logic in core read models.
+  - Give every new figure a glossary entry.
+  - Reconcile every Sankey to its total.
+  - Keep the old URLs working.
+  - Run `mobile:check` before each PR.
+- **Ask first:**
+  - A new table or snapshot job (such as per-range P&L by position).
+  - Changing what a figure means: how P&L or "vs VTI" is computed.
+  - Removing a figure the dashboard shows today, rather than moving it a layer down.
+  - Any dependency beyond Recharts.
+- **Never:**
+  - A new write path.
+  - Broker keys.
+  - Caching signed-in pages.
+  - Letting a missing headline or exit list block a strategy that's already stored: stored versions stay valid.
+  - Letting extended-hours prices reach risk, the drawdown index, rebalance, the P&L figures or the track record.
+  - Guessing a backfilled snapshot that doesn't reconcile to its day's equity.
+
+#### Success criteria (Amendment 3)
+
+1. **Today** shows today's P&L in dollars and percent, VTI's today, and each position's move, all on the first phone screen, with the data's age. On a closed day, it shows the last session, dated. In pre-market and after-hours windows, each position's and the portfolio's indicative extended move appears beside the session figures, never inside them.
+2. **Performance** shows P&L, return, VTI and the gap for every range in one table, and the range's chart. Its figures match `get_overview`'s money-weighted figures since start. Profit and loss by position is shown for each range, and sums to the portfolio's.
+3. Every position, past thesis and watchlist name shows a **headline**, with the plain summary and full detail a tap away. Before the backfill run, the fallback is marked.
+4. Every position shows its **automatic exits as figures** (stop price and distance, review date, stale date), its **`exitIf` list** and its live flags.
+5. **Ideas** lists the open watchlist with each name's trigger and revisit date.
+6. **The four Sankey diagrams** render, each reconciling to its total (tested), legible at 393 px.
+7. Every figure has an ⓘ explanation, and `/help` lists every term.
+8. Every old URL redirects, and `mobile:check` passes on every page at both widths.
+9. Scott confirms on his phone that each of his eight questions is answered.
+
+#### Resolved (Scott, 2026-11-26)
+
+1. **Ranges:** today, 7d, 30d, 60d, 90d, YTD, 1y and since start.
+2. **Closed days:** show the last session, dated, with pre-market and after-hours prices where available and appropriate (§ Pre-market and after-hours).
+3. **Slicing,** as proposed:
+   1. the schema, tool and prompt fields, so the backfill runs while the pages are built;
+   2. the read models and Sankey builders;
+   3. Today and Performance;
+   4. Positions and exits;
+   5. Ideas;
+   6. History and the redirects;
+   7. the glossary and `/help`.
+
+   The two new tables join slice 2. The extended-hours job ships with slice 3.
+4. **Per-range P&L by position:** in, through `position_snapshots` and its backfill (§ Position history).
+
 ## Tech stack
 
 Same as Fred's web app, so both projects share one set of conventions:
