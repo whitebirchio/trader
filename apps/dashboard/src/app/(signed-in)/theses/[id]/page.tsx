@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { THESIS_RANGES, parseRange, thesisView } from "@trader/core";
+import { THESIS_RANGES, headlineOf, parseRange, positionsView, thesisView } from "@trader/core";
+import { ExitList } from "@/components/exits";
 import { ThesisBody } from "@/components/strategy-document";
 import { RangePicker } from "@/components/range-picker";
 import { ThesisChart } from "@/components/thesis-chart";
@@ -20,6 +21,8 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
   if (!v) notFound();
   const s = v.score;
   const m = s?.money ?? null;
+  const headline = headlineOf(v.thesis);
+  const exits = s?.ending === "open" ? ((await positionsView(db, new Date())).cards.find((c) => c.thesisId && v.ids.includes(c.thesisId))?.exits ?? null) : null;
 
   return (
     <div className="grid grid-cols-1 gap-4">
@@ -44,9 +47,20 @@ export default async function ThesisPage({ params, searchParams }: { params: Pro
         </span>
       </div>
 
+      <p className="text-base">
+        {headline.text}
+        {headline.fallback && <span className="ml-1 text-sm text-[var(--muted)]">(summary)</span>}
+      </p>
+
       {v.thesis.plainSummary && (
         <Card title="In plain terms">
           <p className="text-sm leading-relaxed [overflow-wrap:anywhere]">{v.thesis.plainSummary}</p>
+        </Card>
+      )}
+
+      {exits && (
+        <Card title="When it sells">
+          <ExitList exits={exits} />
         </Card>
       )}
 
