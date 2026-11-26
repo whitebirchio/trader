@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PERFORMANCE_RANGES, parseRange, performanceView, pnlSankey, positionsPnl } from "@trader/core";
+import { Info } from "@/components/info";
 import { PerformanceChart } from "@/components/performance-chart";
 import { RangePicker } from "@/components/range-picker";
 import { SankeyChart } from "@/components/sankey";
@@ -30,6 +31,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
             <p className="text-3xl font-semibold">
               <Signed value={chosen.pnl}>{formatSignedUsd(chosen.pnl)}</Signed>
               {chosen.returnPct && <span className="ml-2 text-lg text-[var(--muted)]">{formatPct(chosen.returnPct)}</span>}
+              <Info term="pnl" />
             </p>
             <p className="mt-1 text-sm text-[var(--muted)]">
               {shortDate(chosen.since!)} to {shortDate(chosen.through!)} close
@@ -57,10 +59,16 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
               <tr>
                 <th className="py-1 pr-3 font-medium">Range</th>
                 <th className="py-1 pr-3 text-right font-medium">Made or lost</th>
-                <th className="py-1 pr-3 text-right font-medium">Return</th>
+                <th className="py-1 pr-3 text-right font-medium">
+                  Return <Info term="returnPct" />
+                </th>
                 <th className="py-1 pr-3 text-right font-medium">VTI</th>
-                <th className="py-1 pr-3 text-right font-medium">vs VTI</th>
-                <th className="py-1 text-right font-medium">vs VTI ($)</th>
+                <th className="py-1 pr-3 text-right font-medium">
+                  vs VTI <Info term="gapPts" />
+                </th>
+                <th className="py-1 text-right font-medium">
+                  vs VTI ($) <Info term="vsVti" />
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -108,11 +116,15 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
                 </li>
               ))}
               <li className="flex justify-between gap-3 py-1.5 text-[var(--muted)]">
-                <span>After-close pricing</span>
+                <span>
+                  After-close pricing <Info term="afterClosePricing" />
+                </span>
                 <span>{formatSignedUsd(pnl.afterClosePricing)}</span>
               </li>
               <li className="flex justify-between gap-3 py-1.5 text-[var(--muted)]">
-                <span>Dividends, fees and rounding</span>
+                <span>
+                  Dividends, fees and rounding <Info term="cashAndOther" />
+                </span>
                 <span>{formatSignedUsd(pnl.cashAndOther)}</span>
               </li>
               <li className="flex justify-between gap-3 py-1.5 font-medium">

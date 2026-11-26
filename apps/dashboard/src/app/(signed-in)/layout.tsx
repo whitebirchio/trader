@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Nav, Refresh } from "@/components/nav";
 import { signedIn } from "@/lib/auth";
 
@@ -22,9 +23,10 @@ export default async function SignedInLayout({ children }: { children: React.Rea
         <SignOut className="hidden sm:block" />
       </header>
       {children}
-      {/* On phones, sign-out lives at the foot of every page: available, but out of the way. */}
-      <footer className="mt-8 flex justify-center border-t border-[var(--border)] pt-2 sm:hidden">
-        <SignOut />
+      {/* How to read the figures, on every page; on phones, sign-out lives here too: available, but out of the way. */}
+      <footer className="mt-8 flex items-center justify-center gap-6 border-t border-[var(--border)] pt-2">
+        <Link href="/help" className="flex min-h-11 items-center text-xs text-[var(--muted)] hover:text-[var(--text)] sm:min-h-0">How to read this</Link>
+        <SignOut className="sm:hidden" />
       </footer>
     </div>
   );

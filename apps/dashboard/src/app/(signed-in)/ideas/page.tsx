@@ -1,4 +1,5 @@
 import { ideasView } from "@trader/core";
+import { Info } from "@/components/info";
 import { SankeyChart } from "@/components/sankey";
 import { Badge, Card } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
@@ -31,11 +32,11 @@ export default async function IdeasPage() {
                   {c.headline.fallback && <span className="ml-1 text-[var(--muted)]">(summary)</span>}
                 </p>
                 <p className="mt-1">
-                  <span className="text-[var(--muted)]">Buys if:</span> {c.trigger}
+                  <span className="text-[var(--muted)]">Buys if:</span> {c.trigger} <Info term="trigger" />
                 </p>
                 {c.forecast && (
                   <p className="mt-1 text-xs text-[var(--muted)]">
-                    Forecast: {c.forecast.beatVtiPct}% chance it beats VTI by {shortDate(c.forecast.horizon)} (expected {formatPts(c.forecast.expectedExcessPct)})
+                    Forecast: {c.forecast.beatVtiPct}% chance it beats VTI by {shortDate(c.forecast.horizon)} (expected {formatPts(c.forecast.expectedExcessPct)}) <Info term="forecast" />
                   </p>
                 )}
                 <details className="mt-1">

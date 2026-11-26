@@ -33,6 +33,9 @@ The owner controls stay on the command line (ADR-012).
 > - **Blast radius** if the dashboard were compromised: forced sells and cash held idle. The trading, strategy and kill/resume paths are still absent, and there are still no broker keys or SES access.
 
 ### Pages
+
+> *(2026-11-26, Amendment 3)* The pages are now **Today** (`/`), **Performance**, **Positions**, **Ideas**, **History** (with `/history/activity`, `/history/strategy`, `/history/forecasts`), **Money** and **How to read this** (`/help`). Thesis pages are unchanged at `/theses/[id]`. `/holdings`, `/track-record`, `/activity` and `/strategy` redirect permanently (308) to their new homes. The table below is the original v1 set, kept as written.
+
 | Route | Shows |
 |---|---|
 | `/` **Overview** | Equity, cash, today's change, drawdown from peak. Guardrail status: kill switch, halt, buys paused, broker verdict, last sync. **A performance chart**: the portfolio's flow-adjusted index (so deposits don't count as returns) against VTI, both rebased to 100 at the start of the chosen range (#59: 4 weeks, 3 months, 6 months, YTD, 1 year or since start; default since start), with the range's return figures. The active strategy version and summary. |

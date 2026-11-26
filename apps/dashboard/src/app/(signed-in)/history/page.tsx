@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { historyView } from "@trader/core";
+import { Info } from "@/components/info";
 import { SankeyChart } from "@/components/sankey";
 import { Badge, Card, Change, PhoneRow, RowsOnPhone, Signed, StatTile, TableOnWide } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
@@ -36,6 +37,9 @@ export default async function HistoryPage() {
       </div>
 
       <Card title="By lead signal (declared on each thesis; older ones inferred from their most cited evidence)">
+        <p className="-mt-2 mb-2 text-xs text-[var(--muted)]">
+          What a lead signal is <Info term="leadSignal" />
+        </p>
         {t.byKind.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">No theses yet.</p>
         ) : (
