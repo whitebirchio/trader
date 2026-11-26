@@ -1,0 +1,1 @@
+ALTER TABLE "watchlist_notes" ADD COLUMN "headline" text;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenLot } from "../../src/broker/lots.js";
-import { averageCost, bearCaseErrors, highSinceEntry, ledgerErrors, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
+import { averageCost, bearCaseErrors, highSinceEntry, ledgerErrors, presentationErrors, reviewDateErrors, thesisStates } from "../../src/portfolio/theses.js";
 import { strategy, thesis } from "./fixtures.js";
 
 const created = new Date("2026-11-02T15:00:00Z");
@@ -202,6 +202,29 @@ describe("trailing stop and profit target (#35)", () => {
 
   it("leaves a thesis without either field alone", () => {
     expect(run35({}, "400")).toMatchObject({ state: "active" });
+  });
+});
+
+describe("presentationErrors (SPEC-dashboard Amendment 3)", () => {
+  const doc = (over: Parameters<typeof thesis>[0]) => strategy({ conviction: [thesis(over)] });
+  const none = { headline: undefined, exitIf: undefined };
+
+  it("needs a headline and exit conditions on a new thesis and on a raised weight", () => {
+    expect(presentationErrors(doc(none), strategy({ conviction: [] }))).toEqual([
+      "conviction[0].headline: a new thesis (aapl-services) needs a headline: the bet in one plain line (what we're buying and why), not what the company does",
+      "conviction[0].exitIf: a new thesis (aapl-services) needs 1–3 exit conditions: what would make you sell before the stop, each one someone could check",
+    ]);
+    expect(presentationErrors(doc({ ...none, targetWeightPct: "15" }), doc(none))).toEqual([
+      expect.stringContaining("conviction[0].headline: raising aapl-services from 10% to 15%"),
+      expect.stringContaining("conviction[0].exitIf: raising aapl-services from 10% to 15%"),
+    ]);
+    expect(presentationErrors(doc({ exitIf: undefined }), strategy({ conviction: [] }))).toEqual([expect.stringContaining("conviction[0].exitIf:")]);
+  });
+
+  it("leaves a held thesis at the same or a lower weight alone, so stored ones can be reaffirmed", () => {
+    expect(presentationErrors(doc(none), doc(none))).toEqual([]);
+    expect(presentationErrors(doc({ ...none, targetWeightPct: "5" }), doc(none))).toEqual([]);
+    expect(presentationErrors(doc({ targetWeightPct: "20" }), strategy({ conviction: [] }))).toEqual([]);
   });
 });
 

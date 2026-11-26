@@ -77,6 +77,7 @@ const watchChange = {
     symbol: { type: "string", description: "A ticker, like AAPL or BRK.B." },
     why: { type: "string", description: "Why it's worth watching, or why it's dropped (10–600 characters)." },
     trigger: { type: "string", description: "watch only: what would make it a thesis, e.g. a dated catalyst or a filing (10–400 characters)." },
+    headline: { type: "string", description: "watch only, required for a name new to the list: the idea in one plain line for the owner (10–120 characters), e.g. \"Buy Upbound if the 10-Q shows charge-offs falling\". Left out on an update, the last one is kept." },
     revisitBy: { type: "string", description: "watch only: YYYY-MM-DD, after today and at most 120 days out." },
     forecast: {
       type: "object",
@@ -214,7 +215,7 @@ export const TOOLS: Tool[] = [
     name: "update_watchlist",
     title: "Update the research watchlist",
     description:
-      "Record names you researched but didn't buy, so the next run starts from them: `watch` adds a name or replaces its note (why, trigger, revisitBy, and a forecast on a new name); `drop` takes it off. All changes apply together, or none if any is invalid. It has no trading effect, and the owner sees each change in the daily digest.",
+      "Record names you researched but didn't buy, so the next run starts from them: `watch` adds a name or replaces its note (why, trigger, revisitBy, and a headline and a forecast on a new name); `drop` takes it off. All changes apply together, or none if any is invalid. It has no trading effect, and the owner sees each change in the daily digest.",
     inputSchema: schema({ changes: { type: "array", items: watchChange, minItems: 1, maxItems: 25, description: "At most 25 changes." } }, ["changes"]),
     readOnly: false,
     handler: (deps, args) => {

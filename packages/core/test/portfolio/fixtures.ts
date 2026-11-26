@@ -9,6 +9,8 @@ export function thesis(overrides: Partial<Thesis> = {}): Thesis {
     evidence: [{ kind: "fundamental", summary: "Services gross margin above 70% for 8 quarters" }],
     stopLossPct: "15",
     bearCase: "Hardware is still most of the revenue, so a weak iPhone cycle could swamp services; but services keep growing through weak cycles.",
+    headline: "Buying Apple because services keep compounding while it's priced like hardware",
+    exitIf: ["Services growth falls below 10% for two quarters"],
     // The default evidence's kind; a test that swaps the evidence picks its own (or none).
     ...(overrides.evidence ? {} : { leadSignal: "fundamental" as const }),
     // Defaults to the review date when one is set; otherwise a far horizon.

@@ -51,6 +51,8 @@ interface Thesis {
   reviewBy?: string;                  // YYYY-MM-DD (#35): unwinds the day after; see "overdue" below
   plainSummary?: string;              // 20–600 chars (#60): the thesis in plain language for the owner
   bearCase?: string;                  // 40–1,200 chars (#106): the strongest case against it now, and why it doesn't win
+  headline?: string;                  // 10–120 chars (SPEC-dashboard Amendment 3): the bet in one plain line
+  exitIf?: string[];                  // 1–3 conditions, each 10–120 chars: what would make it sell before the stop
 }
 ```
 
@@ -70,6 +72,8 @@ interface Thesis {
 **Plain summary** *(2026-11-08, #60)*: an optional `plainSummary` of 2–4 jargon-free sentences: what the company does, why it should beat the market, and what would prove it wrong. It's for the owner, and it changes nothing about execution. It leads each thesis on the dashboard (the strategy page and the thesis page), is listed under "In plain terms" in the activation email, and follows each thesis opened in the weekly letter. Optional, so stored versions stay valid; `preview_strategy` warns about every thesis without one, and the routine writes one for each.
 
 **Bear case** *(2026-11-12, #106)*: an optional `bearCase`: the strongest case against the thesis right now, argued the way a skeptic holding the other side would, and the answer to it (why it doesn't win yet, and what would make it win). It's the other side's argument, not the exit trigger; the trigger stays in `plainSummary`. It changes nothing about execution. **Claude's tools require one on a new thesis or a raised weight** (`bearCaseErrors`: `preview_strategy` and `submit_strategy` refuse without it). They only warn about a held thesis at the same or a lower weight without one. Owner submissions, the withdrawal fallback and replayed historical versions are exempt. The routine rereads each held thesis's bear case every run, and its gaining ground is a sell signal. The dashboard shows it as "The case against" on the thesis page and the strategy page, and a version's thesis changes list "bear case added/updated/dropped".
+
+**Headline and exit conditions** *(2026-11-26, SPEC-dashboard Amendment 3)*: an optional `headline` (the bet in one plain line, which the dashboard shows first) and `exitIf` (1–3 conditions that would make Claude sell before the stop, each one someone could check). Like `bearCase`, they're optional so stored versions stay valid, and `presentationErrors` requires both on Claude's new theses and raised weights; owner and fallback submissions are exempt. `preview_strategy` warns about a held thesis without them, and the routine adds them. A watchlist `watch` note gains a `headline` too, required on a new name (an update without one keeps the last). They change no trading behaviour.
 - **closed:** it's no longer in the strategy, so it's sold.
 
 **Before Claude's first strategy,** a `system` version 0 runs: no theses, and a systematic universe of `["VTI"]` with `topN: 1` and no trend filter. That's the benchmark itself, so the account tracks VTI exactly until there's an actual idea to act on.

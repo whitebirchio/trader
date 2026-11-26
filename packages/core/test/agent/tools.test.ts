@@ -129,7 +129,7 @@ describe("read tools", () => {
     broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
     broker.positions = [{ symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" }];
     await syncBroker(deps.db, broker, "staging", NOW);
-    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}]);
+    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", headline: "Watching it for the turn in margins", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}]);
     expect((await getHoldings(deps)).filingsCheck).toMatchObject({ checkedAt: null, stale: true });
 
     const row = (accession: string, symbol: string, filedOn: string, kind: string, sellSignal: string | null = null) => ({ accession, symbol, cik: "1", form: kind === "periodic" ? "10-Q" : "4", filedOn, acceptedAt: new Date(`${filedOn}T21:00:00Z`), items: "", url: `https://www.sec.gov/${accession}`, kind, summary: `${kind} filing`, sellSignal });
@@ -155,7 +155,7 @@ describe("read tools", () => {
     broker.fill("o1", "AAPL", "buy", "5", "200", new Date("2026-10-20T15:00:00Z"));
     broker.positions = [{ symbol: "AAPL", qty: "5", avgEntryPrice: "200", marketValue: "1000", costBasis: "1000", currentPrice: "200" }];
     await syncBroker(deps.db, broker, "staging", NOW);
-    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}]);
+    await updateWatchlistTool(deps, [{ action: "watch", symbol: "MSFT", headline: "Watching it for the turn in margins", why: "MSFT missed the bar this run", trigger: "MSFT confirms the turn in a 10-Q", revisitBy: "2026-11-30" , forecast: { beatVtiPct: 40, expectedExcessPct: "-2" }}]);
     const point = (eps: string, eps30dAgo: string) => ({ period: "2026-12-31", eps, eps7dAgo: eps, eps30dAgo, eps60dAgo: eps30dAgo, eps90dAgo: eps30dAgo, raised7d: 0, cut7d: 1, raised30d: 1, cut30d: 4, analysts: 20, revenue: null });
     await deps.db.insert(earningsEstimates).values([
       { symbol: "AAPL", fetchedOn: "2026-11-01", fetchedAt: NOW, status: "ok", quarter: point("1.80", "2.00"), fiscalYear: null },
@@ -168,7 +168,7 @@ describe("read tools", () => {
   });
 
   it("get_watchlist and update_watchlist: Claude's notes, flagged once a name is a thesis; get_overview counts them (#32)", async () => {
-    const note = (symbol: string, revisitBy: string) => ({ action: "watch", symbol, why: `${symbol} missed the bar this run`, trigger: `${symbol} confirms the turn in a 10-Q`, revisitBy, forecast: { beatVtiPct: 40, expectedExcessPct: "-2" } });
+    const note = (symbol: string, revisitBy: string) => ({ action: "watch", symbol, headline: "Watching it for the turn in margins", why: `${symbol} missed the bar this run`, trigger: `${symbol} confirms the turn in a 10-Q`, revisitBy, forecast: { beatVtiPct: 40, expectedExcessPct: "-2" } });
     expect(await updateWatchlistTool(deps, [note("AAPL", "2026-11-30"), note("MSFT", "2026-11-20")])).toMatchObject({ status: "updated", open: 2 });
     await submitStrategyTool(deps, strategy()); // the fixture's thesis is AAPL
     const w = await getWatchlist(deps);
@@ -380,6 +380,16 @@ describe("preview_strategy", () => {
     expect(await previewStrategy(deps, strategy({ conviction: [{ ...bare, targetWeightPct: "15" }], systematic: vti }))).toMatchObject({ valid: false, errors: [expect.stringContaining("raising aapl-services from 10% to 15%")] });
   });
 
+  it("warns about a held thesis without a headline or exit conditions, so the routine fills them in (SPEC-dashboard Amendment 3)", async () => {
+    const vti = { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null };
+    const held = thesis({ headline: undefined, exitIf: undefined, plainSummary: "Apple sells iPhones and the services people pay for on them every month." });
+    await submitStrategy(deps.db, strategy({ conviction: [held], systematic: vti }), "owner", NOW);
+    expect(await previewStrategy(deps, strategy({ conviction: [held], systematic: vti }))).toMatchObject({
+      valid: true,
+      warnings: ["No headline or exitIf on aapl-services: the owner's dashboard leads with both, so add a one-line headline and 1–3 exit conditions to each."],
+    });
+  });
+
   it("judges stale broker data (pre-market, weekends) on its merits, and says the real step re-checks", async () => {
     const draft = strategy({ conviction: [thesis({ targetWeightPct: "20" })], systematic: { ...strategy().systematic, universe: ["VTI"], topN: 1, trendFilterDays: null, defensive: null } });
     const later = { ...deps, now: new Date(NOW.getTime() + 3 * 3_600_000) }; // 3h after the last sync
@@ -423,6 +433,15 @@ describe("submit_strategy", () => {
     expect((await deps.db.select().from(auditEvents)).map((e) => e.kind)).toContain("strategy.rejected");
     expect(await submitStrategy(deps.db, draft, "owner", NOW)).toEqual({ status: "activated", version: 1 });
     // Held at the same weight, it goes through, and preview_strategy only warns.
+    expect(await submitStrategyTool(deps, draft)).toEqual({ status: "activated", version: 2 });
+  });
+
+  it("refuses a new thesis without a headline or exit conditions from Claude, but not from the owner (SPEC-dashboard Amendment 3)", async () => {
+    const draft = strategy({ conviction: [thesis({ headline: undefined, exitIf: undefined })] });
+    expect(await previewStrategy(deps, draft)).toMatchObject({ valid: false, errors: [expect.stringContaining("needs a headline"), expect.stringContaining("needs 1–3 exit conditions")] });
+    expect(await submitStrategyTool(deps, draft)).toMatchObject({ status: "rejected" });
+    expect(await submitStrategy(deps.db, draft, "owner", NOW)).toEqual({ status: "activated", version: 1 });
+    // Held at the same weight, it can be reaffirmed while the routine fills them in.
     expect(await submitStrategyTool(deps, draft)).toEqual({ status: "activated", version: 2 });
   });
 

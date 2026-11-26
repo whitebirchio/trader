@@ -56,6 +56,15 @@ describe("validateStrategy", () => {
     expect(long.ok ? [] : long.errors).toEqual(["conviction[0].bearCase: keep it to a short paragraph (1,200 characters)"]);
   });
 
+  it("takes an optional one-line headline and 1–3 exit conditions (SPEC-dashboard Amendment 3)", () => {
+    expect(validateStrategy(strategy({ conviction: [thesis({ headline: undefined, exitIf: undefined })] })).ok).toBe(true);
+    expect(errorsOf(strategy({ conviction: [thesis({ headline: "Buy it" })] }))).toEqual(["conviction[0].headline: say the bet in a line"]);
+    expect(errorsOf(strategy({ conviction: [thesis({ headline: "x".repeat(121) })] }))).toEqual(["conviction[0].headline: keep it to one line (120 characters)"]);
+    expect(errorsOf(strategy({ conviction: [thesis({ exitIf: [] })] }))).toEqual(["conviction[0].exitIf: needs at least one condition"]);
+    expect(errorsOf(strategy({ conviction: [thesis({ exitIf: ["Claims stay above $45M", "Volumes roll over", "Pershing trims", "A fourth"] })] }))).toEqual(["conviction[0].exitIf: at most 3 conditions"]);
+    expect(errorsOf(strategy({ conviction: [thesis({ exitIf: ["x".repeat(121)] })] }))).toEqual(["conviction[0].exitIf[0]: keep each to one line (120 characters)"]);
+  });
+
   it("takes an optional lead signal, which must match an evidence item's kind (forecast ledger)", () => {
     expect(errorsOf(strategy({ conviction: [thesis({ leadSignal: "insider" })] }))).toEqual(['conviction[0].leadSignal: "insider" must match the kind of at least one evidence item']);
     expect(errorsOf(strategy({ conviction: [thesis({ leadSignal: undefined, forecast: undefined })] }))).toEqual([]);

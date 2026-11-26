@@ -196,6 +196,25 @@ export function bearCaseErrors(next: Strategy, active: Strategy): string[] {
 }
 
 /**
+ * A new thesis, or a larger weight on one, also needs what the owner reads
+ * first (SPEC-dashboard Amendment 3): a one-line headline and the judgment
+ * exits (exitIf). Held theses at the same or a lower weight are left alone,
+ * as with bearCaseErrors, and so are the same submissions it exempts.
+ */
+export function presentationErrors(next: Strategy, active: Strategy): string[] {
+  const before = new Map(active.conviction.map((t) => [t.id, t]));
+  return next.conviction.flatMap((t, i) => {
+    const prev = before.get(t.id);
+    const why = !prev ? `a new thesis (${t.id})` : compare(t.targetWeightPct, prev.targetWeightPct) > 0 ? `raising ${t.id} from ${prev.targetWeightPct}% to ${t.targetWeightPct}%` : null;
+    if (!why) return [];
+    return [
+      ...(t.headline ? [] : [`conviction[${i}].headline: ${why} needs a headline: the bet in one plain line (what we're buying and why), not what the company does`]),
+      ...(t.exitIf ? [] : [`conviction[${i}].exitIf: ${why} needs 1–3 exit conditions: what would make you sell before the stop, each one someone could check`]),
+    ];
+  });
+}
+
+/**
  * What Claude's tools also require on every thesis (SPEC-portfolio § Forecast
  * ledger): a declared lead signal and a forecast. A new or changed forecast's
  * horizon must be after today; an unchanged one passes once its horizon has
