@@ -14,7 +14,7 @@
 import Big from "big.js";
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { auditEvents, brokerAccount, brokerActivities, equitySnapshots, positionSnapshots, positions } from "../db/schema.js";
+import { auditEvents, benchmarkCloses, brokerAccount, brokerActivities, equitySnapshots, extendedPrices, positionSnapshots, positions, thesisCloses } from "../db/schema.js";
 import { loadIndexInputs } from "../risk/gate.js";
 import { marketDate, marketTimeToUtc } from "../time.js";
 
@@ -129,4 +129,64 @@ export async function todayView(db: Db): Promise<TodayView | null> {
     other,
     events: events.map((e) => ({ at: e.at.toISOString(), kind: e.kind, symbol: e.subject, payload: e.payload })),
   };
+}
+
+export interface ExtendedMove {
+  symbol: string;
+  price: string;
+  /** The close it's measured from: the session's for after hours, the one before for pre-market. */
+  baseline: string;
+  move: string;
+  movePct: string;
+  barAt: string;
+  /** Its last trade is more than 30 minutes older than the newest one: thin trading. */
+  stale: boolean;
+}
+
+export interface ExtendedView {
+  tradingDate: string;
+  session: "pre" | "post";
+  /** The newest bar's time: the data runs about 16 minutes behind. */
+  asOf: string;
+  /** The holdings' indicative move in dollars, and against their value at the baseline close. */
+  move: string;
+  movePct: string | null;
+  positions: ExtendedMove[];
+}
+
+const STALE_MS = 30 * 60_000;
+
+/**
+ * The pre-market or after-hours line (SPEC-dashboard Amendment 3):
+ * indicative, never added into the session's figures. The latest session's
+ * rows; pre-market rows give way once the regular session has synced.
+ */
+export async function extendedView(db: Db): Promise<ExtendedView | null> {
+  const [latest] = await db.select().from(extendedPrices).orderBy(desc(extendedPrices.barAt)).limit(1);
+  if (!latest) return null;
+  const [account] = await db.select().from(brokerAccount).where(eq(brokerAccount.id, 1));
+  if (latest.session === "pre" && account && account.syncedAt >= marketTimeToUtc(latest.tradingDate, "09:30")) return null;
+  const rows = await db.select().from(extendedPrices).where(and(eq(extendedPrices.tradingDate, latest.tradingDate), eq(extendedPrices.session, latest.session)));
+  const held = await db.select().from(positions);
+  const closes = [...(await db.select().from(thesisCloses)), ...(await db.select().from(benchmarkCloses))];
+  const baselineOf = (symbol: string) =>
+    closes
+      .filter((c) => c.symbol === symbol && (latest.session === "post" ? c.tradingDate <= latest.tradingDate : c.tradingDate < latest.tradingDate))
+      .sort((a, b) => b.tradingDate.localeCompare(a.tradingDate))[0]?.close ?? null;
+  const newest = Math.max(...rows.map((r) => r.barAt.getTime()));
+  let move = new Big(0);
+  let base = new Big(0);
+  const out: ExtendedMove[] = [];
+  for (const p of held) {
+    const baseline = baselineOf(p.symbol);
+    if (!baseline) continue;
+    base = base.plus(new Big(p.qty).times(baseline));
+    const r = rows.find((x) => x.symbol === p.symbol);
+    if (!r) continue;
+    const m = new Big(p.qty).times(new Big(r.price).minus(baseline));
+    move = move.plus(m);
+    out.push({ symbol: p.symbol, price: r.price, baseline, move: m.toFixed(2), movePct: new Big(r.price).div(baseline).minus(1).times(100).toFixed(2), barAt: r.barAt.toISOString(), stale: newest - r.barAt.getTime() > STALE_MS });
+  }
+  out.sort((a, b) => new Big(b.move).abs().cmp(new Big(a.move).abs()));
+  return { tradingDate: latest.tradingDate, session: latest.session, asOf: new Date(newest).toISOString(), move: move.toFixed(2), movePct: pctOf(move, base), positions: out };
 }

@@ -1,8 +1,8 @@
 import Big from "big.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "../../src/db/client.js";
-import { auditEvents, brokerAccount, brokerActivities, equitySnapshots, positionSnapshots, positions } from "../../src/db/schema.js";
-import { todayView } from "../../src/dashboard/today.js";
+import { auditEvents, benchmarkCloses, brokerAccount, brokerActivities, equitySnapshots, extendedPrices, positionSnapshots, positions, thesisCloses } from "../../src/db/schema.js";
+import { extendedView, todayView } from "../../src/dashboard/today.js";
 import { createTestDb } from "../helpers.js";
 
 const fill = (id: string, at: string, symbol: string, side: "buy" | "sell", qty: string, price: string) => ({ id, type: "FILL", at: new Date(at), symbol, side, qty, price, raw: {} });
@@ -60,5 +60,47 @@ describe("todayView", () => {
 
   it("is empty before the first sync", async () => {
     expect(await todayView(db)).toBeNull();
+  });
+});
+
+describe("extendedView", () => {
+  const rows = (tradingDate: string, session: "pre" | "post", list: [string, string, string][]) =>
+    db.insert(extendedPrices).values(list.map(([symbol, price, barAt]) => ({ tradingDate, symbol, session, price, barAt: new Date(barAt) })));
+
+  beforeEach(async () => {
+    await db.insert(thesisCloses).values([
+      { symbol: "ICE", tradingDate: "2026-11-24", close: "170" },
+      { symbol: "ICE", tradingDate: "2026-11-25", close: "177" },
+      { symbol: "META", tradingDate: "2026-11-25", close: "610" },
+    ]);
+    await db.insert(benchmarkCloses).values([
+      { symbol: "VTI", tradingDate: "2026-11-24", close: "350" },
+      { symbol: "VTI", tradingDate: "2026-11-25", close: "353" },
+    ]);
+  });
+
+  it("measures after hours from the session's close, marking a thin trader's old bar", async () => {
+    await db.insert(brokerAccount).values(account("2026-11-25T21:30:00Z", "651", "695.20"));
+    await rows("2026-11-25", "post", [
+      ["ICE", "178.77", "2026-11-25T23:40:00Z"],
+      ["VTI", "352.65", "2026-11-25T23:45:00Z"],
+      ["META", "615", "2026-11-25T21:10:00Z"],
+    ]);
+    const x = (await extendedView(db))!;
+    expect(x).toMatchObject({ tradingDate: "2026-11-25", session: "post", asOf: "2026-11-25T23:45:00.000Z" });
+    expect(x.positions).toEqual([
+      { symbol: "ICE", price: "178.77", baseline: "177", move: "1.77", movePct: "1.00", barAt: "2026-11-25T23:40:00.000Z", stale: false },
+      { symbol: "META", price: "615", baseline: "610", move: "0.50", movePct: "0.82", barAt: "2026-11-25T21:10:00.000Z", stale: true },
+      { symbol: "VTI", price: "352.65", baseline: "353", move: "-0.35", movePct: "-0.10", barAt: "2026-11-25T23:45:00.000Z", stale: false },
+    ]);
+    expect(x.move).toBe("1.92");
+  });
+
+  it("measures pre-market from the close before, and steps aside once the session has synced", async () => {
+    await rows("2026-11-25", "pre", [["ICE", "171.70", "2026-11-25T13:00:00Z"]]);
+    await db.insert(brokerAccount).values(account("2026-11-25T13:05:00Z", "651", "695.20"));
+    expect((await extendedView(db))!.positions[0]).toMatchObject({ symbol: "ICE", baseline: "170", movePct: "1.00" });
+    await db.update(brokerAccount).set({ syncedAt: new Date("2026-11-25T14:45:00Z") });
+    expect(await extendedView(db)).toBeNull();
   });
 });
