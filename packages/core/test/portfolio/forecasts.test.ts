@@ -173,5 +173,6 @@ describe("loadForecastReport", () => {
     const r = await loadForecastReport(db, at("2026-11-05T12:00:00Z"));
     expect(r.bySource.thesis).toMatchObject({ resolved: 1, meanRealizedExcessPct: 4 });
     expect(r.open).toEqual([expect.objectContaining({ source: "watchlist", symbol: "GGG", beatVtiPct: 40 })]);
-  });
+    // It builds its own database inside the test (every migration), which ran past 5 s on a slow CI runner.
+  }, 15_000);
 });
