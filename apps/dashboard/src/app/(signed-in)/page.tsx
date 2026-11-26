@@ -102,7 +102,16 @@ export default async function TodayPage() {
                   key={x.symbol}
                   title={h ? <Link href={`/theses/${h.thesisId}`}>{x.symbol}</Link> : x.symbol}
                   value={<Signed value={x.move}>{formatSignedUsd(x.move)}</Signed>}
-                  detail={h ? h.text : x.symbol === "VTI" ? "Idle money, held in the index" : undefined}
+                  detail={
+                    h ? (
+                      <>
+                        {h.text}
+                        {h.fallback && <span className="ml-1 text-[var(--muted)]">(summary)</span>}
+                      </>
+                    ) : x.symbol === "VTI" ? (
+                      "Idle money, held in the index"
+                    ) : undefined
+                  }
                   secondary={x.movePct ? formatPct(x.movePct) : undefined}
                 />
               );

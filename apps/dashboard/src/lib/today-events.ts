@@ -25,7 +25,8 @@ export function describeEvent(e: TodayEvent): DescribedEvent {
       return { ...base, text: `${verb} ${qty ? `${formatQty(qty)} ` : ""}${e.symbol ?? ""}${price ? ` at ${formatUsd(price)}` : ""}`.trim(), attention: false };
     }
     case "strategy.activated":
-      return { ...base, symbol: null, text: `Strategy v${String(p.version ?? "?")}: ${str(p.headline) ?? "updated"}`, attention: false };
+      // The summary's first line is its headline, as in the activation email and get_activity.
+      return { ...base, symbol: null, text: `Strategy v${String(p.version ?? "?")}: ${str(p.headline) ?? str(p.summary)?.split("\n")[0]?.trim() ?? "updated"}`, attention: false };
     case "thesis.stopped_out":
       return { ...base, text: `Sold ${e.symbol}: it closed through its stop${reason ? ` (${reason})` : ""}`, attention: true };
     case "thesis.took_profit":
@@ -37,7 +38,10 @@ export function describeEvent(e: TodayEvent): DescribedEvent {
     case "events.tripped": {
       const trigger = str(p.trigger);
       const pct = str(p.distancePct);
-      const what = str(p.detail) ?? (trigger === "near_stop" ? `near its stop${pct ? ` (${formatPct(pct, 2, false)} above)` : ""}` : trigger === "move" ? `moved ${pct ? formatPct(pct) : "8%+"} today` : "a sell-signal filing");
+      const detail = str(p.detail);
+      // The trip's own sentence already names the stock.
+      if (detail) return { ...base, text: detail, attention: trigger === "near_stop" };
+      const what = trigger === "near_stop" ? `near its stop${pct ? ` (${formatPct(pct, 2, false)} above)` : ""}` : trigger === "move" ? `moved ${pct ? formatPct(pct) : "8%+"} today` : "a sell-signal filing";
       return { ...base, text: `${symbol ?? "A holding"}: ${what}`, attention: trigger === "near_stop" };
     }
     case "routine.event_run_result":

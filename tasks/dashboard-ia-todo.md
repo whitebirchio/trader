@@ -129,7 +129,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** none · **Scope:** L, so it's split as T10a (the port, the adapter and the fake) and T10b (the table and the job)
 
 ### T11: The Today page
-- [ ] **What:** `todayView` (T9 plus T10's extended line and `moneySankey`) is rendered at `/`:
+- [x] **What:** `todayView` (T9 plus T10's extended line and `moneySankey`) is rendered at `/`:
   - today's P&L in dollars and percent;
   - VTI's move today;
   - the since-start line;
@@ -146,7 +146,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** T8, T9, T10 · **Scope:** M
 
 ### T12: The Performance page
-- [ ] **What:** `/performance` shows the range picker and the range's P&L, return, VTI and gap. It has the index chart (the existing `performance-chart.tsx`), the table of every range, the P&L by position for the range (T7), and `pnlSankey`.
+- [x] **What:** `/performance` shows the range picker and the range's P&L, return, VTI and gap. It has the index chart (the existing `performance-chart.tsx`), the table of every range, the P&L by position for the range (T7), and `pnlSankey`.
 - **Acceptance:** spec success criterion 2, and the range table agrees with the header and the summed positions.
 - **Verify:** `mobile:check`; the figures against `get_overview`.
 - **Files:** `apps/dashboard/src/app/(signed-in)/performance/page.tsx`, `apps/dashboard/src/components/range-table.tsx`, `views.ts`.
