@@ -38,6 +38,6 @@ describe("historyView", () => {
     expect(h.track.theses.map((r) => r.symbol)).toEqual(["AAPL"]);
     expect(h.signal.total).toBe("1");
     expect(h.signal.links).toEqual([expect.objectContaining({ value: "1" })]);
-    expect(h.signal.nodes.map((n) => n.name)).toEqual(["fundamental", "Still open"]);
+    expect(h.signal.nodes.map((n) => n.name)).toEqual(["fundamental", "Open, not scored yet"]);
   });
 });

@@ -108,8 +108,21 @@ export function pnlSankey(input: { parts: Item[]; cap?: number }): SankeyData {
   return b.done(net);
 }
 
-export type Outcome = "beat" | "lagged" | "stopped" | "open";
-const OUTCOME_LABELS: Record<Outcome, string> = { beat: "Beat VTI", lagged: "Lagged VTI", stopped: "Stopped out", open: "Still open" };
+/**
+ * How a thesis turned out, or for one still open how it stands now: open
+ * theses are split by their current figure against the same dollars in VTI
+ * (ideas.ts's outcomeOf). "open" alone is one not scored yet.
+ */
+export type Outcome = "beat" | "lagged" | "stopped" | "open_ahead" | "open_even" | "open_behind" | "open";
+const OUTCOME_LABELS: Record<Outcome, string> = {
+  beat: "Beat VTI",
+  lagged: "Lagged VTI",
+  stopped: "Stopped out",
+  open_ahead: "Open, ahead of VTI",
+  open_even: "Open, even with VTI",
+  open_behind: "Open, behind VTI",
+  open: "Open, not scored yet",
+};
 
 /**
  * The idea funnel (Ideas), by count: watched names end bought, dropped or

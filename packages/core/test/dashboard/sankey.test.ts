@@ -70,7 +70,7 @@ describe("ideaFunnelSankey and signalSankey", () => {
   it("counts every idea once, from the watchlist or found directly, through to its outcome", () => {
     const d = ideaFunnelSankey([
       { watched: true, state: "bought", outcome: "beat" },
-      { watched: true, state: "bought", outcome: "open" },
+      { watched: true, state: "bought", outcome: "open_ahead" },
       { watched: true, state: "dropped" },
       { watched: true, state: "watching" },
       { watched: false, state: "bought", outcome: "stopped" },
@@ -88,7 +88,7 @@ describe("ideaFunnelSankey and signalSankey", () => {
     const d = signalSankey([
       { leadSignal: "insider", outcome: "lagged", pnl: "-12.40" },
       { leadSignal: "insider", outcome: "lagged", pnl: "-3.10" },
-      { leadSignal: "13f", outcome: "open", pnl: "5.00" },
+      { leadSignal: "13f", outcome: "open_ahead", pnl: "5.00" },
     ]);
     expect(d.total).toBe("3");
     expect(d.links.find((l) => d.nodes[l.source]!.name === "insider")).toMatchObject({ value: "2", usd: "-15.50" });

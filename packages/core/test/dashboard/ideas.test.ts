@@ -42,7 +42,8 @@ describe("ideasView", () => {
     expect(link("Watched", "Bought")).toBe("1");
     expect(link("Watched", "Dropped")).toBe("1");
     expect(link("Watched", "Still watching")).toBe("1");
-    expect(link("Bought", "Still open")).toBe("1");
+    // AAPL is held, up from 200 to 205 while VTI has no closes in this test: not scored against VTI yet.
+    expect(link("Bought", "Open, not scored yet")).toBe("1");
   });
 
   it("falls back to the note's first sentence for a name without a headline", async () => {
@@ -57,6 +58,11 @@ describe("outcomeOf", () => {
   it("is open while held, stopped for a stop, and beat or lagged by the excess once closed", () => {
     const money = (excess: string) => ({ excess }) as never;
     expect(outcomeOf({ ending: "open", money: null })).toBe("open");
+    const open = (excessPct: string) => ({ excessPct }) as never;
+    expect(outcomeOf({ ending: "open", money: open("2.10") })).toBe("open_ahead");
+    expect(outcomeOf({ ending: "open", money: open("-0.40") })).toBe("open_even");
+    expect(outcomeOf({ ending: "open", money: open("0.5") })).toBe("open_even");
+    expect(outcomeOf({ ending: "open", money: open("-3") })).toBe("open_behind");
     expect(outcomeOf({ ending: "trailing_stopped", money: money("5") })).toBe("stopped");
     expect(outcomeOf({ ending: "removed", money: money("0.01") })).toBe("beat");
     expect(outcomeOf({ ending: "overdue", money: money("-3") })).toBe("lagged");

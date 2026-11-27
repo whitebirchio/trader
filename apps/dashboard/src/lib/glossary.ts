@@ -80,6 +80,10 @@ export const GLOSSARY = {
     term: "Forecast",
     text: "The routine's honest chance that a stock beats VTI by a date, scored later against what happened. About 45% of stocks beat VTI over a few months, so anything above 50% is a real claim.",
   },
+  openVsVti: {
+    term: "Open: ahead, even or behind",
+    text: "Where a bet still held stands now against the same dollars in VTI over the same days. Within half a point either way counts as even, so a few cents don't swing it. \"Not scored yet\" means there aren't the closes to compare yet.",
+  },
   leadSignal: {
     term: "Lead signal",
     text: "The kind of evidence that surfaced a bet and carries the case: insider buying, a fund manager's filing (13F), fundamentals, and so on. History groups results by it, to see which kinds have worked.",

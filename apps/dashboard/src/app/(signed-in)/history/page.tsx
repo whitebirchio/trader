@@ -87,6 +87,9 @@ export default async function HistoryPage() {
 
       {signal.links.length > 0 && (
         <Card title="Which kinds of evidence have worked">
+          <p className="-mt-2 mb-2 text-xs text-[var(--muted)]">
+            Closed bets by how they ended; open ones by where they stand against VTI now. <Info term="openVsVti" />
+          </p>
           <SankeyChart data={signal} unit="count" label={`${signal.total} theses, from each lead signal to how it turned out`} />
         </Card>
       )}
