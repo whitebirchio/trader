@@ -12,7 +12,7 @@
 import Big from "big.js";
 import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { brokerActivities, equitySnapshots, positionSnapshots } from "../db/schema.js";
+import { brokerActivities, equitySnapshots, positionSnapshots, positions as heldPositions } from "../db/schema.js";
 import { dayValues } from "../portfolio/position-history.js";
 import { loadIndexInputs } from "../risk/gate.js";
 
@@ -29,6 +29,8 @@ export interface PositionPnl {
   atStake: string;
   /** pnl against atStake, %; null with nothing at stake. */
   returnPct: string | null;
+  /** Held now (in the latest broker sync), whatever the range. */
+  held: boolean;
 }
 
 export type PositionsPnl =
@@ -62,6 +64,7 @@ export async function positionsPnl(db: Db, since: string, through: string): Prom
     .where(and(eq(brokerActivities.type, "FILL"), gt(brokerActivities.at, start.recordedAt), lte(brokerActivities.at, end.recordedAt)))
     .orderBy(asc(brokerActivities.at));
   const symbols = new Set([...rows.map((r) => r.symbol), ...fills.map((f) => f.symbol!)]);
+  const heldNow = new Set((await db.select({ symbol: heldPositions.symbol }).from(heldPositions)).map((p) => p.symbol));
   const valueOn = (symbol: string, date: string) => new Big(rows.find((r) => r.symbol === symbol && r.tradingDate === date)?.marketValue ?? "0");
   const positions = [...symbols].map((symbol): PositionPnl => {
     const own = fills.filter((f) => f.symbol === symbol);
@@ -71,7 +74,7 @@ export async function positionsPnl(db: Db, since: string, through: string): Prom
     const b = valueOn(symbol, through);
     const pnl = b.minus(a).minus(bought);
     const atStake = a.plus(grossBought);
-    return { symbol, valueStart: money(a), valueEnd: money(b), netBought: money(bought), pnl: money(pnl), atStake: money(atStake), returnPct: atStake.gt(0) ? pnl.div(atStake).times(100).toFixed(2) : null };
+    return { symbol, valueStart: money(a), valueEnd: money(b), netBought: money(bought), pnl: money(pnl), atStake: money(atStake), returnPct: atStake.gt(0) ? pnl.div(atStake).times(100).toFixed(2) : null, held: heldNow.has(symbol) };
   });
   positions.sort((x, y) => new Big(y.pnl).cmp(x.pnl));
 
