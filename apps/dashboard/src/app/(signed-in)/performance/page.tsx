@@ -108,11 +108,18 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
       <Card title={`Which bets made or lost the money${chosen ? ` · ${chosen.label}` : ""}`}>
         {pnl?.status === "ok" ? (
           <>
-            <p className="mb-2 text-xs text-[var(--muted)]">Dollars made or lost, and the return on what was at stake in the range (the position's value at the start plus anything bought during it).</p>
+            <p className="mb-2 text-xs text-[var(--muted)]">Dollars made or lost, and the return on what was at stake in the range (the position's value at the start plus anything bought during it). <span className="rounded-md bg-[var(--portfolio)] px-1 text-white">Held</span> marks what the account holds now.</p>
             <ul className="mb-3 divide-y divide-[var(--border)] text-sm">
               {pnl.positions.map((p) => (
                 <li key={p.symbol} className="flex justify-between gap-3 py-1.5">
-                  <span>{p.symbol}</span>
+                  <span className="flex items-baseline gap-2">
+                    <span className={p.held ? "font-medium" : "text-[var(--muted)]"}>{p.symbol}</span>
+                    {p.held ? (
+                      <span className="rounded-md bg-[var(--portfolio)] px-1.5 py-0.5 text-xs font-medium text-white">Held</span>
+                    ) : (
+                      <span className="text-xs text-[var(--muted)]">sold</span>
+                    )}
+                  </span>
                   <span>
                     <Signed value={p.pnl}>{formatSignedUsd(p.pnl)}</Signed>
                     <span className="ml-2 inline-block w-16 text-right text-[var(--muted)]">{p.returnPct ? formatPct(p.returnPct) : "—"}</span>

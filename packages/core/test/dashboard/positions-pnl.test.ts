@@ -2,7 +2,7 @@ import Big from "big.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Bar } from "../../src/broker/port.js";
 import type { Db } from "../../src/db/client.js";
-import { benchmarkCloses, brokerActivities, capitalFlows, equitySnapshots } from "../../src/db/schema.js";
+import { benchmarkCloses, brokerActivities, capitalFlows, equitySnapshots, positions } from "../../src/db/schema.js";
 import { performanceView } from "../../src/dashboard/performance.js";
 import { positionsPnl } from "../../src/dashboard/positions-pnl.js";
 import { recordPositionHistory } from "../../src/portfolio/position-history.js";
@@ -46,6 +46,11 @@ beforeEach(async () => {
     DAL: [bar("2026-11-04", "83.00")],
   };
   await recordPositionHistory(db, broker, new Date("2026-11-05T14:00:00Z"));
+  // Held now: VTI and DAL; ICE was sold.
+  await db.insert(positions).values([
+    { symbol: "VTI", qty: "1.5", avgEntryPrice: "300", marketValue: "459", costBasis: "450", currentPrice: "306", syncedAt: new Date("2026-11-05T14:00:00Z") },
+    { symbol: "DAL", qty: "1", avgEntryPrice: "80", marketValue: "83", costBasis: "80", currentPrice: "83", syncedAt: new Date("2026-11-05T14:00:00Z") },
+  ]);
 });
 
 describe("positionsPnl", () => {
@@ -56,9 +61,9 @@ describe("positionsPnl", () => {
     expect(r.positions).toEqual([
       // ICE: 256.20 → 0, sold for 262.50: +6.30. VTI: 602.20 → 459.00, sold 0.5 for 151: +7.80. DAL: bought 80, worth 83: +3.
       // The percentage is on the dollars at stake: the start value plus what was bought in the range.
-      { symbol: "VTI", valueStart: "602.20", valueEnd: "459.00", netBought: "-151.00", pnl: "7.80", atStake: "602.20", returnPct: "1.30" },
-      { symbol: "ICE", valueStart: "256.20", valueEnd: "0.00", netBought: "-262.50", pnl: "6.30", atStake: "256.20", returnPct: "2.46" },
-      { symbol: "DAL", valueStart: "0.00", valueEnd: "83.00", netBought: "80.00", pnl: "3.00", atStake: "80.00", returnPct: "3.75" },
+      { symbol: "VTI", valueStart: "602.20", valueEnd: "459.00", netBought: "-151.00", pnl: "7.80", atStake: "602.20", returnPct: "1.30", held: true },
+      { symbol: "ICE", valueStart: "256.20", valueEnd: "0.00", netBought: "-262.50", pnl: "6.30", atStake: "256.20", returnPct: "2.46", held: false },
+      { symbol: "DAL", valueStart: "0.00", valueEnd: "83.00", netBought: "80.00", pnl: "3.00", atStake: "80.00", returnPct: "3.75", held: true },
     ]);
     // The dividend lands in cashAndOther; after-close pricing moved from −0.20 to +0.30.
     expect(r).toMatchObject({ afterClosePricing: "0.50", cashAndOther: "0.37", total: "17.97" });
