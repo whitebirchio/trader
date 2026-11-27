@@ -31,9 +31,18 @@ export interface IdeaCard {
   filings: { form: string; filedOn: string; summary: string; url: string }[];
 }
 
-/** A scorecard row's result, for the funnel. */
+/** Within this many points of the same dollars in VTI, an open thesis counts as even: cents of noise don't swing it. */
+export const EVEN_WITH_VTI_PTS = "0.5";
+
+/** A scorecard row's result: closed ones by how they ended, open ones by where they stand against VTI now. */
 export function outcomeOf(row: Pick<ScorecardRow, "ending" | "money">): Outcome {
-  if (row.ending === "open") return "open";
+  if (row.ending === "open") {
+    if (!row.money) return "open";
+    const excess = row.money.excessPct;
+    if (compare(excess, EVEN_WITH_VTI_PTS) > 0) return "open_ahead";
+    if (compare(excess, `-${EVEN_WITH_VTI_PTS}`) < 0) return "open_behind";
+    return "open_even";
+  }
   if (row.ending === "stopped" || row.ending === "trailing_stopped") return "stopped";
   return row.money && compare(row.money.excess, "0") >= 0 ? "beat" : "lagged";
 }

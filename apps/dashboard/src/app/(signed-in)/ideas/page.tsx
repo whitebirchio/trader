@@ -121,6 +121,9 @@ export default async function IdeasPage() {
       </Card>
 
       <Card title="How ideas have turned out">
+        <p className="-mt-2 mb-2 text-xs text-[var(--muted)]">
+          Bought ideas end as closed (beat or lagged VTI, or stopped out) or open, split by where they stand against VTI now. <Info term="openVsVti" />
+        </p>
         <SankeyChart data={v.funnel} unit="count" label={`${v.funnel.total} ideas: watched or found directly, through to what happened`} />
       </Card>
     </div>
