@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { add, positionsView } from "@trader/core";
+import { add, marketDate, positionsView } from "@trader/core";
 import { ExitList } from "@/components/exits";
 import { Info } from "@/components/info";
-import { Card, Signed } from "@/components/ui";
+import { Card, PhoneRow, Signed } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
 import { formatPct, formatSignedUsd, formatUsd, shortDate } from "@/lib/format";
 
@@ -21,7 +21,9 @@ function washSales(windows: { symbol: string; loss: string; windowEnds: string }
 /** Positions (SPEC-dashboard Amendment 3): each holding, why we hold it, how it's done, and when it would be sold. */
 export default async function PositionsPage() {
   const { db } = await signedIn();
-  const v = await positionsView(db, new Date());
+  const now = new Date();
+  const v = await positionsView(db, now);
+  const today = marketDate(now);
   if (v.cards.length === 0) return <Card title="Positions"><p className="text-sm text-[var(--muted)]">Nothing held yet.</p></Card>;
   return (
     <div className="grid grid-cols-1 gap-4">
@@ -72,15 +74,22 @@ export default async function PositionsPage() {
       ))}
       {v.washSaleWindows.length > 0 && (
         <Card title="Open wash-sale windows">
-          <p className="-mt-2 mb-2 text-xs text-[var(--muted)]">
-            What they are <Info term="washSale" />
+          <p className="-mt-2 mb-1 text-xs text-[var(--muted)]">
+            Sold at a loss in the last 30 days: buying the stock back before its window ends makes that loss non-deductible. <Info term="washSale" />
           </p>
-          <ul className="grid gap-1 text-sm">
-            {washSales(v.washSaleWindows).map((w) => (
-              <li key={w.symbol}>
-                {w.symbol}: {w.sales === 1 ? "a sale" : `${w.sales} sales`} at a loss ({formatUsd(w.loss)}); buying it back before {shortDate(w.windowEnds)} disallows {w.sales === 1 ? "the loss" : "the latest"}.
-              </li>
-            ))}
+          <ul className="divide-y divide-[var(--border)]">
+            {washSales(v.washSaleWindows).map((w) => {
+              const left = Math.round((Date.parse(`${w.windowEnds}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+              return (
+                <PhoneRow
+                  key={w.symbol}
+                  title={w.symbol}
+                  value={<span className="font-normal">until {shortDate(w.windowEnds)}</span>}
+                  detail={w.sales === 1 ? "1 sale at a loss" : `${w.sales} sales at a loss`}
+                  secondary={`${formatUsd(w.loss)} · ${left <= 0 ? "ends today" : `${left} ${left === 1 ? "day" : "days"} left`}`}
+                />
+              );
+            })}
           </ul>
         </Card>
       )}

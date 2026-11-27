@@ -45,6 +45,8 @@ export interface TodayView {
   /** Today's profit or loss in dollars, and %, net of today's deposits. */
   move: string | null;
   movePct: string | null;
+  /** What the move is measured against: the prior close's equity, plus today's deposits. */
+  base: string | null;
   /** Biggest move first, by size. */
   positions: TodayMove[];
   /** move − the positions' moves. */
@@ -104,12 +106,15 @@ export async function todayView(db: Db): Promise<TodayView | null> {
 
   let move: string | null = null;
   let movePct: string | null = null;
+  let base: string | null = null;
   if (account.lastEquity !== null) {
     const { flows } = await loadIndexInputs(db);
     const added = flows.filter((f) => f.at > since && f.at <= account.syncedAt).reduce((s, f) => s.plus(f.amount), new Big(0));
     const m = new Big(account.equity).minus(account.lastEquity).minus(added);
     move = m.toFixed(2);
-    movePct = pctOf(m, new Big(account.lastEquity).plus(added.gt(0) ? added : 0));
+    const b = new Big(account.lastEquity).plus(added.gt(0) ? added : 0);
+    movePct = pctOf(m, b);
+    base = b.toFixed(2);
   }
   const other = move === null ? null : new Big(move).minus(moves.reduce((s, p) => s.plus(p.move), new Big(0))).toFixed(2);
 
@@ -125,6 +130,7 @@ export async function todayView(db: Db): Promise<TodayView | null> {
     equity: account.equity,
     move,
     movePct,
+    base,
     positions: moves,
     other,
     events: events.map((e) => ({ at: e.at.toISOString(), kind: e.kind, symbol: e.subject, payload: e.payload })),

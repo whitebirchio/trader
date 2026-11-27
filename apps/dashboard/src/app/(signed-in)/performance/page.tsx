@@ -108,11 +108,15 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
       <Card title={`Which bets made or lost the money${chosen ? ` · ${chosen.label}` : ""}`}>
         {pnl?.status === "ok" ? (
           <>
+            <p className="mb-2 text-xs text-[var(--muted)]">Dollars made or lost, and the return on what was at stake in the range (the position's value at the start plus anything bought during it).</p>
             <ul className="mb-3 divide-y divide-[var(--border)] text-sm">
               {pnl.positions.map((p) => (
                 <li key={p.symbol} className="flex justify-between gap-3 py-1.5">
                   <span>{p.symbol}</span>
-                  <Signed value={p.pnl}>{formatSignedUsd(p.pnl)}</Signed>
+                  <span>
+                    <Signed value={p.pnl}>{formatSignedUsd(p.pnl)}</Signed>
+                    <span className="ml-2 inline-block w-16 text-right text-[var(--muted)]">{p.returnPct ? formatPct(p.returnPct) : "—"}</span>
+                  </span>
                 </li>
               ))}
               <li className="flex justify-between gap-3 py-1.5 text-[var(--muted)]">

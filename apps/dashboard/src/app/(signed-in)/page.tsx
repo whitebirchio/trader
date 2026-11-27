@@ -4,7 +4,7 @@ import { Info } from "@/components/info";
 import { SankeyChart } from "@/components/sankey";
 import { Badge, Card, PhoneRow, RowsOnPhone, Signed, Status, TableOnWide } from "@/components/ui";
 import { signedIn } from "@/lib/auth";
-import { formatEt, formatPct, formatSignedUsd, formatUsd, shortDate } from "@/lib/format";
+import { formatEt, formatPct, formatPts, formatSignedUsd, formatUsd, shortDate } from "@/lib/format";
 import { describeEvent } from "@/lib/today-events";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,8 @@ export default async function TodayPage() {
     g.buysPausedToday && "Buys paused today",
     !g.brokerTradingAllowed && `Broker blocked: ${g.brokerBlockedReasons.join("; ")}`,
   ].filter(Boolean) as string[];
-  const events = (t?.events ?? []).map(describeEvent);
+  // Newest first.
+  const events = (t?.events ?? []).map(describeEvent).reverse();
   const headline = (symbol: string) => p.headlines[symbol];
 
   return (
@@ -65,6 +66,75 @@ export default async function TodayPage() {
           </p>
         )}
       </Card>
+
+      {p.vsVti.length > 0 && (
+        <Card title="You vs VTI">
+          <TableOnWide>
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-[var(--muted)]">
+                <tr>
+                  <th className="py-1 pr-3 font-medium">Period</th>
+                  <th className="py-1 pr-3 text-right font-medium">You</th>
+                  <th className="py-1 pr-3 text-right font-medium">VTI, same money</th>
+                  <th className="py-1 text-right font-medium">
+                    Difference <Info term="vsVti" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {p.vsVti.map((r) => (
+                  <tr key={r.label} className="border-t border-[var(--border)]">
+                    <td className="py-1.5 pr-3">{r.range ? <Link href={`/performance?range=${r.range}`}>{r.label}</Link> : r.label}</td>
+                    <td className="py-1.5 pr-3 text-right">
+                      {formatSignedUsd(r.you.usd)}
+                      {r.you.pct && <span className="text-[var(--muted)]"> {formatPct(r.you.pct)}</span>}
+                    </td>
+                    <td className="py-1.5 pr-3 text-right">
+                      {r.vti.usd ? formatSignedUsd(r.vti.usd) : "—"}
+                      {r.vti.pct && <span className="text-[var(--muted)]"> {formatPct(r.vti.pct)}</span>}
+                    </td>
+                    <td className="py-1.5 text-right font-medium">
+                      {r.gap.usd ? (
+                        <Signed value={r.gap.usd}>
+                          {formatSignedUsd(r.gap.usd)} {r.gap.usd.startsWith("-") ? "behind" : "ahead"}
+                        </Signed>
+                      ) : (
+                        "—"
+                      )}
+                      {r.gap.pts && <span className="font-normal text-[var(--muted)]"> {formatPts(r.gap.pts)}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableOnWide>
+          <RowsOnPhone>
+            {p.vsVti.map((r) => (
+              <PhoneRow
+                key={r.label}
+                title={r.range ? <Link href={`/performance?range=${r.range}`}>{r.label}</Link> : r.label}
+                value={
+                  r.gap.usd ? (
+                    <Signed value={r.gap.usd}>
+                      {formatSignedUsd(r.gap.usd)} {r.gap.usd.startsWith("-") ? "behind" : "ahead"}
+                    </Signed>
+                  ) : (
+                    "—"
+                  )
+                }
+                detail={
+                  <>
+                    You {formatSignedUsd(r.you.usd)}
+                    {r.you.pct && <> ({formatPct(r.you.pct)})</>} · VTI {r.vti.usd ? formatSignedUsd(r.vti.usd) : "—"}
+                    {r.vti.pct && <> ({formatPct(r.vti.pct)})</>}
+                  </>
+                }
+                secondary={r.gap.pts ? formatPts(r.gap.pts) : undefined}
+              />
+            ))}
+          </RowsOnPhone>
+        </Card>
+      )}
 
       {t && t.positions.length > 0 && (
         <Card title="Each position today">

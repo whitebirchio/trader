@@ -25,6 +25,10 @@ export interface PositionPnl {
   /** Bought less sold in between, at the fill prices. */
   netBought: string;
   pnl: string;
+  /** The dollars at stake: the value at the start plus everything bought during the range. */
+  atStake: string;
+  /** pnl against atStake, %; null with nothing at stake. */
+  returnPct: string | null;
 }
 
 export type PositionsPnl =
@@ -60,12 +64,14 @@ export async function positionsPnl(db: Db, since: string, through: string): Prom
   const symbols = new Set([...rows.map((r) => r.symbol), ...fills.map((f) => f.symbol!)]);
   const valueOn = (symbol: string, date: string) => new Big(rows.find((r) => r.symbol === symbol && r.tradingDate === date)?.marketValue ?? "0");
   const positions = [...symbols].map((symbol): PositionPnl => {
-    const bought = fills
-      .filter((f) => f.symbol === symbol)
-      .reduce((sum, f) => sum.plus(new Big(f.qty!).times(f.price!).times(f.side === "sell" ? -1 : 1)), new Big(0));
+    const own = fills.filter((f) => f.symbol === symbol);
+    const bought = own.reduce((sum, f) => sum.plus(new Big(f.qty!).times(f.price!).times(f.side === "sell" ? -1 : 1)), new Big(0));
+    const grossBought = own.filter((f) => f.side !== "sell").reduce((sum, f) => sum.plus(new Big(f.qty!).times(f.price!)), new Big(0));
     const a = valueOn(symbol, since);
     const b = valueOn(symbol, through);
-    return { symbol, valueStart: money(a), valueEnd: money(b), netBought: money(bought), pnl: money(b.minus(a).minus(bought)) };
+    const pnl = b.minus(a).minus(bought);
+    const atStake = a.plus(grossBought);
+    return { symbol, valueStart: money(a), valueEnd: money(b), netBought: money(bought), pnl: money(pnl), atStake: money(atStake), returnPct: atStake.gt(0) ? pnl.div(atStake).times(100).toFixed(2) : null };
   });
   positions.sort((x, y) => new Big(y.pnl).cmp(x.pnl));
 
