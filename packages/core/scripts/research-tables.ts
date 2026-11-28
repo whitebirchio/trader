@@ -42,7 +42,8 @@ export function cohortTable<E>(groups: Groups<E>, cohorts: Cohorts<E>): string {
   return lines.join("\n");
 }
 
-export function promotionTable<E>(groups: Groups<E>, cohorts: Cohorts<E>): { table: string; passed: string[] } {
+/** Each bucket against the promotion rule; `minStdErrors` is its in-sample bar (2 unless a study fixed another). */
+export function promotionTable<E>(groups: Groups<E>, cohorts: Cohorts<E>, opts: { minStdErrors?: number } = {}): { table: string; passed: string[] } {
   const unit = cohorts.label.toLowerCase();
   const lines = [`| Bucket | In-sample 60d (${unit}) | Held-out 60d (${unit}) | In-sample 120d | Verdict |`, "|---|---:|---:|---:|---|"];
   const passed: string[] = [];
@@ -50,7 +51,7 @@ export function promotionTable<E>(groups: Groups<E>, cohorts: Cohorts<E>): { tab
     const ins = rows.filter(cohorts.inSample);
     const out = rows.filter((o) => !cohorts.inSample(o));
     const x = { inSample60: cohortStats(ins, cohorts.of, 60), heldOut60: cohortStats(out, cohorts.of, 60), inSample120: cohortStats(ins, cohorts.of, 120) };
-    const verdict = promotion(x);
+    const verdict = promotion(x, opts);
     if (verdict.pass) passed.push(label);
     lines.push(
       `| ${label} | ${pct(x.inSample60.mean)} ± ${se(x.inSample60.stdError)} (${x.inSample60.cohorts}) | ${pct(x.heldOut60.mean)} ± ${se(x.heldOut60.stdError)} (${x.heldOut60.cohorts}) | ${pct(x.inSample120.mean)} | ${verdict.pass ? "**passes**" : `fails: ${verdict.failed.join(", ")}`} |`,

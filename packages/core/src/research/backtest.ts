@@ -193,14 +193,17 @@ export interface PromotionInput {
   inSample120: CohortStats;
 }
 
-export type PromotionTest = "in-sample 60d" | "held-out 60d" | "in-sample 2 SE" | "120d reverses";
+/** Why a bucket failed; the SE test names its bar ("in-sample 2 SE", or 3 for the signal-combination study, #140). */
+export type PromotionTest = "in-sample 60d" | "held-out 60d" | `in-sample ${number} SE` | "120d reverses";
 
 /**
  * A bucket passes if, after a round trip's cost, its 60-day mean beats VTI
- * in-sample and held out, the in-sample mean is at least 2 standard errors
- * above zero, and the 120-day in-sample mean doesn't reverse it.
+ * in-sample and held out, the in-sample mean is at least `minStdErrors`
+ * standard errors above zero (2 by default; #140 fixed 3 before its run),
+ * and the 120-day in-sample mean doesn't reverse it.
  */
-export function promotion(x: PromotionInput): { pass: boolean; failed: PromotionTest[] } {
+export function promotion(x: PromotionInput, opts: { minStdErrors?: number } = {}): { pass: boolean; failed: PromotionTest[] } {
+  const bar = opts.minStdErrors ?? PROMOTION.minStdErrors;
   const net = (s: CohortStats) => (s.mean === null ? null : s.mean - PROMOTION.roundTrip);
   const failed: PromotionTest[] = [];
   const in60 = net(x.inSample60);
@@ -208,7 +211,7 @@ export function promotion(x: PromotionInput): { pass: boolean; failed: Promotion
   const in120 = net(x.inSample120);
   if (in60 === null || in60 <= 0) failed.push("in-sample 60d");
   if (out60 === null || out60 <= 0) failed.push("held-out 60d");
-  if (in60 === null || x.inSample60.stdError === null || x.inSample60.cohorts < 2 || in60 < PROMOTION.minStdErrors * x.inSample60.stdError) failed.push("in-sample 2 SE");
+  if (in60 === null || x.inSample60.stdError === null || x.inSample60.cohorts < 2 || in60 < bar * x.inSample60.stdError) failed.push(`in-sample ${bar} SE`);
   if (in120 === null || in120 <= 0) failed.push("120d reverses");
   return { pass: failed.length === 0, failed };
 }
