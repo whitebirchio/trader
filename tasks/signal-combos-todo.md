@@ -69,7 +69,7 @@ Plan: [signal-combos-plan.md](signal-combos-plan.md). Spec: [signal-combos-spec.
 - **Depends on:** T1, T2, T3 · **Scope:** M
 
 ### T5: The full run, the summary and the README
-- [ ] **What:** run 2019–2026 and spot-check five events (one per event signal, plus a pair) against their source studies' event files and sec.gov. Write the summary above the tables (bottom line, what it means for Trader, caveats), and add a row to `docs/research/README.md`.
+- [x] *(2026-11-28: run 2019–2026; six spot checks match their source studies and an independent recomputation, and the 13D also matches sec.gov. Nothing passes.)* **What:** run 2019–2026 and spot-check five events (one per event signal, plus a pair) against their source studies' event files and sec.gov. Write the summary above the tables (bottom line, what it means for Trader, caveats), and add a row to `docs/research/README.md`.
 - **Acceptance:** spec success criteria 1–4.
 - **Verify:** the spot checks; the gate.
 - **Files:** `docs/research/signal-combos-vs-vti-2026-11.md`, `docs/research/README.md`, this file.
