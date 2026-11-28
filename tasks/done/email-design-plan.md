@@ -1,6 +1,6 @@
 # Plan: email design
 
-Spec: [SPEC-notifications.md § Email design](../SPEC-notifications.md#email-design-2026-11-15) (approved 2026-11-15). Branch per PR, each cut from main.
+Spec: [SPEC-notifications.md § Email design](../../SPEC-notifications.md#email-design-2026-11-15) (approved 2026-11-15). Branch per PR, each cut from main.
 
 ## PR 1: the layout, every urgent email, the strategy email
 

@@ -144,7 +144,7 @@ apps/engine/src/mailer.ts → CloudflareMailer over env.EMAIL
 
 ## Email design (2026-11-15)
 
-> **Status: Approved** (Scott, 2026-11-15), with the open questions resolved below. **PR 1 built** (#131: the layout, every urgent email, the strategy email). **PR 2 built** (2026-11-19: the digest and the weekly letter). Prompted by the v21 "New strategy" email (2026-11-13): one 1,000-character bullet, then double bullets. Plan: [tasks/email-design-plan.md](tasks/email-design-plan.md).
+> **Status: Approved** (Scott, 2026-11-15), with the open questions resolved below. **PR 1 built** (#131: the layout, every urgent email, the strategy email). **PR 2 built** (2026-11-19: the digest and the weekly letter). **Done** (2026-11-27): Scott signed off on the letter in its new layout. Prompted by the v21 "New strategy" email (2026-11-13): one 1,000-character bullet, then double bullets. Plan: [tasks/done/email-design-plan.md](tasks/done/email-design-plan.md).
 
 ### Objective
 
