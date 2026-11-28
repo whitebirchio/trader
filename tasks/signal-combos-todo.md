@@ -10,7 +10,7 @@ Plan: [signal-combos-plan.md](signal-combos-plan.md). Spec: [signal-combos-spec.
 - **Depends on:** none · **Scope:** S
 
 ### T2: The timeline, the groupings and the slope (pure)
-- [ ] **What:** `src/research/combos.ts`:
+- [x] **What:** `src/research/combos.ts`:
   - `SignalTimeline` and `activeSignals(timeline, symbol, date, except)`: events within 90 days, states as of the date;
   - `firstAnchors` (one per stock per 90 days);
   - `pairEntries` (the later signal's public date);
