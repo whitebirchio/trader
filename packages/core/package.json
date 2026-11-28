@@ -35,6 +35,7 @@
     "scorecard:show": "tsx scripts/scorecard-show.ts",
     "events:status": "tsx scripts/events-status.ts",
     "research:insiders": "tsx scripts/research-insiders.ts",
+    "research:combos": "tsx scripts/research-combos.ts",
     "research:earnings": "tsx scripts/research-earnings.ts",
     "research:momentum": "tsx scripts/research-momentum.ts",
     "research:quality": "tsx scripts/research-quality.ts",

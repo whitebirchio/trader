@@ -28,7 +28,13 @@ Plan: [signal-combos-plan.md](signal-combos-plan.md). Spec: [signal-combos-spec.
 - **Depends on:** none · **Scope:** M
 
 ### T3: Load the six signals and the screens
-- [ ] **What:** in `scripts/research-combos.ts`, build the timeline from the caches:
+- [x] *(2026-11-28. Counts from 2019 against each source study, which also includes 2018:
+  - insider clusters: 3,365 (the study's 2+ buyers: 3,862);
+  - earnings +5%: 9,994 (10,898);
+  - 13F big new positions: 273 (288);
+  - concentrated 13D/13G: 365 (394).
+
+  All have cached bars. Momentum's top decile is 179–258 stocks a month. Quality ranks 761–1,115 companies an April, exactly the quality study's gross-profitability counts, and is known for 49% of anchors.)* **What:** in `scripts/research-combos.ts`, build the timeline from the caches:
   - **Insider clusters:** `buyers ≥ 2`, public on the last filing.
   - **Earnings:** reactions ≥ +5% (signals) and ≤ −10% (crashes).
   - **13F:** `newTop5`.
