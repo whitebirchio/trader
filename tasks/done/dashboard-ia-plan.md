@@ -1,6 +1,6 @@
 # Implementation Plan: the dashboard's information architecture (SPEC-dashboard Amendment 3)
 
-> **Status: Approved** (Scott, 2026-11-26), as was the spec. Tasks are in [dashboard-ia-todo.md](dashboard-ia-todo.md).
+> **Status: Done** (2026-11-27). Approved by Scott on 2026-11-26, as was the spec. Tasks are in [dashboard-ia-todo.md](dashboard-ia-todo.md).
 
 ## Overview
 

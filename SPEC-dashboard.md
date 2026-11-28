@@ -124,7 +124,20 @@ npm run mobile:check -w trader-dashboard   # Playwright, iPhone 15 profile: ever
 
 ### Amendment 3 (2026-11-26): pages that answer the owner's questions
 
-> **Status: Approved** (Scott, 2026-11-26). Plan and tasks: [tasks/dashboard-ia-plan.md](tasks/dashboard-ia-plan.md), [tasks/dashboard-ia-todo.md](tasks/dashboard-ia-todo.md). Scott, 2026-11-26: "There's a lot of good information on there, but I don't always know what it all means." Decided with Scott the same day:
+> **Status: Built** (2026-11-27). Approved by Scott on 2026-11-26. Shipped in #146–#156, #159 and #160; the plan and tasks are in [tasks/done/dashboard-ia-plan.md](tasks/done/dashboard-ia-plan.md) and [tasks/done/dashboard-ia-todo.md](tasks/done/dashboard-ia-todo.md).
+> - **Verified:**
+>   - `mobile:check` is all clear on every page at 393 and 1280 px, and also checks the old URLs' redirects.
+>   - The position history backfilled in production, and every day reconciles.
+>   - Pre-market and after-hours prices are recorded from the first trading day after the job shipped.
+>   - Scott checked the pages: "Everything looks good for now".
+> - **Polish after his first look (#156, #159, #160):**
+>   - a "You vs VTI" card on Today, with events newest first;
+>   - each bet's return % on Performance, with held bets badged;
+>   - the wash-sale windows as a list;
+>   - an Invested section on Ideas;
+>   - open bets split into ahead of, even with and behind VTI.
+>
+> Scott, 2026-11-26: "There's a lot of good information on there, but I don't always know what it all means." Decided with Scott the same day:
 > - regroup the pages by the question each answers;
 > - a new one-line **headline** on every thesis and watchlist name;
 > - a structured **exit list** on every thesis;

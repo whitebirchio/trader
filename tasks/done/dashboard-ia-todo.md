@@ -26,7 +26,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** T1 · **Scope:** M
 
 ### Checkpoint A (after PR 1 merges)
-- [ ] The next two runs leave every held thesis with `headline` and `exitIf`, and every open watchlist name with a headline (`get_strategy`, `get_watchlist`). If not: Risk 3's switch.
+- [x] *(2026-11-27: every held thesis has both from the first run; the watchlist was part-filled, and the dashboard marks a missing headline "(summary)" until a run writes one.)* The next two runs leave every held thesis with `headline` and `exitIf`, and every open watchlist name with a headline (`get_strategy`, `get_watchlist`). If not: Risk 3's switch.
 
 ## PR 2: the data (tables and read models; no page changes)
 
@@ -153,8 +153,8 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** T6, T7, T8, T11 · **Scope:** M
 
 ### Checkpoint C (after PR 3)
-- [ ] `mobile:check` passes at 393 and 1280 px.
-- [ ] Scott checks Today and Performance on his phone, including an after-hours line in the evening.
+- [x] `mobile:check` passes at 393 and 1280 px.
+- [x] Scott checks Today and Performance on his phone, including an after-hours line in the evening.
 
 ## PR 4: Positions and exits
 
@@ -215,7 +215,7 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** T11, T12, T14, T15, T16 · **Scope:** M
 
 ### T19: Close-out
-- [ ] **What:** the remaining close-out items:
+- [x] **What:** the remaining close-out items:
   - the spec's Amendment 3 status becomes Built, with what was verified;
   - SPEC-dashboard's page table is updated;
   - `docs/SETUP.md` gets the backfill and the job;
@@ -226,5 +226,5 @@ Plan: [dashboard-ia-plan.md](dashboard-ia-plan.md). Gate before every commit: `n
 - **Depends on:** T18 · **Scope:** S
 
 ### Checkpoint D (complete)
-- [ ] Scott answers each of his eight questions from the phone without help.
-- [ ] Every Amendment 3 success criterion is met.
+- [x] Scott answers each of his eight questions from the phone without help. *(2026-11-27: "Everything looks good for now", after a round of polish: #156, #159, #160.)*
+- [x] Every Amendment 3 success criterion is met.
