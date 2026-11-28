@@ -59,4 +59,12 @@ describe("promotion", () => {
     expect(promotion({ ...pass, heldOut60: s(null) }).failed).toEqual(["held-out 60d"]);
     expect(promotion({ ...pass, inSample60: s(0.02, 0, 1) }).failed).toEqual(["in-sample 2 SE"]); // one cohort can't show significance
   });
+
+  it("takes a stricter bar when a study fixed one (#140: 3 SE), naming it, and defaults to 2 as before", () => {
+    // After the 0.2% round trip: 0.010 net is 2.5 SE of 0.004; 0.0124 net is 3.1 SE.
+    expect(promotion({ ...pass, inSample60: s(0.012, 0.004) }, { minStdErrors: 3 }).failed).toEqual(["in-sample 3 SE"]);
+    expect(promotion({ ...pass, inSample60: s(0.0144, 0.004) }, { minStdErrors: 3 })).toEqual({ pass: true, failed: [] });
+    expect(promotion({ ...pass, inSample60: s(0.012, 0.004) })).toEqual({ pass: true, failed: [] }); // 2.5 SE clears the default 2
+    expect(promotion({ ...pass, inSample60: s(0.0015) }).failed).toContain("in-sample 2 SE"); // the default keeps the old wording, so earlier reports read the same
+  });
 });

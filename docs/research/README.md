@@ -14,6 +14,7 @@ Event studies over 2018–2026, on the stocks risk would let Trader buy. A scrip
 | [Quality and value vs VTI](quality-value-vs-vti-2026-11.md) | #49 | Nothing passes the promotion rule. |
 | [13F best ideas vs VTI](13f-best-ideas-vs-vti-2026-11.md) | #138 | Nothing passes. Managers' largest holdings trailed VTI; a big new position came closest. The 45-day lag costs little. |
 | [13D and 13G stakes vs VTI](13d-13g-stakes-vs-vti-2026-11.md) | #138 | Nothing passes. A concentrated manager's 13D pops for about a month, then trails VTI; other 13Ds and 13Gs trailed it. |
+| [Signal combinations vs VTI](signal-combos-vs-vti-2026-11.md) | #140 | Nothing passes a 3-SE bar. Agreement leans slightly better than a lone signal, which trailed VTI; insider-plus-fund pairs are rare and noisy. |
 
 ## Replays: does an idea survive Trader's rules?
 
