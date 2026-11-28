@@ -52,7 +52,7 @@ Plan: [signal-combos-plan.md](signal-combos-plan.md). Spec: [signal-combos-spec.
 - [ ] Counts, bar coverage and quality coverage read. Nothing is far off its source study.
 
 ### T4: Score the five tests and write the report
-- [ ] **What:** score each test's anchors with `outcomeAfter` at its own entry. Group them as the spec says. Write the report with `research-tables.ts`:
+- [x] **What:** score each test's anchors with `outcomeAfter` at its own entry. Group them as the spec says. Write the report with `research-tables.ts`:
   - the rule, stated first;
   - each test's promotion table at 3 SE;
   - cohort and event tables;

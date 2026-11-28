@@ -53,7 +53,9 @@ Every buy signal tested alone has failed to beat VTI in the stocks Trader can bu
    - **A dip:** after a 20%+ drop in the prior 60 days (the pattern that failed in #29).
 
    It passes if the strength group passes the promotion rule. Whether it beats the dip group is reported.
-4. **Informed buyer plus quality:** an insider cluster, 13F big new position or concentrated 13D/13G in a stock in the top 30% by gross profitability. Compared with the same events outside it.
+   - *(Settled 2026-11-28, before any result.)* The groups don't overlap. A 20%+ drop puts an event in the dip group; otherwise strength qualifies it; anything else is "neither", reported.
+4. **Informed buyer plus quality:** an insider cluster, 13F big new position or concentrated 13D/13G in a stock in the top 30% by gross profitability. Compared with the same events in a stock known to be in the bottom 70%.
+   - *(Settled 2026-11-28, at the data checkpoint, before any result.)* Quality is known for only about half the events: smaller companies often lack the SEC figures. So events without quality data are their own reported row, not part of the comparison. In the signal count (test 1), no data means the quality signal isn't active.
 5. **Every signal with the warning screens applied:** each event signal again, without recent big losers and fresh earnings crashes. Compared with the unscreened version in its own study. This tests whether the edge is in avoiding bad trades.
 
 A sixth idea that comes up while reading the results goes in a later issue, with its own held-out period.
